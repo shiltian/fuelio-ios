@@ -155,7 +155,7 @@ struct MPGChart: View {
             }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day().year(.twoDigits))
                 }
             }
         }
@@ -217,7 +217,7 @@ struct CostChart: View {
             }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day().year(.twoDigits))
                 }
             }
         }
@@ -298,7 +298,7 @@ struct PricePerGallonChart: View {
             }
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4)) { value in
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day().year(.twoDigits))
                 }
             }
         }
