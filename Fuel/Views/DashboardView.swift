@@ -180,7 +180,7 @@ struct LastFillUpCard: View {
                     .frame(height: 40)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    if previousMiles > 0 {
+                    if previousMiles > 0 && !record.isPartialFillUp {
                         Text("\(record.mpg(previousMiles: previousMiles).formatted(.number.precision(.fractionLength(1)))) MPG")
                             .font(.custom("Avenir Next", size: 18))
                             .fontWeight(.semibold)
@@ -192,7 +192,7 @@ struct LastFillUpCard: View {
                             .font(.custom("Avenir Next", size: 18))
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
-                        Text("Baseline")
+                        Text(previousMiles > 0 ? "Partial" : "Baseline")
                             .font(.custom("Avenir Next", size: 12))
                             .foregroundColor(.secondary)
                     }

@@ -39,8 +39,8 @@ struct FuelingSummaryPopup: View {
 
             // Stats Cards
             VStack(spacing: 16) {
-                // MPG Card - Hero Stat (only show if we have valid previous record)
-                if previousMiles > 0 {
+                // MPG Card - Hero Stat (only show for full fill-ups with valid previous record)
+                if previousMiles > 0 && !record.isPartialFillUp {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Gas Mileage")

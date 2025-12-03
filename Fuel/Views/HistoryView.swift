@@ -172,7 +172,8 @@ struct FuelingRecordRow: View {
                     color: .orange
                 )
 
-                if previousMiles > 0 {
+                // Only show MPG for full fill-ups with valid previous record
+                if previousMiles > 0 && !record.isPartialFillUp {
                     DetailChip(
                         icon: "gauge",
                         value: "\(record.mpg(previousMiles: previousMiles).formatted(.number.precision(.fractionLength(1)))) MPG",
