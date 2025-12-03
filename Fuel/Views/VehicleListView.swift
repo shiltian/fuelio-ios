@@ -137,6 +137,7 @@ struct VehicleDetailView: View {
     @State private var lastAddedRecord: FuelingRecord?
     @State private var lastAddedRecordPreviousMiles: Double = 0
     @State private var showingClearHistoryAlert = false
+    @State private var showingClearHistoryConfirmation = false
     @State private var showingClearHistorySuccess = false
 
     private var recordCount: Int {
@@ -218,13 +219,21 @@ struct VehicleDetailView: View {
         .sheet(isPresented: $showingImportPicker) {
             ImportCSVView(vehicle: vehicle)
         }
-        .alert("Clear Fueling History", isPresented: $showingClearHistoryAlert) {
+        .alert("Clear Fueling History?", isPresented: $showingClearHistoryAlert) {
             Button("Cancel", role: .cancel) { }
-            Button("Delete All Records", role: .destructive) {
+            Button("Delete", role: .destructive) {
+                showingClearHistoryConfirmation = true
+            }
+        } message: {
+            Text("This will delete all \(recordCount) fueling record(s) for this vehicle. The vehicle itself will be kept.")
+        }
+        .alert("Are You Sure?", isPresented: $showingClearHistoryConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Yes, Delete All Records", role: .destructive) {
                 clearFuelingHistory()
             }
         } message: {
-            Text("Are you sure you want to delete all \(recordCount) fueling record(s) for this vehicle? The vehicle itself will be kept. This action cannot be undone.")
+            Text("This action cannot be undone. All fueling history for this vehicle will be permanently deleted.")
         }
         .alert("History Cleared", isPresented: $showingClearHistorySuccess) {
             Button("OK") { }

@@ -9,7 +9,7 @@ struct SettingsView: View {
     @Query private var records: [FuelingRecord]
 
     @State private var showingDeleteAllAlert = false
-    @State private var deleteConfirmationText = ""
+    @State private var showingDeleteAllConfirmation = false
     @State private var showingDeleteSuccess = false
 
     // App info
@@ -73,21 +73,21 @@ struct SettingsView: View {
                     }
                 }
             }
-            .alert("Delete All Data", isPresented: $showingDeleteAllAlert) {
-                TextField("Type DELETE to confirm", text: $deleteConfirmationText)
-                    .textInputAutocapitalization(.characters)
-                Button("Cancel", role: .cancel) {
-                    deleteConfirmationText = ""
+            .alert("Delete All Data?", isPresented: $showingDeleteAllAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Delete", role: .destructive) {
+                    showingDeleteAllConfirmation = true
                 }
-                Button("Delete Everything", role: .destructive) {
-                    if deleteConfirmationText == "DELETE" {
-                        deleteAllData()
-                    }
-                    deleteConfirmationText = ""
-                }
-                .disabled(deleteConfirmationText != "DELETE")
             } message: {
-                Text("This will permanently delete \(vehicles.count) vehicle(s) and \(records.count) fueling record(s).\n\nType DELETE to confirm.")
+                Text("This will permanently delete \(vehicles.count) vehicle(s) and \(records.count) fueling record(s).")
+            }
+            .alert("Are You Sure?", isPresented: $showingDeleteAllConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Yes, Delete Everything", role: .destructive) {
+                    deleteAllData()
+                }
+            } message: {
+                Text("This action cannot be undone. All your data will be permanently deleted.")
             }
             .alert("Data Deleted", isPresented: $showingDeleteSuccess) {
                 Button("OK") {
