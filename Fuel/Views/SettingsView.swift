@@ -21,10 +21,6 @@ struct SettingsView: View {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
     }
 
-    private var bundleIdentifier: String {
-        Bundle.main.bundleIdentifier ?? "Unknown"
-    }
-
     var body: some View {
         NavigationStack {
             List {
@@ -32,7 +28,6 @@ struct SettingsView: View {
                 Section {
                     InfoRow(label: "Version", value: appVersion)
                     InfoRow(label: "Build", value: buildNumber)
-                    InfoRow(label: "Bundle ID", value: bundleIdentifier)
                 } header: {
                     Text("App Information")
                         .font(.custom("Avenir Next", size: 12))
