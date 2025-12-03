@@ -35,16 +35,14 @@ class StatisticsViewModel {
     // MARK: - Averages
 
     var averageMPG: Double {
-        let fullFillUps = records.filter { !$0.isPartialFillUp }
-        guard !fullFillUps.isEmpty else {
-            guard totalGallons > 0 else { return 0 }
-            return totalMiles / totalGallons
-        }
+        // Exclude partial fill-ups and initial records (baseline records have no valid MPG)
+        let validRecords = records.filter { !$0.isPartialFillUp && !$0.isInitialRecord }
+        guard !validRecords.isEmpty else { return 0 }
 
-        let fullMiles = fullFillUps.reduce(0) { $0 + $1.milesDriven }
-        let fullGallons = fullFillUps.reduce(0) { $0 + $1.gallons }
-        guard fullGallons > 0 else { return 0 }
-        return fullMiles / fullGallons
+        let totalValidMiles = validRecords.reduce(0) { $0 + $1.milesDriven }
+        let totalValidGallons = validRecords.reduce(0) { $0 + $1.gallons }
+        guard totalValidGallons > 0 else { return 0 }
+        return totalValidMiles / totalValidGallons
     }
 
     var averageCostPerMile: Double {
@@ -95,11 +93,11 @@ class StatisticsViewModel {
     // MARK: - Best/Worst Statistics
 
     var bestMPG: Double? {
-        records.filter { !$0.isPartialFillUp }.max(by: { $0.mpg < $1.mpg })?.mpg
+        records.filter { !$0.isPartialFillUp && !$0.isInitialRecord }.max(by: { $0.mpg < $1.mpg })?.mpg
     }
 
     var worstMPG: Double? {
-        records.filter { !$0.isPartialFillUp }.min(by: { $0.mpg < $1.mpg })?.mpg
+        records.filter { !$0.isPartialFillUp && !$0.isInitialRecord }.min(by: { $0.mpg < $1.mpg })?.mpg
     }
 
     var highestPricePerGallon: Double? {
@@ -122,7 +120,7 @@ class StatisticsViewModel {
 
     /// Calculate the trend in MPG over the last N records
     func mpgTrend(lastN: Int = 5) -> TrendDirection {
-        let recentRecords = Array(records.filter { !$0.isPartialFillUp }.prefix(lastN))
+        let recentRecords = Array(records.filter { !$0.isPartialFillUp && !$0.isInitialRecord }.prefix(lastN))
         guard recentRecords.count >= 2 else { return .stable }
 
         let recentAvg = recentRecords.reduce(0) { $0 + $1.mpg } / Double(recentRecords.count)
@@ -198,7 +196,7 @@ class StatisticsViewModel {
     }
 
     func mpgChartData() -> [ChartDataPoint] {
-        records.filter { !$0.isPartialFillUp }
+        records.filter { !$0.isPartialFillUp && !$0.isInitialRecord }
             .sorted { $0.date < $1.date }
             .map { ChartDataPoint(date: $0.date, value: $0.mpg, label: "\($0.mpg.formatted(decimals: 1)) MPG") }
     }

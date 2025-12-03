@@ -39,6 +39,11 @@ struct AddRecordView: View {
         vehicle.lastRecord?.currentMiles ?? 0
     }
 
+    // Check if this is the first record (no previous records exist)
+    private var isFirstRecord: Bool {
+        vehicle.lastRecord == nil
+    }
+
     // Parsed values
     private var currentMiles: Double? {
         Double(currentMilesString)
@@ -197,7 +202,21 @@ struct AddRecordView: View {
                 }
 
                 // Preview Section
-                if previewMPG != nil || previewCostPerMile != nil {
+                if isFirstRecord {
+                    // Show notice for first record instead of MPG preview
+                    Section {
+                        HStack {
+                            Image(systemName: "info.circle.fill")
+                                .foregroundColor(.blue)
+                            Text("This is your first fill-up. It sets your baseline odometer. MPG will be calculated from your next fill-up.")
+                                .font(.custom("Avenir Next", size: 14))
+                                .foregroundColor(.secondary)
+                        }
+                    } header: {
+                        Text("Note")
+                            .font(.custom("Avenir Next", size: 12))
+                    }
+                } else if previewMPG != nil || previewCostPerMile != nil {
                     Section {
                         if let mpg = previewMPG {
                             HStack {
@@ -373,6 +392,7 @@ struct AddRecordView: View {
             gallons: gal,
             totalCost: cost,
             isPartialFillUp: isPartialFillUp,
+            isInitialRecord: isFirstRecord,  // First record sets baseline, MPG won't be calculated
             notes: notes.isEmpty ? nil : notes
         )
 

@@ -11,6 +11,7 @@ final class FuelingRecord {
     var gallons: Double
     var totalCost: Double
     var isPartialFillUp: Bool
+    var isInitialRecord: Bool  // First record sets baseline odometer, MPG not calculated
     var notes: String?
     var createdAt: Date
 
@@ -25,6 +26,7 @@ final class FuelingRecord {
         gallons: Double,
         totalCost: Double,
         isPartialFillUp: Bool = false,
+        isInitialRecord: Bool = false,
         notes: String? = nil,
         createdAt: Date = Date()
     ) {
@@ -36,6 +38,7 @@ final class FuelingRecord {
         self.gallons = gallons
         self.totalCost = totalCost
         self.isPartialFillUp = isPartialFillUp
+        self.isInitialRecord = isInitialRecord
         self.notes = notes
         self.createdAt = createdAt
     }
@@ -48,7 +51,9 @@ final class FuelingRecord {
     }
 
     /// Miles per gallon for this fill-up
+    /// Returns 0 for initial records since they only set the baseline odometer
     var mpg: Double {
+        guard !isInitialRecord else { return 0 }
         guard gallons > 0 else { return 0 }
         return milesDriven / gallons
     }

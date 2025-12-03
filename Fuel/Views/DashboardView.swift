@@ -178,12 +178,22 @@ struct LastFillUpCard: View {
                     .frame(height: 40)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(record.mpg.formatted(.number.precision(.fractionLength(1)))) MPG")
-                        .font(.custom("Avenir Next", size: 18))
-                        .fontWeight(.semibold)
-                    Text("Efficiency")
-                        .font(.custom("Avenir Next", size: 12))
-                        .foregroundColor(.secondary)
+                    if record.isInitialRecord {
+                        Text("Baseline")
+                            .font(.custom("Avenir Next", size: 18))
+                            .fontWeight(.semibold)
+                            .foregroundColor(.blue)
+                        Text("First Record")
+                            .font(.custom("Avenir Next", size: 12))
+                            .foregroundColor(.secondary)
+                    } else {
+                        Text("\(record.mpg.formatted(.number.precision(.fractionLength(1)))) MPG")
+                            .font(.custom("Avenir Next", size: 18))
+                            .fontWeight(.semibold)
+                        Text("Efficiency")
+                            .font(.custom("Avenir Next", size: 12))
+                            .foregroundColor(.secondary)
+                    }
                 }
 
                 Spacer()
@@ -244,18 +254,14 @@ struct VehicleStatistics {
     }
 
     var averageMPG: Double {
-        // Only calculate from full fill-ups for accuracy
-        let fullFillUps = records.filter { !$0.isPartialFillUp }
-        guard !fullFillUps.isEmpty else {
-            // Fallback to all records if no full fill-ups
-            guard totalGallons > 0 else { return 0 }
-            return totalMiles / totalGallons
-        }
+        // Exclude partial fill-ups and initial records (baseline records have no valid MPG)
+        let validRecords = records.filter { !$0.isPartialFillUp && !$0.isInitialRecord }
+        guard !validRecords.isEmpty else { return 0 }
 
-        let fullMiles = fullFillUps.reduce(0) { $0 + $1.milesDriven }
-        let fullGallons = fullFillUps.reduce(0) { $0 + $1.gallons }
-        guard fullGallons > 0 else { return 0 }
-        return fullMiles / fullGallons
+        let totalValidMiles = validRecords.reduce(0) { $0 + $1.milesDriven }
+        let totalValidGallons = validRecords.reduce(0) { $0 + $1.gallons }
+        guard totalValidGallons > 0 else { return 0 }
+        return totalValidMiles / totalValidGallons
     }
 
     var averageCostPerMile: Double {
