@@ -134,34 +134,26 @@ struct AddRecordView: View {
                         Spacer()
                         Text("$")
                             .foregroundColor(.secondary)
-                        DecimalInputField(
-                            placeholder: "0.000",
-                            text: $pricePerGallonString,
-                            decimalPlaces: 3,
-                            focusedField: $focusedField,
-                            equals: .pricePerGallon,
-                            onValueChanged: { fieldEdited(.pricePerGallon) }
-                        )
-                        .font(.custom("Avenir Next", size: 16))
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 100)
+                        TextField("0.000", text: $pricePerGallonString)
+                            .font(.custom("Avenir Next", size: 16))
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                            .focused($focusedField, equals: .pricePerGallon)
+                            .onChange(of: pricePerGallonString) { _, _ in fieldEdited(.pricePerGallon) }
                     }
 
                     HStack {
                         Text("Gallons")
                             .font(.custom("Avenir Next", size: 16))
                         Spacer()
-                        DecimalInputField(
-                            placeholder: "0.000",
-                            text: $gallonsString,
-                            decimalPlaces: 3,
-                            focusedField: $focusedField,
-                            equals: .gallons,
-                            onValueChanged: { fieldEdited(.gallons) }
-                        )
-                        .font(.custom("Avenir Next", size: 16))
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 100)
+                        TextField("0.000", text: $gallonsString)
+                            .font(.custom("Avenir Next", size: 16))
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                            .focused($focusedField, equals: .gallons)
+                            .onChange(of: gallonsString) { _, _ in fieldEdited(.gallons) }
                         Text("gal")
                             .foregroundColor(.secondary)
                     }
@@ -172,17 +164,13 @@ struct AddRecordView: View {
                         Spacer()
                         Text("$")
                             .foregroundColor(.secondary)
-                        DecimalInputField(
-                            placeholder: "0.00",
-                            text: $totalCostString,
-                            decimalPlaces: 2,
-                            focusedField: $focusedField,
-                            equals: .totalCost,
-                            onValueChanged: { fieldEdited(.totalCost) }
-                        )
-                        .font(.custom("Avenir Next", size: 16))
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 100)
+                        TextField("0.00", text: $totalCostString)
+                            .font(.custom("Avenir Next", size: 16))
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                            .focused($focusedField, equals: .totalCost)
+                            .onChange(of: totalCostString) { _, _ in fieldEdited(.totalCost) }
                     }
                 } header: {
                     Text("Fuel Details")
@@ -233,8 +221,8 @@ struct AddRecordView: View {
                     Picker("Fill-up Type", selection: $fillUpType) {
                         ForEach(FillUpType.allCases, id: \.self) { type in
                             HStack {
-                                Image(systemName: fillUpTypeIcon(type))
-                                    .foregroundColor(fillUpTypeColor(type))
+                                Image(systemName: type.icon)
+                                    .foregroundColor(type.color)
                                 Text(type.displayName)
                             }
                             .tag(type)
@@ -389,23 +377,6 @@ struct AddRecordView: View {
         dismiss()
     }
 
-    // MARK: - Helper Functions
-
-    private func fillUpTypeIcon(_ type: FillUpType) -> String {
-        switch type {
-        case .full: return "fuelpump.fill"
-        case .partial: return "exclamationmark.triangle.fill"
-        case .reset: return "arrow.counterclockwise.circle.fill"
-        }
-    }
-
-    private func fillUpTypeColor(_ type: FillUpType) -> Color {
-        switch type {
-        case .full: return .green
-        case .partial: return .yellow
-        case .reset: return .red
-        }
-    }
 }
 
 #Preview {

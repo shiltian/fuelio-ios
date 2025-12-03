@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 import SwiftData
 
 /// Represents the type of fill-up for a fueling record
@@ -20,6 +20,22 @@ enum FillUpType: String, Codable, CaseIterable {
         case .full: return "Filled the tank completely"
         case .partial: return "Didn't fill completely (affects next MPG)"
         case .reset: return "Missed recording previous fill-up(s)"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .full: return "fuelpump.fill"
+        case .partial: return "exclamationmark.triangle.fill"
+        case .reset: return "arrow.counterclockwise.circle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .full: return .green
+        case .partial: return .yellow
+        case .reset: return .red
         }
     }
 }
@@ -115,48 +131,6 @@ final class FuelingRecord {
         return totalCost / miles
     }
 
-    // MARK: - Calculated Properties (require previous miles from prior record)
-
-    /// Miles driven since last fill-up (returns 0 if no valid previous record)
-    func milesDriven(previousMiles: Double) -> Double {
-        guard previousMiles > 0 else { return 0 }
-        return currentMiles - previousMiles
-    }
-
-    /// Miles per gallon for this fill-up (returns 0 if no valid previous record)
-    func mpg(previousMiles: Double) -> Double {
-        guard previousMiles > 0 else { return 0 }
-        let miles = currentMiles - previousMiles
-        guard gallons > 0, miles > 0 else { return 0 }
-        return miles / gallons
-    }
-
-    /// Cost per mile for this fill-up (returns 0 if no valid previous record)
-    func costPerMile(previousMiles: Double) -> Double {
-        guard previousMiles > 0 else { return 0 }
-        let miles = currentMiles - previousMiles
-        guard miles > 0 else { return 0 }
-        return totalCost / miles
-    }
-
-    // MARK: - Static Calculation Helpers
-
-    /// Calculate total cost from price per gallon and gallons
-    static func calculateTotalCost(pricePerGallon: Double, gallons: Double) -> Double {
-        return pricePerGallon * gallons
-    }
-
-    /// Calculate gallons from total cost and price per gallon
-    static func calculateGallons(totalCost: Double, pricePerGallon: Double) -> Double {
-        guard pricePerGallon > 0 else { return 0 }
-        return totalCost / pricePerGallon
-    }
-
-    /// Calculate price per gallon from total cost and gallons
-    static func calculatePricePerGallon(totalCost: Double, gallons: Double) -> Double {
-        guard gallons > 0 else { return 0 }
-        return totalCost / gallons
-    }
 }
 
 // MARK: - CSV Export/Import Support

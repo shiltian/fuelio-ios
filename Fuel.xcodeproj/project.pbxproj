@@ -20,7 +20,6 @@
 		A1000013296A0001 /* AddRecordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000014296A0001 /* AddRecordView.swift */; };
 		A1000015296A0001 /* FuelingSummaryPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000016296A0001 /* FuelingSummaryPopup.swift */; };
 		A1000017296A0001 /* CSVService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000018296A0001 /* CSVService.swift */; };
-		A1000019296A0001 /* StatisticsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100001A296A0001 /* StatisticsViewModel.swift */; };
 		A100001B296A0001 /* AddVehicleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100001C296A0001 /* AddVehicleView.swift */; };
 		A100001D296A0001 /* ChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100001E296A0001 /* ChartView.swift */; };
 		A100001F296A0001 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000020296A0001 /* Extensions.swift */; };
@@ -44,7 +43,6 @@
 		A1000014296A0001 /* AddRecordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRecordView.swift; sourceTree = "<group>"; };
 		A1000016296A0001 /* FuelingSummaryPopup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelingSummaryPopup.swift; sourceTree = "<group>"; };
 		A1000018296A0001 /* CSVService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVService.swift; sourceTree = "<group>"; };
-		A100001A296A0001 /* StatisticsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsViewModel.swift; sourceTree = "<group>"; };
 		A100001C296A0001 /* AddVehicleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddVehicleView.swift; sourceTree = "<group>"; };
 		A100001E296A0001 /* ChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartView.swift; sourceTree = "<group>"; };
 		A1000020296A0001 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
@@ -121,7 +119,6 @@
 		A1000004296A0002 /* ViewModels */ = {
 			isa = PBXGroup;
 			children = (
-				A100001A296A0001 /* StatisticsViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -241,7 +238,6 @@
 				A1000015296A0001 /* FuelingSummaryPopup.swift in Sources */,
 				A1000017296A0001 /* CSVService.swift in Sources */,
 				A1000025296A0001 /* StatisticsCacheService.swift in Sources */,
-				A1000019296A0001 /* StatisticsViewModel.swift in Sources */,
 				A100001B296A0001 /* AddVehicleView.swift in Sources */,
 				A100001D296A0001 /* ChartView.swift in Sources */,
 				A100001F296A0001 /* Extensions.swift in Sources */,

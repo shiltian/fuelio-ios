@@ -262,22 +262,6 @@ struct DetailChip: View {
 struct FillUpTypeBadge: View {
     let fillUpType: FillUpType
 
-    private var icon: String {
-        switch fillUpType {
-        case .full: return "fuelpump.fill"
-        case .partial: return "exclamationmark.triangle.fill"
-        case .reset: return "arrow.counterclockwise.circle.fill"
-        }
-    }
-
-    private var color: Color {
-        switch fillUpType {
-        case .full: return .green
-        case .partial: return .yellow
-        case .reset: return .red
-        }
-    }
-
     private var label: String {
         switch fillUpType {
         case .full: return "Full"
@@ -288,15 +272,15 @@ struct FillUpTypeBadge: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: icon)
+            Image(systemName: fillUpType.icon)
                 .font(.caption2)
             Text(label)
                 .font(.custom("Avenir Next", size: 11))
         }
-        .foregroundColor(color)
+        .foregroundColor(fillUpType.color)
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
-        .background(color.opacity(0.15))
+        .background(fillUpType.color.opacity(0.15))
         .clipShape(Capsule())
     }
 }
