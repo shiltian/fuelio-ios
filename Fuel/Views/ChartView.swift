@@ -49,23 +49,50 @@ struct ChartView: View {
 struct MPGChart: View {
     let records: [FuelingRecord]
 
-    private var fullFillUpRecords: [FuelingRecord] {
-        records.filter { !$0.isPartialFillUp }
+    /// Records that can have accurate MPG calculated:
+    /// - Must be a full fill-up
+    /// - Previous record must also be a full fill-up (so we know the tank was full)
+    private var validMPGRecords: [FuelingRecord] {
+        let sortedByDate = records.sorted { $0.date < $1.date }
+        var result: [FuelingRecord] = []
+
+        for (index, record) in sortedByDate.enumerated() {
+            // Skip partial fill-ups
+            guard !record.isPartialFillUp else { continue }
+
+            // Skip if this is the first record (no previous miles to compare)
+            guard index > 0 else { continue }
+
+            // Skip if the previous record was a partial fill-up
+            // (we can't accurately calculate MPG without knowing the tank was full)
+            let previousRecord = sortedByDate[index - 1]
+            guard !previousRecord.isPartialFillUp else { continue }
+
+            result.append(record)
+        }
+
+        return result
     }
 
-    /// Get the previous miles for a given record
+    /// Get the previous miles for a given record (from the previous full fill-up)
     private func previousMiles(for record: FuelingRecord) -> Double {
         let sortedByDate = records.sorted { $0.date < $1.date }
         guard let index = sortedByDate.firstIndex(where: { $0.id == record.id }),
               index > 0 else {
             return 0
         }
-        return sortedByDate[index - 1].currentMiles
+        // Find the previous full fill-up
+        for i in stride(from: index - 1, through: 0, by: -1) {
+            if !sortedByDate[i].isPartialFillUp {
+                return sortedByDate[i].currentMiles
+            }
+        }
+        return 0
     }
 
     private var averageMPG: Double {
-        guard !fullFillUpRecords.isEmpty else { return 0 }
-        return fullFillUpRecords.reduce(0) { $0 + $1.mpg(previousMiles: previousMiles(for: $1)) } / Double(fullFillUpRecords.count)
+        guard !validMPGRecords.isEmpty else { return 0 }
+        return validMPGRecords.reduce(0) { $0 + $1.mpg(previousMiles: previousMiles(for: $1)) } / Double(validMPGRecords.count)
     }
 
     var body: some View {
@@ -83,7 +110,7 @@ struct MPGChart: View {
             }
 
             Chart {
-                ForEach(fullFillUpRecords, id: \.id) { record in
+                ForEach(validMPGRecords, id: \.id) { record in
                     let mpg = record.mpg(previousMiles: previousMiles(for: record))
                     LineMark(
                         x: .value("Date", record.date),
