@@ -42,17 +42,17 @@ enum FillUpType: String, Codable, CaseIterable {
 
 @Model
 final class FuelingRecord {
-    var id: UUID
-    var date: Date
-    var currentMiles: Double
-    var pricePerGallon: Double
-    var gallons: Double
-    var totalCost: Double
-    var fillUpTypeRaw: String  // Stored as String for SwiftData compatibility
+    var id: UUID = UUID()
+    var date: Date = Date()
+    var currentMiles: Double = 0
+    var pricePerGallon: Double = 0
+    var gallons: Double = 0
+    var totalCost: Double = 0
+    var fillUpTypeRaw: String = FillUpType.full.rawValue  // Stored as String for SwiftData compatibility
     var notes: String?
-    var createdAt: Date
+    var createdAt: Date = Date()
 
-    var vehicle: Vehicle?
+    var vehicle: Vehicle
 
     // MARK: - Cached Computed Values (for performance)
     // These are pre-computed and stored to avoid O(n²) lookups
@@ -81,7 +81,8 @@ final class FuelingRecord {
         totalCost: Double,
         fillUpType: FillUpType = .full,
         notes: String? = nil,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        vehicle: Vehicle
     ) {
         self.id = id
         self.date = date
@@ -92,6 +93,35 @@ final class FuelingRecord {
         self.fillUpTypeRaw = fillUpType.rawValue
         self.notes = notes
         self.createdAt = createdAt
+        self.vehicle = vehicle
+    }
+
+    /// Deprecated: prefer init that requires a vehicle. Kept to avoid widespread call-site changes.
+    @available(*, deprecated, message: "Pass vehicle explicitly")
+    convenience init(
+        id: UUID = UUID(),
+        date: Date = Date(),
+        currentMiles: Double,
+        pricePerGallon: Double,
+        gallons: Double,
+        totalCost: Double,
+        fillUpType: FillUpType = .full,
+        notes: String? = nil,
+        createdAt: Date = Date()
+    ) {
+        let placeholderVehicle = Vehicle(name: "Unassigned")
+        self.init(
+            id: id,
+            date: date,
+            currentMiles: currentMiles,
+            pricePerGallon: pricePerGallon,
+            gallons: gallons,
+            totalCost: totalCost,
+            fillUpType: fillUpType,
+            notes: notes,
+            createdAt: createdAt,
+            vehicle: placeholderVehicle
+        )
     }
 
     // MARK: - Cached Value Accessors
@@ -145,7 +175,7 @@ extension FuelingRecord {
         return "\(dateString),\(currentMiles),\(pricePerGallon),\(gallons),\(totalCost),\(fillUpType.rawValue),\"\(notesEscaped)\""
     }
 
-    static func fromCSVRow(_ row: String) -> FuelingRecord? {
+    static func fromCSVRow(_ row: String, vehicle: Vehicle) -> FuelingRecord? {
         let components = parseCSVRow(row)
         guard components.count >= 5 else { return nil }
 
@@ -185,7 +215,8 @@ extension FuelingRecord {
             gallons: gallons,
             totalCost: totalCost,
             fillUpType: fillUpType,
-            notes: notes
+            notes: notes,
+            vehicle: vehicle
         )
     }
 

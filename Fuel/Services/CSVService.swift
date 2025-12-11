@@ -36,10 +36,12 @@ enum CSVService {
 
     // MARK: - Import
 
-    /// Import fueling records from CSV content
-    /// - Parameter content: CSV formatted string
+    /// Import fueling records from CSV content for a specific vehicle
+    /// - Parameters:
+    ///   - content: CSV formatted string
+    ///   - vehicle: Vehicle to attach to every record
     /// - Returns: Array of FuelingRecord parsed from CSV
-    static func importRecords(from content: String) -> [FuelingRecord] {
+    static func importRecords(from content: String, vehicle: Vehicle) -> [FuelingRecord] {
         var records: [FuelingRecord] = []
 
         let lines = content.components(separatedBy: .newlines)
@@ -48,7 +50,7 @@ enum CSVService {
         let dataLines = lines.dropFirst().filter { !$0.isEmpty }
 
         for line in dataLines {
-            if let record = FuelingRecord.fromCSVRow(line) {
+            if let record = FuelingRecord.fromCSVRow(line, vehicle: vehicle) {
                 records.append(record)
             }
         }
@@ -58,9 +60,11 @@ enum CSVService {
 
     /// Parse a simple CSV file format (for manual data entry or basic imports)
     /// Expected format: date,currentMiles,pricePerGallon,gallons,totalCost,fillUpType,notes
-    /// - Parameter content: CSV formatted string
+    /// - Parameters:
+    ///   - content: CSV formatted string
+    ///   - vehicle: Vehicle to attach to every record
     /// - Returns: Array of FuelingRecord
-    static func importSimpleFormat(from content: String) -> [FuelingRecord] {
+    static func importSimpleFormat(from content: String, vehicle: Vehicle) -> [FuelingRecord] {
         var records: [FuelingRecord] = []
 
         let lines = content.components(separatedBy: .newlines)
@@ -122,7 +126,8 @@ enum CSVService {
                 gallons: gallons,
                 totalCost: totalCost,
                 fillUpType: fillUpType,
-                notes: notes
+                notes: notes,
+                vehicle: vehicle
             )
 
             records.append(record)

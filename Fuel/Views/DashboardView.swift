@@ -437,10 +437,9 @@ struct ImportCSVView: View {
 
             do {
                 let content = try String(contentsOf: url, encoding: .utf8)
-                let records = CSVService.importRecords(from: content)
+                let records = CSVService.importRecords(from: content, vehicle: vehicle)
 
                 for record in records {
-                    record.vehicle = vehicle
                     modelContext.insert(record)
                 }
 

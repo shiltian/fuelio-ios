@@ -3,12 +3,12 @@ import SwiftData
 
 @Model
 final class Vehicle {
-    var id: UUID
-    var name: String
+    var id: UUID = UUID()
+    var name: String = ""
     var make: String?
     var model: String?
     var year: Int?
-    var createdAt: Date
+    var createdAt: Date = Date()
 
     @Relationship(deleteRule: .cascade, inverse: \FuelingRecord.vehicle)
     var fuelingRecords: [FuelingRecord]?

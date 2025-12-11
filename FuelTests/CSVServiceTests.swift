@@ -2,6 +2,7 @@ import XCTest
 @testable import Fuel
 
 final class CSVServiceTests: XCTestCase {
+    private let testVehicle = Vehicle(name: "Test Car")
 
     // MARK: - Export Tests
 
@@ -157,7 +158,7 @@ final class CSVServiceTests: XCTestCase {
 
     func testImportRecordsEmpty() {
         let csv = FuelingRecord.csvHeader
-        let records = CSVService.importRecords(from: csv)
+        let records = CSVService.importRecords(from: csv, vehicle: testVehicle)
 
         XCTAssertTrue(records.isEmpty)
     }
@@ -168,7 +169,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,full,Test note
         """
 
-        let records = CSVService.importRecords(from: csv)
+        let records = CSVService.importRecords(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records[0].currentMiles, 12500)
@@ -186,7 +187,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-22T10:30:00Z,13000,3.599,11.0,39.59,partial,Second
         """
 
-        let records = CSVService.importRecords(from: csv)
+        let records = CSVService.importRecords(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 2)
         XCTAssertEqual(records[0].notes, "First")
@@ -202,7 +203,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-22T10:30:00Z,13500,3.699,12.0,44.39,full,Also Valid
         """
 
-        let records = CSVService.importRecords(from: csv)
+        let records = CSVService.importRecords(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 2)
         XCTAssertEqual(records[0].notes, "Valid")
@@ -217,7 +218,7 @@ final class CSVServiceTests: XCTestCase {
 
         """
 
-        let records = CSVService.importRecords(from: csv)
+        let records = CSVService.importRecords(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
     }
@@ -230,7 +231,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-15,12500,3.459,10.5,36.32,full,Test
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records[0].currentMiles, 12500)
@@ -242,7 +243,7 @@ final class CSVServiceTests: XCTestCase {
         01/15/2024,12500,3.459,10.5,36.32,full,Test
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records[0].currentMiles, 12500)
@@ -254,7 +255,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,full,Test
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
     }
@@ -265,7 +266,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-15,12500,3.459,10.5,36.32,true,Test
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records[0].fillUpType, .partial)
@@ -277,7 +278,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-15,12500,3.459,10.5,36.32,partial,Test
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records[0].fillUpType, .partial)
@@ -289,7 +290,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-15,12500,3.459,10.5,36.32,reset,Test
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records[0].fillUpType, .reset)
@@ -301,7 +302,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-15,12500,3.459,10.5,36.32
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records[0].fillUpType, .full) // Defaults to full
@@ -313,7 +314,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-15,12500,3.459,10.5,36.32,full,"Note with, comma"
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records[0].notes, "Note with, comma")
@@ -325,7 +326,7 @@ final class CSVServiceTests: XCTestCase {
         invalid-date,12500,3.459,10.5,36.32,full,Test
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertTrue(records.isEmpty)
     }
@@ -336,7 +337,7 @@ final class CSVServiceTests: XCTestCase {
         2024-01-15,12500,3.459,10.5
         """
 
-        let records = CSVService.importSimpleFormat(from: csv)
+        let records = CSVService.importSimpleFormat(from: csv, vehicle: testVehicle)
 
         XCTAssertTrue(records.isEmpty)
     }
@@ -423,7 +424,7 @@ final class CSVServiceTests: XCTestCase {
 
     func testTemplateCanBeImported() {
         let template = CSVService.generateTemplate()
-        let records = CSVService.importSimpleFormat(from: template)
+        let records = CSVService.importSimpleFormat(from: template, vehicle: testVehicle)
 
         XCTAssertEqual(records.count, 2)
         XCTAssertEqual(records[0].currentMiles, 12500)
@@ -446,7 +447,7 @@ final class CSVServiceTests: XCTestCase {
         )
 
         let csv = CSVService.exportRecords([originalRecord])
-        let importedRecords = CSVService.importRecords(from: csv)
+        let importedRecords = CSVService.importRecords(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(importedRecords.count, 1)
 
@@ -473,7 +474,7 @@ final class CSVServiceTests: XCTestCase {
         )
 
         let csv = CSVService.exportRecords([originalRecord])
-        let importedRecords = CSVService.importRecords(from: csv)
+        let importedRecords = CSVService.importRecords(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(importedRecords.count, 1)
         // Note: due to quote escaping, the notes may differ slightly

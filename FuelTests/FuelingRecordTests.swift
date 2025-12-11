@@ -3,6 +3,7 @@ import SwiftData
 @testable import Fuel
 
 final class FuelingRecordTests: XCTestCase {
+    private let testVehicle = Vehicle(name: "Test Car")
 
     // MARK: - Initialization Tests
 
@@ -346,7 +347,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowValidData() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,full,Test note"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.currentMiles, 12500)
@@ -360,7 +361,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowWithPartialFillUp() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,partial,Note"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.fillUpType, .partial)
@@ -369,7 +370,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowWithResetFillUp() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,reset,Note"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.fillUpType, .reset)
@@ -378,7 +379,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowWithLegacyTrueFormat() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,true,Note"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.fillUpType, .partial)
@@ -387,7 +388,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowWithLegacyFalseFormat() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,false,Note"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.fillUpType, .full)
@@ -396,7 +397,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowWithMissingFillUpType() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.fillUpType, .full) // Default to full
@@ -406,7 +407,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowWithEmptyNotes() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,full,"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNotNil(record)
         XCTAssertNil(record?.notes)
@@ -415,7 +416,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowInvalidDate() {
         let csvRow = "invalid-date,12500,3.459,10.5,36.32,full,Note"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNil(record)
     }
@@ -423,7 +424,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowInvalidNumbers() {
         let csvRow = "2024-01-15T10:30:00Z,not-a-number,3.459,10.5,36.32,full,Note"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNil(record)
     }
@@ -431,7 +432,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowTooFewComponents() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5"
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNil(record)
     }
@@ -439,7 +440,7 @@ final class FuelingRecordTests: XCTestCase {
     func testFromCSVRowWithQuotedNotes() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,full,\"Note with, comma\""
 
-        let record = FuelingRecord.fromCSVRow(csvRow)
+        let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.notes, "Note with, comma")

@@ -250,12 +250,14 @@ struct SummaryDetailCard: View {
 }
 
 #Preview {
+    let vehicle = Vehicle(name: "Test Car")
     FuelingSummaryPopup(
         record: FuelingRecord(
             currentMiles: 12500,
             pricePerGallon: 3.459,
             gallons: 10.5,
-            totalCost: 36.32
+            totalCost: 36.32,
+            vehicle: vehicle
         ),
         previousMiles: 12200
     )

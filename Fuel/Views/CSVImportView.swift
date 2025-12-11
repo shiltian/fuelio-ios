@@ -83,6 +83,10 @@ struct CSVImportView: View {
             .onAppear {
                 loadAndParseCSV()
             }
+            .onChange(of: selectedVehicle) { _, newValue in
+                // Re-parse with the newly selected vehicle to ensure linkage
+                reparseIfPossible(selectedVehicle: newValue)
+            }
         }
     }
 
@@ -266,24 +270,32 @@ struct CSVImportView: View {
             // Store preview lines
             previewLines = csvContent.components(separatedBy: .newlines).filter { !$0.isEmpty }
 
-            // Try parsing with the simple format first
-            parsedRecords = CSVService.importSimpleFormat(from: csvContent)
-
-            // If that didn't work, try the standard format
-            if parsedRecords.isEmpty {
-                parsedRecords = CSVService.importRecords(from: csvContent)
-            }
-
-            // Auto-select the first vehicle if only one exists
-            if vehicles.count == 1 {
+            // Auto-select the first vehicle if possible
+            if selectedVehicle == nil {
                 selectedVehicle = vehicles.first
             }
+
+            reparseIfPossible(selectedVehicle: selectedVehicle)
 
             isLoading = false
         } catch {
             parseError = "Failed to read file: \(error.localizedDescription)"
             isLoading = false
         }
+    }
+
+    private func reparseIfPossible(selectedVehicle: Vehicle?) {
+        guard let vehicle = selectedVehicle else { return }
+
+        // Try parsing with the simple format first
+        var records = CSVService.importSimpleFormat(from: csvContent, vehicle: vehicle)
+
+        // If that didn't work, try the standard format
+        if records.isEmpty {
+            records = CSVService.importRecords(from: csvContent, vehicle: vehicle)
+        }
+
+        parsedRecords = records
     }
 
     private func formatDate(_ date: Date) -> String {

@@ -322,10 +322,10 @@ struct AddRecordView: View {
             gallons: gallons,
             totalCost: totalCost,
             fillUpType: effectiveFillUpType,
-            notes: notes.isEmpty ? nil : notes
+            notes: notes.isEmpty ? nil : notes,
+            vehicle: vehicle
         )
 
-        record.vehicle = vehicle
         modelContext.insert(record)
 
         // Update statistics cache incrementally

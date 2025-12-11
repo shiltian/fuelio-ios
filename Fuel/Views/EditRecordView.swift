@@ -257,13 +257,14 @@ struct EditRecordView: View {
 }
 
 #Preview {
+    let vehicle = Vehicle(name: "Test Car")
     let record = FuelingRecord(
         currentMiles: 1000,
         pricePerGallon: 3.459,
         gallons: 12.5,
-        totalCost: 43.24
+        totalCost: 43.24,
+        vehicle: vehicle
     )
-    let vehicle = Vehicle(name: "Test Car")
 
     return EditRecordView(record: record, vehicle: vehicle)
         .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
