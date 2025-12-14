@@ -475,6 +475,6 @@ struct ShareSheet: UIViewControllerRepresentable {
     NavigationStack {
         DashboardView(vehicle: Vehicle(name: "Test Car"))
     }
-    .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
+        .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
 }
 

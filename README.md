@@ -1,4 +1,4 @@
-# Fuel - Car Fueling Tracker
+# Fillio - Car Fueling Tracker
 
 A native iOS app built with SwiftUI and SwiftData to track your vehicle's fuel consumption, costs, and efficiency.
 
@@ -16,7 +16,7 @@ A native iOS app built with SwiftUI and SwiftData to track your vehicle's fuel c
 
 ## Getting Started
 
-1. Open `Fuel.xcodeproj` in Xcode
+1. Open `Fillio.xcodeproj` in Xcode
 2. Build and run on your device or simulator
 
 ## License

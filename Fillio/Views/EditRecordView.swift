@@ -258,7 +258,7 @@ struct EditRecordView: View {
 
 #Preview {
     let vehicle = Vehicle(name: "Test Car")
-    let record = FuelingRecord(
+        let record = FuelingRecord(
         currentMiles: 1000,
         pricePerGallon: 3.459,
         gallons: 12.5,

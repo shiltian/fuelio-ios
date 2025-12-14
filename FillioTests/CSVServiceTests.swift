@@ -1,5 +1,5 @@
 import XCTest
-@testable import Fuel
+@testable import Fillio
 
 final class CSVServiceTests: XCTestCase {
     private let testVehicle = Vehicle(name: "Test Car")

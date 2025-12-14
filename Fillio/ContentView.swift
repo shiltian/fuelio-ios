@@ -6,7 +6,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Vehicle.createdAt, order: .reverse) private var vehicles: [Vehicle]
 
-    // Binding from FuelApp for incoming file URLs
+    // Binding from FillioApp for incoming file URLs
     @Binding var importedFileURL: URL?
 
     @State private var selectedVehicle: Vehicle?
@@ -151,7 +151,7 @@ struct EmptyVehicleView: View {
                     )
                 )
 
-            Text("Welcome to Fuel")
+            Text("Welcome to Fillio")
                 .font(.custom("Avenir Next", size: 32))
                 .fontWeight(.bold)
 

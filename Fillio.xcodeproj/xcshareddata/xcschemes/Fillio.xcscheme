@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A10000FF296A0001"
-               BuildableName = "Fuel.app"
-               BlueprintName = "Fuel"
-               ReferencedContainer = "container:Fuel.xcodeproj">
+               BuildableName = "Fillio.app"
+               BlueprintName = "Fillio"
+               ReferencedContainer = "container:Fillio.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -35,9 +35,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "B100000F296B0001"
-               BuildableName = "FuelTests.xctest"
-               BlueprintName = "FuelTests"
-               ReferencedContainer = "container:Fuel.xcodeproj">
+               BuildableName = "FillioTests.xctest"
+               BlueprintName = "FillioTests"
+               ReferencedContainer = "container:Fillio.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -57,9 +57,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A10000FF296A0001"
-            BuildableName = "Fuel.app"
-            BlueprintName = "Fuel"
-            ReferencedContainer = "container:Fuel.xcodeproj">
+            BuildableName = "Fillio.app"
+            BlueprintName = "Fillio"
+            ReferencedContainer = "container:Fillio.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -74,11 +74,20 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A10000FF296A0001"
-            BuildableName = "Fuel.app"
-            BlueprintName = "Fuel"
+            BuildableName = "Fillio.app"
+            BlueprintName = "Fillio"
             ReferencedContainer = "container:Fuel.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <MacroExpansion>
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "A10000FF296A0001"
+            BuildableName = "Fillio.app"
+            BlueprintName = "Fillio"
+            ReferencedContainer = "container:Fuel.xcodeproj">
+         </BuildableReference>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">
