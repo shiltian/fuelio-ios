@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "A10000FF296A0001"
-               BuildableName = "Fillio.app"
-               BlueprintName = "Fillio"
-               ReferencedContainer = "container:Fillio.xcodeproj">
+               BuildableName = "Fuelio.app"
+               BlueprintName = "Fuelio"
+               ReferencedContainer = "container:Fuelio.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -35,9 +35,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "B100000F296B0001"
-               BuildableName = "FillioTests.xctest"
-               BlueprintName = "FillioTests"
-               ReferencedContainer = "container:Fillio.xcodeproj">
+               BuildableName = "FuelioTests.xctest"
+               BlueprintName = "FuelioTests"
+               ReferencedContainer = "container:Fuelio.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -57,9 +57,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "A10000FF296A0001"
-            BuildableName = "Fillio.app"
-            BlueprintName = "Fillio"
-            ReferencedContainer = "container:Fillio.xcodeproj">
+            BuildableName = "Fuelio.app"
+            BlueprintName = "Fuelio"
+            ReferencedContainer = "container:Fuelio.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>

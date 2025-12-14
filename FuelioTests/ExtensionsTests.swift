@@ -1,5 +1,5 @@
 import XCTest
-@testable import Fillio
+@testable import Fuelio
 
 final class ExtensionsTests: XCTestCase {
 

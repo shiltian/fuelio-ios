@@ -1,6 +1,6 @@
 import XCTest
 import SwiftUI
-@testable import Fillio
+@testable import Fuelio
 
 final class FillUpTypeTests: XCTestCase {
 

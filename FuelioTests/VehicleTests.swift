@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import Fillio
+@testable import Fuelio
 
 final class VehicleTests: XCTestCase {
 

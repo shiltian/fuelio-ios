@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 @main
-struct FillioApp: App {
+struct FuelioApp: App {
     @State private var importedFileURL: URL?
     @State private var hasInitializedCache = false
 
