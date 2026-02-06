@@ -1,18 +1,51 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 import os
 
-// MARK: - Export/Import Views
+// MARK: - CSV File Document
 
-struct ExportableURL: Identifiable {
-    let id = UUID()
-    let url: URL
+/// A simple `FileDocument` wrapper for CSV content, used with `.fileExporter`.
+/// This bypasses the share sheet entirely, avoiding LaunchServices warnings.
+struct CSVDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.commaSeparatedText] }
+
+    let content: String
+
+    init(content: String) {
+        self.content = content
+    }
+
+    init(configuration: ReadConfiguration) throws {
+        if let data = configuration.file.regularFileContents {
+            content = String(data: data, encoding: .utf8) ?? ""
+        } else {
+            content = ""
+        }
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: content.data(using: .utf8) ?? Data())
+    }
 }
+
+// MARK: - Export/Import Views
 
 struct ExportCSVView: View {
     let vehicle: Vehicle
     @Environment(\.dismiss) private var dismiss
-    @State private var exportItem: ExportableURL?
+    @State private var csvDocument: CSVDocument?
+    @State private var showingExporter = false
+    @State private var showingSuccess = false
+
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
+        category: "CSVExport"
+    )
+
+    private var defaultFileName: String {
+        "\(vehicle.displayName.replacingOccurrences(of: " ", with: "_"))_fuel_records"
+    }
 
     var body: some View {
         NavigationStack {
@@ -29,8 +62,13 @@ struct ExportCSVView: View {
                     .font(.appBody)
                     .foregroundColor(.secondary)
 
-                Button(action: exportData) {
-                    Label("Export CSV", systemImage: "square.and.arrow.up")
+                Button(action: {
+                    csvDocument = CSVDocument(
+                        content: CSVService.exportRecords(vehicle.sortedRecords)
+                    )
+                    showingExporter = true
+                }) {
+                    Label("Save to Files", systemImage: "folder")
                         .font(.appButton)
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
@@ -50,24 +88,24 @@ struct ExportCSVView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .sheet(item: $exportItem) { item in
-                ShareSheet(activityItems: [item.url])
+            .fileExporter(
+                isPresented: $showingExporter,
+                document: csvDocument,
+                contentType: .commaSeparatedText,
+                defaultFilename: defaultFileName
+            ) { result in
+                switch result {
+                case .success:
+                    showingSuccess = true
+                case .failure(let error):
+                    Self.logger.error("Export error: \(error)")
+                }
             }
-        }
-    }
-
-    private func exportData() {
-        let csvContent = CSVService.exportRecords(vehicle.sortedRecords)
-
-        let fileName = "\(vehicle.displayName.replacingOccurrences(of: " ", with: "_"))_fuel_records.csv"
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-
-        do {
-            try csvContent.write(to: tempURL, atomically: true, encoding: .utf8)
-            exportItem = ExportableURL(url: tempURL)
-        } catch {
-            Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "CSVExport")
-                .error("Export error: \(error)")
+            .alert("Export Successful", isPresented: $showingSuccess) {
+                Button("OK") { dismiss() }
+            } message: {
+                Text("CSV file saved successfully.")
+            }
         }
     }
 }
@@ -177,12 +215,3 @@ struct ImportCSVView: View {
     }
 }
 
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
