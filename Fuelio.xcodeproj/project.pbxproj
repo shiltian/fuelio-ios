@@ -37,6 +37,7 @@
 		E1000003296E0001 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000004296E0001 /* CloudSyncService.swift */; };
 		E1000005296E0001 /* SyncStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000006296E0001 /* SyncStateManager.swift */; };
 		E1000007296E0001 /* UnitSystemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000008296E0001 /* UnitSystemTests.swift */; };
+		F1000001296F0001 /* VehicleSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000002296F0001 /* VehicleSettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -84,6 +85,7 @@
 		E1000004296E0001 /* CloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncService.swift; sourceTree = "<group>"; };
 		E1000006296E0001 /* SyncStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateManager.swift; sourceTree = "<group>"; };
 		E1000008296E0001 /* UnitSystemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitSystemTests.swift; sourceTree = "<group>"; };
+		F1000002296F0001 /* VehicleSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -155,6 +157,7 @@
 				A1000016296A0001 /* FuelingSummaryPopup.swift */,
 				A100001E296A0001 /* ChartView.swift */,
 				A1000028296A0001 /* SettingsView.swift */,
+				F1000002296F0001 /* VehicleSettingsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -345,6 +348,7 @@
 				E1000001296E0001 /* UnitSystem.swift in Sources */,
 				E1000003296E0001 /* CloudSyncService.swift in Sources */,
 				E1000005296E0001 /* SyncStateManager.swift in Sources */,
+				F1000001296F0001 /* VehicleSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -504,7 +508,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Fuelio/Fuelio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"Fuelio/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;
@@ -521,7 +525,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = me.tianshilei.fuelio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -538,7 +542,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Fuelio/Fuelio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"Fuelio/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;
@@ -555,7 +559,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = me.tianshilei.fuelio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
