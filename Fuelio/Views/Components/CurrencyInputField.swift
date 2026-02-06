@@ -87,8 +87,18 @@ private struct CurrencyTextFieldRepresentable: UIViewRepresentable {
         private var isDecimalMode: Bool = false
         private var decimalPosition: Int = 0
 
+        // Precomputed constants (decimalPlaces is immutable for the component lifetime)
+        private let decimalPlaces: Int
+        private let multiplier: Int            // 10^decimalPlaces
+        private let positionMultipliers: [Int]  // [10^(dp-1), 10^(dp-2), …, 10^0]
+
         init(_ parent: CurrencyTextFieldRepresentable) {
             self.parent = parent
+            self.decimalPlaces = parent.decimalPlaces
+            self.multiplier = intPow(10, parent.decimalPlaces)
+            self.positionMultipliers = (0..<parent.decimalPlaces).map {
+                intPow(10, parent.decimalPlaces - 1 - $0)
+            }
         }
 
         func resetState() {
@@ -105,118 +115,125 @@ private struct CurrencyTextFieldRepresentable: UIViewRepresentable {
         func textFieldDidEndEditing(_ textField: UITextField) {
             resetState()
             // Ensure display is formatted correctly
-            textField.text = formatValue(parent.value, decimalPlaces: parent.decimalPlaces)
+            textField.text = formatValue(parent.value, decimalPlaces: decimalPlaces)
         }
 
         func textField(_ textField: UITextField,
                        shouldChangeCharactersIn range: NSRange,
                        replacementString string: String) -> Bool {
 
-            let decimalPlaces = parent.decimalPlaces
-            let multiplier = intPow(10, decimalPlaces)
+            // Work on a local copy — assign to binding exactly once at the end
+            var current = parent.value
 
             // Handle backspace/delete
             if string.isEmpty {
-                handleBackspace(multiplier: multiplier, decimalPlaces: decimalPlaces)
-                textField.text = formatValue(parent.value, decimalPlaces: decimalPlaces)
+                current = applyBackspace(to: current)
+                parent.value = current
+                textField.text = formatValue(current, decimalPlaces: decimalPlaces)
                 return false
             }
 
             // Handle decimal point
             if string == "." || string == "," {
-                handleDecimalPoint(multiplier: multiplier)
-                textField.text = formatValue(parent.value, decimalPlaces: decimalPlaces)
+                if let newValue = applyDecimalPoint(to: current) {
+                    current = newValue
+                    parent.value = current
+                }
+                textField.text = formatValue(current, decimalPlaces: decimalPlaces)
                 return false
             }
 
-            // Only allow digits
-            guard CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: string)) else {
+            // Only allow digits — no CharacterSet allocation
+            guard string.allSatisfy(\.isNumber) else {
                 return false
             }
 
-            // Process each digit
+            // Process each digit on the local copy
             for char in string {
-                if let digit = Int(String(char)) {
-                    handleDigit(digit, decimalPlaces: decimalPlaces)
+                if let digit = char.wholeNumberValue {
+                    current = applyDigit(digit, to: current)
                 }
             }
 
-            textField.text = formatValue(parent.value, decimalPlaces: decimalPlaces)
+            // Single binding mutation for the entire keystroke
+            parent.value = current
+            textField.text = formatValue(current, decimalPlaces: decimalPlaces)
             return false
         }
 
-        // MARK: - State Machine Operations
+        // MARK: - State Machine Operations (pure value transforms)
 
-        private func handleDigit(_ digit: Int, decimalPlaces: Int) {
+        /// Returns the new value after appending a digit.
+        private func applyDigit(_ digit: Int, to value: Int) -> Int {
             if isDecimalMode {
                 // Decimal mode: fill decimal places from left to right
                 guard decimalPosition < decimalPlaces else {
-                    // All decimal places filled - IGNORE additional digits
-                    return
+                    // All decimal places filled — ignore additional digits
+                    return value
                 }
 
-                let positionMultiplier = intPow(10, decimalPlaces - 1 - decimalPosition)
+                let posMul = positionMultipliers[decimalPosition]
 
-                // Clear existing digit at this position
-                let existingDigit = (parent.value / positionMultiplier) % 10
-                parent.value -= existingDigit * positionMultiplier
-
-                // Add new digit
-                parent.value += digit * positionMultiplier
+                // Clear existing digit at this position and insert new one in a single expression
+                let existingDigit = (value / posMul) % 10
+                let newValue = value - existingDigit * posMul + digit * posMul
                 decimalPosition += 1
+                return newValue
             } else {
                 // Normal mode: right-to-left entry
-                let newValue = parent.value * 10 + digit
+                let newValue = value * 10 + digit
 
                 // Prevent overflow
-                if newValue <= 999_999_999 && newValue >= parent.value {
-                    parent.value = newValue
+                if newValue <= 999_999_999 && newValue >= value {
+                    return newValue
                 }
+                return value
             }
         }
 
-        private func handleDecimalPoint(multiplier: Int) {
+        /// Returns the new value after pressing decimal point, or nil if no change.
+        private func applyDecimalPoint(to value: Int) -> Int? {
             guard !isDecimalMode else {
-                // Already in decimal mode - ignore
-                return
+                // Already in decimal mode — ignore
+                return nil
             }
 
-            // Switch to decimal mode
-            // Current value becomes integer part
-            let newValue = parent.value * multiplier
+            // Switch to decimal mode: current value becomes integer part
+            let newValue = value * multiplier
 
             // Check for overflow
-            if newValue <= 999_999_999 && (parent.value == 0 || newValue / multiplier == parent.value) {
-                parent.value = newValue
+            if newValue <= 999_999_999 && (value == 0 || newValue / multiplier == value) {
                 isDecimalMode = true
                 decimalPosition = 0
+                return newValue
             }
+            return nil
         }
 
-        private func handleBackspace(multiplier: Int, decimalPlaces: Int) {
+        /// Returns the new value after pressing backspace.
+        private func applyBackspace(to value: Int) -> Int {
+            let result: Int
             if isDecimalMode {
                 if decimalPosition > 0 {
                     // Clear the last entered decimal digit
                     let targetPosition = decimalPosition - 1
-                    let positionMultiplier = intPow(10, decimalPlaces - 1 - targetPosition)
+                    let posMul = positionMultipliers[targetPosition]
 
-                    let existingDigit = (parent.value / positionMultiplier) % 10
-                    parent.value -= existingDigit * positionMultiplier
+                    let existingDigit = (value / posMul) % 10
+                    result = value - existingDigit * posMul
                     decimalPosition -= 1
                 } else {
-                    // At position 0 - transition back to normal mode
-                    parent.value = parent.value / multiplier
+                    // At position 0 — transition back to normal mode
+                    result = value / multiplier
                     isDecimalMode = false
                 }
             } else {
                 // Normal mode: remove last digit
-                parent.value = parent.value / 10
+                result = value / 10
             }
 
             // Ensure non-negative
-            if parent.value < 0 {
-                parent.value = 0
-            }
+            return max(result, 0)
         }
     }
 }
