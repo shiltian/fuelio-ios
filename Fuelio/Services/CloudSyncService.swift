@@ -334,8 +334,13 @@ final class CloudSyncService: ObservableObject {
     /// This avoids CKQuery which requires fields to be marked queryable in the CloudKit dashboard.
     /// Returns separate arrays for Vehicle and FuelingRecord CKRecords.
     private func fetchAllCloudRecords() async throws -> (vehicles: [CKRecord], fuelingRecords: [CKRecord]) {
-        var vehicleRecords: [CKRecord] = []
-        var fuelingRecords: [CKRecord] = []
+        // Use dictionaries to deduplicate by CKRecord.ID.
+        // recordZoneChanges(since: nil) returns the full change history,
+        // so the same record can appear multiple times if it was re-uploaded.
+        // Keeping the latest version (last write wins).
+        var vehicleRecords: [CKRecord.ID: CKRecord] = [:]
+        var fuelingRecords: [CKRecord.ID: CKRecord] = [:]
+        var deletedIDs: Set<CKRecord.ID> = []
         var changeToken: CKServerChangeToken? = nil
         var moreComing = true
 
@@ -345,25 +350,34 @@ final class CloudSyncService: ObservableObject {
                 since: changeToken
             )
 
-            for (_, result) in results.modificationResultsByID {
+            for (recordID, result) in results.modificationResultsByID {
                 if case .success(let modification) = result {
                     let record = modification.record
+                    deletedIDs.remove(recordID)
                     switch record.recordType {
                     case RecordType.vehicle:
-                        vehicleRecords.append(record)
+                        vehicleRecords[recordID] = record
                     case RecordType.fuelingRecord:
-                        fuelingRecords.append(record)
+                        fuelingRecords[recordID] = record
                     default:
                         break
                     }
                 }
             }
 
+            // Track deletions so we don't count deleted records
+            for deletion in results.deletions {
+                let recordID = deletion.recordID
+                deletedIDs.insert(recordID)
+                vehicleRecords.removeValue(forKey: recordID)
+                fuelingRecords.removeValue(forKey: recordID)
+            }
+
             changeToken = results.changeToken
             moreComing = results.moreComing
         }
 
-        return (vehicleRecords, fuelingRecords)
+        return (Array(vehicleRecords.values), Array(fuelingRecords.values))
     }
 
     // MARK: - Incremental Push
