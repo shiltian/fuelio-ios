@@ -66,7 +66,7 @@ final class FillUpTypeTests: XCTestCase {
     }
 
     func testPartialDescription() {
-        XCTAssertEqual(FillUpType.partial.description, "Didn't fill completely (affects next MPG)")
+        XCTAssertEqual(FillUpType.partial.description, "Didn't fill completely (affects next efficiency calculation)")
     }
 
     func testResetDescription() {

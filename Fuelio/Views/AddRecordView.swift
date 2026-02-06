@@ -3,17 +3,19 @@ import SwiftData
 
 struct AddRecordView: View {
     let vehicle: Vehicle
-    let onSave: ((FuelingRecord, Double) -> Void)?  // (record, previousMiles)
+    let onSave: ((FuelingRecord, Double) -> Void)?  // (record, previousOdometer)
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    private var units: UnitSystem { vehicle.unitSystem }
+
     // Form fields
     @State private var date = Date()
-    @State private var currentMilesString = ""
+    @State private var odometerString = ""
     // Store as integers (cents/mills) for right-to-left entry
-    @State private var pricePerGallonMills: Int = 0   // 3 decimal places
-    @State private var gallonsMills: Int = 0          // 3 decimal places
+    @State private var pricePerFuelUnitMills: Int = 0   // 3 decimal places
+    @State private var fuelAmountMills: Int = 0          // 3 decimal places
     @State private var totalCostCents: Int = 0        // 2 decimal places
     @State private var fillUpType: FillUpType = .full
     @State private var notes = ""
@@ -22,8 +24,8 @@ struct AddRecordView: View {
     @State private var isCalculating = false  // Prevent recursive calculation
 
     enum EditableField: Equatable {
-        case pricePerGallon
-        case gallons
+        case pricePerFuelUnit
+        case fuelAmount
         case totalCost
     }
 
@@ -32,22 +34,22 @@ struct AddRecordView: View {
         self.onSave = onSave
     }
 
-    // Previous miles from last record
-    private var previousMiles: Double {
-        vehicle.lastRecord?.currentMiles ?? 0
+    // Previous odometer from last record
+    private var previousOdometer: Double {
+        vehicle.lastRecord?.odometer ?? 0
     }
 
     // Parsed values
-    private var currentMiles: Double? {
-        Double(currentMilesString)
+    private var currentOdometer: Double? {
+        Double(odometerString)
     }
 
-    private var pricePerGallon: Double {
-        Double(pricePerGallonMills) / 1000.0
+    private var pricePerFuelUnit: Double {
+        Double(pricePerFuelUnitMills) / 1000.0
     }
 
-    private var gallons: Double {
-        Double(gallonsMills) / 1000.0
+    private var fuelAmount: Double {
+        Double(fuelAmountMills) / 1000.0
     }
 
     private var totalCost: Double {
@@ -56,26 +58,27 @@ struct AddRecordView: View {
 
     // Validation
     private var isValid: Bool {
-        guard let current = currentMiles, current > previousMiles else { return false }
-        guard pricePerGallon > 0 else { return false }
-        guard gallons > 0 else { return false }
+        guard let current = currentOdometer, current > previousOdometer else { return false }
+        guard pricePerFuelUnit > 0 else { return false }
+        guard fuelAmount > 0 else { return false }
         guard totalCost > 0 else { return false }
         return true
     }
 
     // Calculated preview values
-    private var previewMPG: Double? {
-        guard let current = currentMiles, gallons > 0 else { return nil }
-        let miles = current - previousMiles
-        guard miles > 0 else { return nil }
-        return miles / gallons
+    private var previewEfficiency: Double? {
+        guard let current = currentOdometer, fuelAmount > 0 else { return nil }
+        let distance = current - previousOdometer
+        guard distance > 0 else { return nil }
+        let rawRatio = distance / fuelAmount
+        return units.efficiencyDisplayValue(from: rawRatio)
     }
 
-    private var previewCostPerMile: Double? {
-        guard let current = currentMiles, totalCost > 0 else { return nil }
-        let miles = current - previousMiles
-        guard miles > 0 else { return nil }
-        return totalCost / miles
+    private var previewCostPerDistance: Double? {
+        guard let current = currentOdometer, totalCost > 0 else { return nil }
+        let distance = current - previousOdometer
+        guard distance > 0 else { return nil }
+        return totalCost / distance
     }
 
     var body: some View {
@@ -96,20 +99,20 @@ struct AddRecordView: View {
                         Text("Odometer Reading")
                             .font(.custom("Avenir Next", size: 16))
                         Spacer()
-                        TextField("Miles", text: $currentMilesString)
+                        TextField(units.distanceUnit, text: $odometerString)
                             .font(.custom("Avenir Next", size: 16))
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                             .frame(width: 120)
                     }
 
-                    if previousMiles > 0, let current = currentMiles, current > previousMiles {
+                    if previousOdometer > 0, let current = currentOdometer, current > previousOdometer {
                         HStack {
-                            Text("Miles This Trip")
+                            Text("\(units.distanceName) This Trip")
                                 .font(.custom("Avenir Next", size: 16))
                                 .foregroundColor(.teal)
                             Spacer()
-                            Text((current - previousMiles).formatted(.number.precision(.fractionLength(0))))
+                            Text((current - previousOdometer).formatted(.number.precision(.fractionLength(0))))
                                 .font(.custom("Avenir Next", size: 16))
                                 .fontWeight(.semibold)
                                 .foregroundColor(.teal)
@@ -119,8 +122,8 @@ struct AddRecordView: View {
                     Text("Odometer")
                         .font(.custom("Avenir Next", size: 12))
                 } footer: {
-                    if previousMiles > 0 && currentMiles != nil && currentMiles! <= previousMiles {
-                        Text("Odometer must be greater than last recorded (\(previousMiles.formatted(.number.precision(.fractionLength(0)))) mi)")
+                    if previousOdometer > 0 && currentOdometer != nil && currentOdometer! <= previousOdometer {
+                        Text("Odometer must be greater than last recorded (\(previousOdometer.formatted(.number.precision(.fractionLength(0)))) \(units.distanceUnit))")
                             .foregroundColor(.red)
                     }
                 }
@@ -128,36 +131,36 @@ struct AddRecordView: View {
                 // Fuel Section with Auto-Calculate
                 Section {
                     HStack {
-                        Text("Price per Gallon")
+                        Text(units.pricePerFuelLabel)
                             .font(.custom("Avenir Next", size: 16))
                         Spacer()
                         Text("$")
                             .foregroundColor(.secondary)
                         CurrencyInputField(
-                            value: $pricePerGallonMills,
+                            value: $pricePerFuelUnitMills,
                             decimalPlaces: 3,
                             width: 100
                         )
-                        .focused($focusedField, equals: .pricePerGallon)
-                        .onChange(of: pricePerGallonMills) { _, _ in
-                            if focusedField == .pricePerGallon { calculateGallons() }
+                        .focused($focusedField, equals: .pricePerFuelUnit)
+                        .onChange(of: pricePerFuelUnitMills) { _, _ in
+                            if focusedField == .pricePerFuelUnit { calculateFuelAmount() }
                         }
                     }
 
                     HStack {
-                        Text("Gallons")
+                        Text(units.fuelName)
                             .font(.custom("Avenir Next", size: 16))
                         Spacer()
                         CurrencyInputField(
-                            value: $gallonsMills,
+                            value: $fuelAmountMills,
                             decimalPlaces: 3,
                             width: 100
                         )
-                        .focused($focusedField, equals: .gallons)
-                        .onChange(of: gallonsMills) { _, _ in
-                            if focusedField == .gallons { calculatePricePerGallon() }
+                        .focused($focusedField, equals: .fuelAmount)
+                        .onChange(of: fuelAmountMills) { _, _ in
+                            if focusedField == .fuelAmount { calculatePricePerFuelUnit() }
                         }
-                        Text("gal")
+                        Text(units.fuelUnit)
                             .foregroundColor(.secondary)
                     }
 
@@ -174,7 +177,7 @@ struct AddRecordView: View {
                         )
                         .focused($focusedField, equals: .totalCost)
                         .onChange(of: totalCostCents) { _, _ in
-                            if focusedField == .totalCost { calculatePricePerGallon() }
+                            if focusedField == .totalCost { calculatePricePerFuelUnit() }
                         }
                     }
                 } header: {
@@ -186,30 +189,30 @@ struct AddRecordView: View {
                 }
 
                 // Preview Section
-                if previousMiles > 0 && (previewMPG != nil || previewCostPerMile != nil) {
+                if previousOdometer > 0 && (previewEfficiency != nil || previewCostPerDistance != nil) {
                     Section {
-                        if let mpg = previewMPG {
+                        if let efficiency = previewEfficiency {
                             HStack {
                                 Image(systemName: "gauge.with.dots.needle.67percent")
                                     .foregroundColor(.purple)
-                                Text("Estimated MPG")
+                                Text("Estimated \(units.efficiencyUnit)")
                                     .font(.custom("Avenir Next", size: 16))
                                 Spacer()
-                                Text("\(mpg.formatted(.number.precision(.fractionLength(1)))) MPG")
+                                Text("\(efficiency.formatted(.number.precision(.fractionLength(1)))) \(units.efficiencyUnit)")
                                     .font(.custom("Avenir Next", size: 16))
                                     .fontWeight(.semibold)
                                     .foregroundColor(.purple)
                             }
                         }
 
-                        if let cpm = previewCostPerMile {
+                        if let cpd = previewCostPerDistance {
                             HStack {
                                 Image(systemName: "dollarsign.circle")
                                     .foregroundColor(.orange)
-                                Text("Cost per Mile")
+                                Text(units.costPerDistanceLabel)
                                     .font(.custom("Avenir Next", size: 16))
                                 Spacer()
-                                Text(cpm.currencyFormatted)
+                                Text(cpd.currencyFormatted)
                                     .font(.custom("Avenir Next", size: 16))
                                     .fontWeight(.semibold)
                                     .foregroundColor(.orange)
@@ -280,46 +283,46 @@ struct AddRecordView: View {
     }
 
     // Auto-calculation rules:
-    // - Edit Gallons → Calculate Price/Gal (from Total Cost ÷ Gallons)
-    // - Edit Total Cost → Calculate Price/Gal (from Total Cost ÷ Gallons)
-    // - Edit Price/Gal → Calculate Gallons (from Total Cost ÷ Price)
+    // - Edit FuelAmount → Calculate Price/Unit (from Total Cost ÷ FuelAmount)
+    // - Edit Total Cost → Calculate Price/Unit (from Total Cost ÷ FuelAmount)
+    // - Edit Price/Unit → Calculate FuelAmount (from Total Cost ÷ Price)
 
-    private func calculatePricePerGallon() {
+    private func calculatePricePerFuelUnit() {
         guard !isCalculating else { return }
-        guard gallons > 0, totalCost > 0 else { return }
+        guard fuelAmount > 0, totalCost > 0 else { return }
 
         isCalculating = true
         defer { isCalculating = false }
 
-        let calculated = totalCost / gallons
+        let calculated = totalCost / fuelAmount
         // Convert to mills (3 decimal places)
-        pricePerGallonMills = Int(round(calculated * 1000))
+        pricePerFuelUnitMills = Int(round(calculated * 1000))
     }
 
-    private func calculateGallons() {
+    private func calculateFuelAmount() {
         guard !isCalculating else { return }
-        guard pricePerGallon > 0, totalCost > 0 else { return }
+        guard pricePerFuelUnit > 0, totalCost > 0 else { return }
 
         isCalculating = true
         defer { isCalculating = false }
 
-        let calculated = totalCost / pricePerGallon
+        let calculated = totalCost / pricePerFuelUnit
         // Convert to mills (3 decimal places)
-        gallonsMills = Int(round(calculated * 1000))
+        fuelAmountMills = Int(round(calculated * 1000))
     }
 
     private func saveRecord() {
-        guard let current = currentMiles else { return }
+        guard let current = currentOdometer else { return }
 
-        // First record (no previous miles) is always treated as partial since we can't calculate MPG
-        let isFirstRecord = previousMiles == 0
+        // First record (no previous odometer) is always treated as partial since we can't calculate efficiency
+        let isFirstRecord = previousOdometer == 0
         let effectiveFillUpType: FillUpType = isFirstRecord ? .partial : fillUpType
 
         let record = FuelingRecord(
             date: date,
-            currentMiles: current,
-            pricePerGallon: pricePerGallon,
-            gallons: gallons,
+            odometer: current,
+            pricePerFuelUnit: pricePerFuelUnit,
+            fuelAmount: fuelAmount,
             totalCost: totalCost,
             fillUpType: effectiveFillUpType,
             notes: notes.isEmpty ? nil : notes,
@@ -331,7 +334,7 @@ struct AddRecordView: View {
         // Update statistics cache incrementally
         StatisticsCacheService.updateForNewRecord(record, vehicle: vehicle)
 
-        onSave?(record, previousMiles)
+        onSave?(record, previousOdometer)
         dismiss()
     }
 

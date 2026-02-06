@@ -33,6 +33,10 @@
 		B1000009296B0001 /* StatisticsCacheServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000A296B0001 /* StatisticsCacheServiceTests.swift */; };
 		B100000B296B0001 /* ExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000C296B0001 /* ExtensionsTests.swift */; };
 		D1000001296D0001 /* CurrencyInputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1000002296D0001 /* CurrencyInputField.swift */; };
+		E1000001296E0001 /* UnitSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000002296E0001 /* UnitSystem.swift */; };
+		E1000003296E0001 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000004296E0001 /* CloudSyncService.swift */; };
+		E1000005296E0001 /* SyncStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000006296E0001 /* SyncStateManager.swift */; };
+		E1000007296E0001 /* UnitSystemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000008296E0001 /* UnitSystemTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,6 +80,10 @@
 		B100000A296B0001 /* StatisticsCacheServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsCacheServiceTests.swift; sourceTree = "<group>"; };
 		B100000C296B0001 /* ExtensionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsTests.swift; sourceTree = "<group>"; };
 		D1000002296D0001 /* CurrencyInputField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyInputField.swift; sourceTree = "<group>"; };
+		E1000002296E0001 /* UnitSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitSystem.swift; sourceTree = "<group>"; };
+		E1000004296E0001 /* CloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncService.swift; sourceTree = "<group>"; };
+		E1000006296E0001 /* SyncStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateManager.swift; sourceTree = "<group>"; };
+		E1000008296E0001 /* UnitSystemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitSystemTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -128,6 +136,7 @@
 			children = (
 				A100000A296A0001 /* Vehicle.swift */,
 				A100000C296A0001 /* FuelingRecord.swift */,
+				E1000002296E0001 /* UnitSystem.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -162,6 +171,8 @@
 			children = (
 				A1000018296A0001 /* CSVService.swift */,
 				A1000026296A0001 /* StatisticsCacheService.swift */,
+				E1000004296E0001 /* CloudSyncService.swift */,
+				E1000006296E0001 /* SyncStateManager.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -200,6 +211,7 @@
 				B1000008296B0001 /* CSVServiceTests.swift */,
 				B100000A296B0001 /* StatisticsCacheServiceTests.swift */,
 				B100000C296B0001 /* ExtensionsTests.swift */,
+				E1000008296E0001 /* UnitSystemTests.swift */,
 			);
 			path = FuelioTests;
 			sourceTree = "<group>";
@@ -330,6 +342,9 @@
 				A100001F296A0001 /* Extensions.swift in Sources */,
 				A1000021296A0001 /* EditRecordView.swift in Sources */,
 				A1000027296A0001 /* SettingsView.swift in Sources */,
+				E1000001296E0001 /* UnitSystem.swift in Sources */,
+				E1000003296E0001 /* CloudSyncService.swift in Sources */,
+				E1000005296E0001 /* SyncStateManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -343,6 +358,7 @@
 				B1000007296B0001 /* CSVServiceTests.swift in Sources */,
 				B1000009296B0001 /* StatisticsCacheServiceTests.swift in Sources */,
 				B100000B296B0001 /* ExtensionsTests.swift in Sources */,
+				E1000007296E0001 /* UnitSystemTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

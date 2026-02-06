@@ -22,11 +22,11 @@ enum CSVService {
     /// - Parameter vehicles: Array of Vehicle to export
     /// - Returns: CSV formatted string containing all vehicles' records
     static func exportAllVehicles(_ vehicles: [Vehicle]) -> String {
-        var csv = "vehicleName,vehicleMake,vehicleModel,vehicleYear," + FuelingRecord.csvHeader + "\n"
+        var csv = "vehicleName,vehicleMake,vehicleModel,vehicleYear,unitSystem," + FuelingRecord.csvHeader + "\n"
 
         for vehicle in vehicles {
             for record in vehicle.sortedRecords {
-                let vehicleInfo = "\"\(vehicle.name)\",\"\(vehicle.make ?? "")\",\"\(vehicle.model ?? "")\",\(vehicle.year ?? 0),"
+                let vehicleInfo = "\"\(vehicle.name)\",\"\(vehicle.make ?? "")\",\"\(vehicle.model ?? "")\",\(vehicle.year ?? 0),\(vehicle.unitSystemRaw),"
                 csv += vehicleInfo + record.toCSVRow() + "\n"
             }
         }
@@ -59,7 +59,7 @@ enum CSVService {
     }
 
     /// Parse a simple CSV file format (for manual data entry or basic imports)
-    /// Expected format: date,currentMiles,pricePerGallon,gallons,totalCost,fillUpType,notes
+    /// Expected format: date,odometer,pricePerFuelUnit,fuelAmount,totalCost,fillUpType,notes
     /// - Parameters:
     ///   - content: CSV formatted string
     ///   - vehicle: Vehicle to attach to every record
@@ -93,9 +93,9 @@ enum CSVService {
             }
 
             guard let parsedDate = date,
-                  let currentMiles = Double(components[1]),
-                  let pricePerGallon = Double(components[2]),
-                  let gallons = Double(components[3]),
+                  let odometer = Double(components[1]),
+                  let pricePerFuelUnit = Double(components[2]),
+                  let fuelAmount = Double(components[3]),
                   let totalCost = Double(components[4]) else {
                 continue
             }
@@ -121,9 +121,9 @@ enum CSVService {
 
             let record = FuelingRecord(
                 date: parsedDate,
-                currentMiles: currentMiles,
-                pricePerGallon: pricePerGallon,
-                gallons: gallons,
+                odometer: odometer,
+                pricePerFuelUnit: pricePerFuelUnit,
+                fuelAmount: fuelAmount,
                 totalCost: totalCost,
                 fillUpType: fillUpType,
                 notes: notes,
@@ -177,7 +177,7 @@ enum CSVService {
 
         // Check if first line looks like a header
         let firstLine = lines[0].lowercased()
-        let hasHeader = firstLine.contains("date") || firstLine.contains("miles") || firstLine.contains("gallon")
+        let hasHeader = firstLine.contains("date") || firstLine.contains("odometer") || firstLine.contains("fuel")
 
         if !hasHeader {
             return (false, "The file doesn't appear to have a valid header row")
@@ -190,10 +190,9 @@ enum CSVService {
     /// - Returns: CSV formatted string with headers and example row
     static func generateTemplate() -> String {
         """
-        date,currentMiles,pricePerGallon,gallons,totalCost,fillUpType,notes
+        date,odometer,pricePerFuelUnit,fuelAmount,totalCost,fillUpType,notes
         2024-01-15,12500,3.459,10.5,36.32,full,"First fill-up of the year"
         2024-01-22,12800,3.399,11.2,38.07,full,""
         """
     }
 }
-

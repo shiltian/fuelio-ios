@@ -234,8 +234,8 @@ struct CSVImportView: View {
                         SummaryRow(label: "Date Range", value: "\(formatDate(firstDate)) - \(formatDate(lastDate))")
                     }
 
-                    let totalGallons = parsedRecords.reduce(0) { $0 + $1.gallons }
-                    SummaryRow(label: "Total Gallons", value: String(format: "%.2f", totalGallons))
+                    let totalFuel = parsedRecords.reduce(0) { $0 + $1.fuelAmount }
+                    SummaryRow(label: "Total Fuel", value: String(format: "%.2f", totalFuel))
 
                     let totalCost = parsedRecords.reduce(0) { $0 + $1.totalCost }
                     SummaryRow(label: "Total Cost", value: String(format: "$%.2f", totalCost))

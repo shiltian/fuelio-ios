@@ -135,10 +135,11 @@ struct VehicleDetailView: View {
     @State private var showingImportPicker = false
     @State private var showingSummary = false
     @State private var lastAddedRecord: FuelingRecord?
-    @State private var lastAddedRecordPreviousMiles: Double = 0
+    @State private var lastAddedRecordPreviousOdometer: Double = 0
     @State private var showingClearHistoryAlert = false
     @State private var showingClearHistoryConfirmation = false
     @State private var showingClearHistorySuccess = false
+    @State private var showingUnitConversion = false
 
     private var recordCount: Int {
         vehicle.fuelingRecords?.count ?? 0
@@ -163,6 +164,12 @@ struct VehicleDetailView: View {
                 Menu {
                     Button(action: { showingAddRecord = true }) {
                         Label("Add Fueling", systemImage: "plus")
+                    }
+
+                    Divider()
+
+                    Button(action: { showingUnitConversion = true }) {
+                        Label("Unit System (\(vehicle.unitSystem.displayName))", systemImage: "ruler")
                     }
 
                     Divider()
@@ -202,15 +209,15 @@ struct VehicleDetailView: View {
             }
         }
         .sheet(isPresented: $showingAddRecord) {
-            AddRecordView(vehicle: vehicle) { record, prevMiles in
+            AddRecordView(vehicle: vehicle) { record, prevOdometer in
                 lastAddedRecord = record
-                lastAddedRecordPreviousMiles = prevMiles
+                lastAddedRecordPreviousOdometer = prevOdometer
                 showingSummary = true
             }
         }
         .sheet(isPresented: $showingSummary) {
             if let record = lastAddedRecord {
-                FuelingSummaryPopup(record: record, previousMiles: lastAddedRecordPreviousMiles)
+                FuelingSummaryPopup(record: record, previousOdometer: lastAddedRecordPreviousOdometer, unitSystem: vehicle.unitSystem)
             }
         }
         .sheet(isPresented: $showingExportOptions) {
@@ -218,6 +225,9 @@ struct VehicleDetailView: View {
         }
         .sheet(isPresented: $showingImportPicker) {
             ImportCSVView(vehicle: vehicle)
+        }
+        .sheet(isPresented: $showingUnitConversion) {
+            UnitConversionView(vehicle: vehicle)
         }
         .alert("Clear Fueling History?", isPresented: $showingClearHistoryAlert) {
             Button("Cancel", role: .cancel) { }
@@ -258,6 +268,132 @@ struct VehicleDetailView: View {
     }
 }
 
+// MARK: - Unit Conversion View
+
+struct UnitConversionView: View {
+    let vehicle: Vehicle
+
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var selectedUnit: UnitSystem
+    @State private var showingConfirmation = false
+
+    init(vehicle: Vehicle) {
+        self.vehicle = vehicle
+        _selectedUnit = State(initialValue: vehicle.unitSystem)
+    }
+
+    private var recordCount: Int {
+        vehicle.fuelingRecords?.count ?? 0
+    }
+
+    private var hasChanged: Bool {
+        selectedUnit != vehicle.unitSystem
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(UnitSystem.allCases, id: \.self) { unit in
+                        Button {
+                            selectedUnit = unit
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(unit.displayName)
+                                        .font(.custom("Avenir Next", size: 16))
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.primary)
+                                    Text(unit.displayDescription)
+                                        .font(.custom("Avenir Next", size: 13))
+                                        .foregroundColor(.secondary)
+                                }
+
+                                Spacer()
+
+                                if selectedUnit == unit {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.teal)
+                                        .font(.title2)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Unit System")
+                        .font(.custom("Avenir Next", size: 12))
+                } footer: {
+                    if hasChanged && recordCount > 0 {
+                        Text("Changing the unit system will convert all \(recordCount) existing record(s) to \(selectedUnit.displayName). This cannot be undone.")
+                            .font(.custom("Avenir Next", size: 12))
+                            .foregroundColor(.orange)
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Unit System")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if hasChanged && recordCount > 0 {
+                            showingConfirmation = true
+                        } else if hasChanged {
+                            applyUnitChange()
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(!hasChanged)
+                }
+            }
+            .alert("Convert Records?", isPresented: $showingConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Convert", role: .destructive) {
+                    applyUnitChange()
+                }
+            } message: {
+                Text("Convert all \(recordCount) record(s) from \(vehicle.unitSystem.displayName) to \(selectedUnit.displayName)? This cannot be undone.")
+            }
+        }
+    }
+
+    private func applyUnitChange() {
+        let oldUnit = vehicle.unitSystem
+        let newUnit = selectedUnit
+
+        // Convert all existing records
+        if let records = vehicle.fuelingRecords {
+            for record in records {
+                record.odometer = newUnit.convertDistance(from: oldUnit, value: record.odometer)
+                record.fuelAmount = newUnit.convertFuel(from: oldUnit, value: record.fuelAmount)
+                record.pricePerFuelUnit = newUnit.convertPricePerFuel(from: oldUnit, value: record.pricePerFuelUnit)
+                // totalCost stays the same
+            }
+        }
+
+        // Update vehicle's unit system
+        vehicle.unitSystem = newUnit
+
+        // Rebuild cache with converted values
+        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save unit conversion: \(error)")
+        }
+
+        dismiss()
+    }
+}
+
 #Preview {
     NavigationStack {
         VehicleListView(
@@ -268,4 +404,3 @@ struct VehicleDetailView: View {
     }
         .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
 }
-

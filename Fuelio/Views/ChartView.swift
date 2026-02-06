@@ -12,9 +12,9 @@ struct ChartDataPoint: Identifiable {
 
 /// Pre-computed chart data to avoid recalculation on every render
 struct PrecomputedChartData {
-    let mpgData: [ChartDataPoint]
-    let mpgAverage: Double
-    let mpgYRange: ClosedRange<Double>
+    let efficiencyData: [ChartDataPoint]
+    let efficiencyAverage: Double
+    let efficiencyYRange: ClosedRange<Double>
 
     let costData: [ChartDataPoint]
     let costAverage: Double
@@ -25,44 +25,50 @@ struct PrecomputedChartData {
     let priceYRange: ClosedRange<Double>
 
     let showPoints: Bool  // Only show points if data count is reasonable
+    let unitSystem: UnitSystem
 
     /// Maximum number of points to display for performance
     static let maxDisplayPoints = 100
 
-    init(records: [FuelingRecord]) {
+    init(records: [FuelingRecord], unitSystem: UnitSystem) {
+        self.unitSystem = unitSystem
+
         // Sort once
         let sorted = records.sorted { $0.date < $1.date }
 
         // Determine if we should show individual points (performance optimization)
         self.showPoints = sorted.count <= Self.maxDisplayPoints
 
-        // Pre-compute MPG data with bucket averaging
-        let allMPGRecords = sorted.filter { $0.cachedMPG != nil && $0.cachedMPG! > 0 }
-        if allMPGRecords.count > Self.maxDisplayPoints {
-            self.mpgData = Self.createAveragedDataPoints(
-                from: allMPGRecords,
+        // Pre-compute efficiency data with bucket averaging
+        let allEfficiencyRecords = sorted.filter { $0.cachedEfficiency != nil && $0.cachedEfficiency! > 0 }
+        if allEfficiencyRecords.count > Self.maxDisplayPoints {
+            self.efficiencyData = Self.createAveragedDataPoints(
+                from: allEfficiencyRecords,
                 targetCount: Self.maxDisplayPoints,
-                valueExtractor: { $0.cachedMPG ?? 0 }
+                valueExtractor: { unitSystem.efficiencyDisplayValue(from: $0.cachedEfficiency ?? 0) }
             )
         } else {
-            self.mpgData = allMPGRecords.map { ChartDataPoint(id: $0.id, date: $0.date, value: $0.cachedMPG!) }
+            self.efficiencyData = allEfficiencyRecords.map {
+                ChartDataPoint(id: $0.id, date: $0.date, value: unitSystem.efficiencyDisplayValue(from: $0.cachedEfficiency!))
+            }
         }
 
-        // Calculate MPG average from ALL valid records
-        if !allMPGRecords.isEmpty {
-            self.mpgAverage = allMPGRecords.reduce(0.0) { $0 + ($1.cachedMPG ?? 0) } / Double(allMPGRecords.count)
+        // Calculate efficiency average from ALL valid records
+        if !allEfficiencyRecords.isEmpty {
+            let rawAvg = allEfficiencyRecords.reduce(0.0) { $0 + ($1.cachedEfficiency ?? 0) } / Double(allEfficiencyRecords.count)
+            self.efficiencyAverage = unitSystem.efficiencyDisplayValue(from: rawAvg)
         } else {
-            self.mpgAverage = 0
+            self.efficiencyAverage = 0
         }
 
-        // MPG Y-range (use original data for accurate range)
-        let allMPGValues = allMPGRecords.compactMap { $0.cachedMPG }
-        if let minMPG = allMPGValues.min(), let maxMPG = allMPGValues.max() {
-            let minY = floor(minMPG / 5) * 5
-            let maxY = ceil(maxMPG / 5) * 5
-            self.mpgYRange = minY...max(maxY, minY + 5)
+        // Efficiency Y-range
+        let allEfficiencyValues = allEfficiencyRecords.compactMap { $0.cachedEfficiency }.map { unitSystem.efficiencyDisplayValue(from: $0) }
+        if let minVal = allEfficiencyValues.min(), let maxVal = allEfficiencyValues.max() {
+            let minY = floor(minVal / 5) * 5
+            let maxY = ceil(maxVal / 5) * 5
+            self.efficiencyYRange = minY...max(maxY, minY + 5)
         } else {
-            self.mpgYRange = 0...40
+            self.efficiencyYRange = 0...40
         }
 
         // Pre-compute Cost data with bucket averaging
@@ -98,21 +104,21 @@ struct PrecomputedChartData {
             self.priceData = Self.createAveragedDataPoints(
                 from: sorted,
                 targetCount: Self.maxDisplayPoints,
-                valueExtractor: { $0.pricePerGallon }
+                valueExtractor: { $0.pricePerFuelUnit }
             )
         } else {
-            self.priceData = sorted.map { ChartDataPoint(id: $0.id, date: $0.date, value: $0.pricePerGallon) }
+            self.priceData = sorted.map { ChartDataPoint(id: $0.id, date: $0.date, value: $0.pricePerFuelUnit) }
         }
 
         // Calculate price average from ALL records
         if !sorted.isEmpty {
-            self.priceAverage = sorted.reduce(0.0) { $0 + $1.pricePerGallon } / Double(sorted.count)
+            self.priceAverage = sorted.reduce(0.0) { $0 + $1.pricePerFuelUnit } / Double(sorted.count)
         } else {
             self.priceAverage = 0
         }
 
         // Price Y-range (use original data for accurate range)
-        let allPriceValues = sorted.map { $0.pricePerGallon }
+        let allPriceValues = sorted.map { $0.pricePerFuelUnit }
         if let minPrice = allPriceValues.min(), let maxPrice = allPriceValues.max() {
             let minY = floor(minPrice * 2) / 2
             let maxY = ceil(maxPrice * 2) / 2
@@ -164,14 +170,23 @@ struct PrecomputedChartData {
 
 struct ChartView: View {
     let records: [FuelingRecord]
+    let unitSystem: UnitSystem
 
-    @State private var selectedChart: ChartType = .mpg
+    @State private var selectedChart: ChartType = .efficiency
     @State private var chartData: PrecomputedChartData?
 
-    enum ChartType: String, CaseIterable {
-        case mpg = "MPG"
-        case cost = "Cost"
-        case pricePerGallon = "$/Gallon"
+    enum ChartType: CaseIterable {
+        case efficiency
+        case cost
+        case pricePerFuelUnit
+
+        func label(for unitSystem: UnitSystem) -> String {
+            switch self {
+            case .efficiency: return unitSystem.efficiencyUnit
+            case .cost: return "Cost"
+            case .pricePerFuelUnit: return "$\(unitSystem.pricePerFuelShort)"
+            }
+        }
     }
 
     var body: some View {
@@ -179,7 +194,7 @@ struct ChartView: View {
             // Chart Type Picker
             Picker("Chart Type", selection: $selectedChart) {
                 ForEach(ChartType.allCases, id: \.self) { type in
-                    Text(type.rawValue)
+                    Text(type.label(for: unitSystem))
                         .tag(type)
                 }
             }
@@ -189,12 +204,12 @@ struct ChartView: View {
             Group {
                 if let data = chartData {
                     switch selectedChart {
-                    case .mpg:
-                        MPGChart(data: data.mpgData, average: data.mpgAverage, yRange: data.mpgYRange, showPoints: data.showPoints)
+                    case .efficiency:
+                        EfficiencyChart(data: data.efficiencyData, average: data.efficiencyAverage, yRange: data.efficiencyYRange, showPoints: data.showPoints, unitSystem: unitSystem)
                     case .cost:
                         CostChart(data: data.costData, average: data.costAverage, yRange: data.costYRange, showPoints: data.showPoints)
-                    case .pricePerGallon:
-                        PricePerGallonChart(data: data.priceData, average: data.priceAverage, yRange: data.priceYRange, showPoints: data.showPoints)
+                    case .pricePerFuelUnit:
+                        PricePerFuelUnitChart(data: data.priceData, average: data.priceAverage, yRange: data.priceYRange, showPoints: data.showPoints, unitSystem: unitSystem)
                     }
                 } else {
                     ProgressView()
@@ -216,26 +231,27 @@ struct ChartView: View {
 
     private func prepareChartData() {
         // Compute data once and cache it
-        chartData = PrecomputedChartData(records: records)
+        chartData = PrecomputedChartData(records: records, unitSystem: unitSystem)
     }
 }
 
-struct MPGChart: View {
+struct EfficiencyChart: View {
     let data: [ChartDataPoint]
     let average: Double
     let yRange: ClosedRange<Double>
     let showPoints: Bool
+    let unitSystem: UnitSystem
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Miles Per Gallon")
+                Text(unitSystem.efficiencyName)
                     .font(.custom("Avenir Next", size: 14))
                     .foregroundColor(.secondary)
 
                 Spacer()
 
-                Text("Avg: \(average.formatted(.number.precision(.fractionLength(1)))) MPG")
+                Text("Avg: \(average.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit)")
                     .font(.custom("Avenir Next", size: 12))
                     .foregroundColor(.purple)
             }
@@ -244,7 +260,7 @@ struct MPGChart: View {
                 ForEach(data) { point in
                     LineMark(
                         x: .value("Date", point.date),
-                        y: .value("MPG", point.value)
+                        y: .value(unitSystem.efficiencyUnit, point.value)
                     )
                     .foregroundStyle(Color.purple)
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
@@ -252,7 +268,7 @@ struct MPGChart: View {
                     AreaMark(
                         x: .value("Date", point.date),
                         yStart: .value("Min", yRange.lowerBound),
-                        yEnd: .value("MPG", point.value)
+                        yEnd: .value(unitSystem.efficiencyUnit, point.value)
                     )
                     .foregroundStyle(
                         LinearGradient(
@@ -266,7 +282,7 @@ struct MPGChart: View {
                     if showPoints {
                         PointMark(
                             x: .value("Date", point.date),
-                            y: .value("MPG", point.value)
+                            y: .value(unitSystem.efficiencyUnit, point.value)
                         )
                         .foregroundStyle(.purple)
                         .symbolSize(40)
@@ -347,16 +363,17 @@ struct CostChart: View {
     }
 }
 
-struct PricePerGallonChart: View {
+struct PricePerFuelUnitChart: View {
     let data: [ChartDataPoint]
     let average: Double
     let yRange: ClosedRange<Double>
     let showPoints: Bool
+    let unitSystem: UnitSystem
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Price per Gallon")
+                Text(unitSystem.pricePerFuelLabel)
                     .font(.custom("Avenir Next", size: 14))
                     .foregroundColor(.secondary)
 
@@ -426,7 +443,6 @@ struct PricePerGallonChart: View {
 }
 
 #Preview {
-    ChartView(records: [])
+    ChartView(records: [], unitSystem: .imperial)
         .padding()
 }
-

@@ -10,24 +10,34 @@ final class Vehicle {
     var year: Int?
     var createdAt: Date = Date()
 
+    /// Unit system for this vehicle: "imperial" or "metric"
+    var unitSystemRaw: String = UnitSystem.imperial.rawValue
+
     @Relationship(deleteRule: .cascade, inverse: \FuelingRecord.vehicle)
     var fuelingRecords: [FuelingRecord]?
 
     // MARK: - Cached Statistics (for performance)
     // These are pre-computed and stored to avoid recalculating on every view render
     var cachedTotalSpent: Double?
-    var cachedTotalMiles: Double?
-    var cachedTotalGallons: Double?
-    var cachedAverageMPG: Double?
-    var cachedAverageCostPerMile: Double?
+    @Attribute(originalName: "cachedTotalMiles") var cachedTotalDistance: Double?
+    @Attribute(originalName: "cachedTotalGallons") var cachedTotalFuel: Double?
+    @Attribute(originalName: "cachedAverageMPG") var cachedAverageEfficiency: Double?
+    @Attribute(originalName: "cachedAverageCostPerMile") var cachedAverageCostPerDistance: Double?
     var cachedAverageFillUpCost: Double?
-    var cachedAveragePricePerGallon: Double?
-    var cachedBestMPG: Double?
-    var cachedWorstMPG: Double?
-    var cachedHighestPricePerGallon: Double?
-    var cachedLowestPricePerGallon: Double?
+    @Attribute(originalName: "cachedAveragePricePerGallon") var cachedAveragePricePerFuelUnit: Double?
+    @Attribute(originalName: "cachedBestMPG") var cachedBestEfficiency: Double?
+    @Attribute(originalName: "cachedWorstMPG") var cachedWorstEfficiency: Double?
+    @Attribute(originalName: "cachedHighestPricePerGallon") var cachedHighestPricePerFuelUnit: Double?
+    @Attribute(originalName: "cachedLowestPricePerGallon") var cachedLowestPricePerFuelUnit: Double?
     var cachedRecordCount: Int?
     var cacheLastUpdated: Date?
+
+    // MARK: - Unit System Accessor
+
+    var unitSystem: UnitSystem {
+        get { UnitSystem(rawValue: unitSystemRaw) ?? .imperial }
+        set { unitSystemRaw = newValue.rawValue }
+    }
 
     init(
         id: UUID = UUID(),
@@ -35,7 +45,8 @@ final class Vehicle {
         make: String? = nil,
         model: String? = nil,
         year: Int? = nil,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        unitSystem: UnitSystem = .imperial
     ) {
         self.id = id
         self.name = name
@@ -43,6 +54,7 @@ final class Vehicle {
         self.model = model
         self.year = year
         self.createdAt = createdAt
+        self.unitSystemRaw = unitSystem.rawValue
     }
 
     var displayName: String {
@@ -75,18 +87,17 @@ final class Vehicle {
     /// Invalidate the cache (call before full recalculation)
     func invalidateCache() {
         cachedTotalSpent = nil
-        cachedTotalMiles = nil
-        cachedTotalGallons = nil
-        cachedAverageMPG = nil
-        cachedAverageCostPerMile = nil
+        cachedTotalDistance = nil
+        cachedTotalFuel = nil
+        cachedAverageEfficiency = nil
+        cachedAverageCostPerDistance = nil
         cachedAverageFillUpCost = nil
-        cachedAveragePricePerGallon = nil
-        cachedBestMPG = nil
-        cachedWorstMPG = nil
-        cachedHighestPricePerGallon = nil
-        cachedLowestPricePerGallon = nil
+        cachedAveragePricePerFuelUnit = nil
+        cachedBestEfficiency = nil
+        cachedWorstEfficiency = nil
+        cachedHighestPricePerFuelUnit = nil
+        cachedLowestPricePerFuelUnit = nil
         cachedRecordCount = nil
         cacheLastUpdated = nil
     }
 }
-

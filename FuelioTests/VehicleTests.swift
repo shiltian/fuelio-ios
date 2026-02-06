@@ -15,6 +15,8 @@ final class VehicleTests: XCTestCase {
         XCTAssertNil(vehicle.year)
         XCTAssertNotNil(vehicle.id)
         XCTAssertNotNil(vehicle.createdAt)
+        XCTAssertEqual(vehicle.unitSystem, .imperial)
+        XCTAssertEqual(vehicle.unitSystemRaw, "imperial")
     }
 
     func testInitializationWithAllValues() {
@@ -27,7 +29,8 @@ final class VehicleTests: XCTestCase {
             make: "Toyota",
             model: "Camry",
             year: 2023,
-            createdAt: customDate
+            createdAt: customDate,
+            unitSystem: .metric
         )
 
         XCTAssertEqual(vehicle.id, customId)
@@ -36,6 +39,33 @@ final class VehicleTests: XCTestCase {
         XCTAssertEqual(vehicle.model, "Camry")
         XCTAssertEqual(vehicle.year, 2023)
         XCTAssertEqual(vehicle.createdAt, customDate)
+        XCTAssertEqual(vehicle.unitSystem, .metric)
+        XCTAssertEqual(vehicle.unitSystemRaw, "metric")
+    }
+
+    // MARK: - Unit System Tests
+
+    func testUnitSystemDefaultsToImperial() {
+        let vehicle = Vehicle(name: "Test Car")
+        XCTAssertEqual(vehicle.unitSystem, .imperial)
+    }
+
+    func testUnitSystemAccessor() {
+        let vehicle = Vehicle(name: "Test Car")
+
+        vehicle.unitSystem = .metric
+        XCTAssertEqual(vehicle.unitSystem, .metric)
+        XCTAssertEqual(vehicle.unitSystemRaw, "metric")
+
+        vehicle.unitSystem = .imperial
+        XCTAssertEqual(vehicle.unitSystem, .imperial)
+        XCTAssertEqual(vehicle.unitSystemRaw, "imperial")
+    }
+
+    func testUnitSystemFallbackForInvalidRaw() {
+        let vehicle = Vehicle(name: "Test Car")
+        vehicle.unitSystemRaw = "invalid"
+        XCTAssertEqual(vehicle.unitSystem, .imperial) // Fallback
     }
 
     // MARK: - Display Name Tests
@@ -106,18 +136,20 @@ final class VehicleTests: XCTestCase {
 
         let oldRecord = FuelingRecord(
             date: oldDate,
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 10.0,
-            totalCost: 35.0
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10.0,
+            totalCost: 35.0,
+            vehicle: vehicle
         )
 
         let newRecord = FuelingRecord(
             date: newDate,
-            currentMiles: 10500,
-            pricePerGallon: 3.60,
-            gallons: 11.0,
-            totalCost: 39.60
+            odometer: 10500,
+            pricePerFuelUnit: 3.60,
+            fuelAmount: 11.0,
+            totalCost: 39.60,
+            vehicle: vehicle
         )
 
         vehicle.fuelingRecords = [oldRecord, newRecord]
@@ -144,18 +176,20 @@ final class VehicleTests: XCTestCase {
 
         let oldRecord = FuelingRecord(
             date: oldDate,
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 10.0,
-            totalCost: 35.0
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10.0,
+            totalCost: 35.0,
+            vehicle: vehicle
         )
 
         let newRecord = FuelingRecord(
             date: newDate,
-            currentMiles: 10500,
-            pricePerGallon: 3.60,
-            gallons: 11.0,
-            totalCost: 39.60
+            odometer: 10500,
+            pricePerFuelUnit: 3.60,
+            fuelAmount: 11.0,
+            totalCost: 39.60,
+            vehicle: vehicle
         )
 
         vehicle.fuelingRecords = [oldRecord, newRecord]
@@ -163,7 +197,7 @@ final class VehicleTests: XCTestCase {
         let lastRecord = vehicle.lastRecord
         XCTAssertNotNil(lastRecord)
         XCTAssertEqual(lastRecord?.date, newDate)
-        XCTAssertEqual(lastRecord?.currentMiles, 10500)
+        XCTAssertEqual(lastRecord?.odometer, 10500)
     }
 
     // MARK: - Cache Status Tests
@@ -180,7 +214,6 @@ final class VehicleTests: XCTestCase {
         vehicle.cacheLastUpdated = Date()
         vehicle.cachedRecordCount = 5
 
-        // No records but cache says 5
         XCTAssertTrue(vehicle.needsCacheRebuild)
     }
 
@@ -209,16 +242,16 @@ final class VehicleTests: XCTestCase {
 
         // Set all cached values
         vehicle.cachedTotalSpent = 1000.0
-        vehicle.cachedTotalMiles = 5000.0
-        vehicle.cachedTotalGallons = 200.0
-        vehicle.cachedAverageMPG = 25.0
-        vehicle.cachedAverageCostPerMile = 0.20
+        vehicle.cachedTotalDistance = 5000.0
+        vehicle.cachedTotalFuel = 200.0
+        vehicle.cachedAverageEfficiency = 25.0
+        vehicle.cachedAverageCostPerDistance = 0.20
         vehicle.cachedAverageFillUpCost = 50.0
-        vehicle.cachedAveragePricePerGallon = 3.50
-        vehicle.cachedBestMPG = 32.0
-        vehicle.cachedWorstMPG = 18.0
-        vehicle.cachedHighestPricePerGallon = 4.50
-        vehicle.cachedLowestPricePerGallon = 2.80
+        vehicle.cachedAveragePricePerFuelUnit = 3.50
+        vehicle.cachedBestEfficiency = 32.0
+        vehicle.cachedWorstEfficiency = 18.0
+        vehicle.cachedHighestPricePerFuelUnit = 4.50
+        vehicle.cachedLowestPricePerFuelUnit = 2.80
         vehicle.cachedRecordCount = 20
         vehicle.cacheLastUpdated = Date()
 
@@ -227,16 +260,16 @@ final class VehicleTests: XCTestCase {
 
         // Verify all values are nil
         XCTAssertNil(vehicle.cachedTotalSpent)
-        XCTAssertNil(vehicle.cachedTotalMiles)
-        XCTAssertNil(vehicle.cachedTotalGallons)
-        XCTAssertNil(vehicle.cachedAverageMPG)
-        XCTAssertNil(vehicle.cachedAverageCostPerMile)
+        XCTAssertNil(vehicle.cachedTotalDistance)
+        XCTAssertNil(vehicle.cachedTotalFuel)
+        XCTAssertNil(vehicle.cachedAverageEfficiency)
+        XCTAssertNil(vehicle.cachedAverageCostPerDistance)
         XCTAssertNil(vehicle.cachedAverageFillUpCost)
-        XCTAssertNil(vehicle.cachedAveragePricePerGallon)
-        XCTAssertNil(vehicle.cachedBestMPG)
-        XCTAssertNil(vehicle.cachedWorstMPG)
-        XCTAssertNil(vehicle.cachedHighestPricePerGallon)
-        XCTAssertNil(vehicle.cachedLowestPricePerGallon)
+        XCTAssertNil(vehicle.cachedAveragePricePerFuelUnit)
+        XCTAssertNil(vehicle.cachedBestEfficiency)
+        XCTAssertNil(vehicle.cachedWorstEfficiency)
+        XCTAssertNil(vehicle.cachedHighestPricePerFuelUnit)
+        XCTAssertNil(vehicle.cachedLowestPricePerFuelUnit)
         XCTAssertNil(vehicle.cachedRecordCount)
         XCTAssertNil(vehicle.cacheLastUpdated)
     }
@@ -258,7 +291,6 @@ final class VehicleTests: XCTestCase {
             year: 0
         )
 
-        // Year 0 should still be included
         XCTAssertEqual(vehicle.displayName, "0 Toyota Corolla")
     }
 
@@ -273,4 +305,3 @@ final class VehicleTests: XCTestCase {
         XCTAssertEqual(vehicle.displayName, "-1 Toyota Corolla")
     }
 }
-

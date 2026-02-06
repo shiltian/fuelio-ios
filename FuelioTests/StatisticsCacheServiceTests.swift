@@ -12,20 +12,23 @@ final class StatisticsCacheServiceTests: XCTestCase {
 
     private func createRecord(
         date: Date = Date(),
-        currentMiles: Double,
-        pricePerGallon: Double = 3.50,
-        gallons: Double = 10.0,
+        odometer: Double,
+        pricePerFuelUnit: Double = 3.50,
+        fuelAmount: Double = 10.0,
         totalCost: Double? = nil,
-        fillUpType: FillUpType = .full
+        fillUpType: FillUpType = .full,
+        vehicle: Vehicle? = nil
     ) -> FuelingRecord {
-        let cost = totalCost ?? (pricePerGallon * gallons)
+        let cost = totalCost ?? (pricePerFuelUnit * fuelAmount)
+        let v = vehicle ?? Vehicle(name: "Helper Vehicle")
         return FuelingRecord(
             date: date,
-            currentMiles: currentMiles,
-            pricePerGallon: pricePerGallon,
-            gallons: gallons,
+            odometer: odometer,
+            pricePerFuelUnit: pricePerFuelUnit,
+            fuelAmount: fuelAmount,
             totalCost: cost,
-            fillUpType: fillUpType
+            fillUpType: fillUpType,
+            vehicle: v
         )
     }
 
@@ -44,16 +47,16 @@ final class StatisticsCacheServiceTests: XCTestCase {
     func testRecalculateAllStatisticsWithSingleRecord() {
         let vehicle = createVehicle()
 
-        let record = createRecord(currentMiles: 10000, pricePerGallon: 3.50, gallons: 10.0)
+        let record = createRecord(odometer: 10000, pricePerFuelUnit: 3.50, fuelAmount: 10.0, vehicle: vehicle)
         vehicle.fuelingRecords = [record]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
         XCTAssertEqual(vehicle.cachedRecordCount, 1)
         XCTAssertEqual(vehicle.cachedTotalSpent, 35.0)
-        XCTAssertEqual(vehicle.cachedTotalGallons, 10.0)
-        XCTAssertEqual(vehicle.cachedTotalMiles, 0) // No previous record to calculate miles
-        XCTAssertEqual(vehicle.cachedAveragePricePerGallon, 3.50)
+        XCTAssertEqual(vehicle.cachedTotalFuel, 10.0)
+        XCTAssertEqual(vehicle.cachedTotalDistance, 0) // No previous record to calculate distance
+        XCTAssertEqual(vehicle.cachedAveragePricePerFuelUnit, 3.50)
         XCTAssertNotNil(vehicle.cacheLastUpdated)
     }
 
@@ -64,9 +67,9 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let date2 = Date(timeIntervalSince1970: 2000000)
         let date3 = Date(timeIntervalSince1970: 3000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, pricePerGallon: 3.00, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10300, pricePerGallon: 3.50, gallons: 10.0)
-        let record3 = createRecord(date: date3, currentMiles: 10600, pricePerGallon: 4.00, gallons: 10.0)
+        let record1 = createRecord(date: date1, odometer: 10000, pricePerFuelUnit: 3.00, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, pricePerFuelUnit: 3.50, fuelAmount: 10.0, vehicle: vehicle)
+        let record3 = createRecord(date: date3, odometer: 10600, pricePerFuelUnit: 4.00, fuelAmount: 10.0, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record2, record3]
 
@@ -74,48 +77,48 @@ final class StatisticsCacheServiceTests: XCTestCase {
 
         XCTAssertEqual(vehicle.cachedRecordCount, 3)
         XCTAssertEqual(vehicle.cachedTotalSpent, 105.0) // 30 + 35 + 40
-        XCTAssertEqual(vehicle.cachedTotalGallons, 30.0)
-        XCTAssertEqual(vehicle.cachedTotalMiles, 600.0) // 300 + 300
-        XCTAssertEqual(vehicle.cachedAveragePricePerGallon!, 3.50, accuracy: 0.001) // (3 + 3.5 + 4) / 3
+        XCTAssertEqual(vehicle.cachedTotalFuel, 30.0)
+        XCTAssertEqual(vehicle.cachedTotalDistance, 600.0) // 300 + 300
+        XCTAssertEqual(vehicle.cachedAveragePricePerFuelUnit!, 3.50, accuracy: 0.001) // (3 + 3.5 + 4) / 3
         XCTAssertEqual(vehicle.cachedAverageFillUpCost, 35.0) // 105 / 3
     }
 
-    func testRecalculateAllStatisticsMPGCalculation() {
+    func testRecalculateAllStatisticsEfficiencyCalculation() {
         let vehicle = createVehicle()
 
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10300, gallons: 10.0) // 300 miles / 10 gallons = 30 MPG
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, fuelAmount: 10.0, vehicle: vehicle) // 300 / 10 = 30
 
         vehicle.fuelingRecords = [record1, record2]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        XCTAssertEqual(vehicle.cachedAverageMPG, 30.0)
-        XCTAssertEqual(record2.cachedMPG, 30.0)
-        XCTAssertEqual(record2.cachedMilesDriven, 300.0)
-        XCTAssertEqual(record2.cachedPreviousMiles, 10000.0)
+        XCTAssertEqual(vehicle.cachedAverageEfficiency, 30.0)
+        XCTAssertEqual(record2.cachedEfficiency, 30.0)
+        XCTAssertEqual(record2.cachedDistanceDriven, 300.0)
+        XCTAssertEqual(record2.cachedPreviousOdometer, 10000.0)
     }
 
-    func testRecalculateAllStatisticsBestAndWorstMPG() {
+    func testRecalculateAllStatisticsBestAndWorstEfficiency() {
         let vehicle = createVehicle()
 
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
         let date3 = Date(timeIntervalSince1970: 3000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10400, gallons: 10.0) // 40 MPG
-        let record3 = createRecord(date: date3, currentMiles: 10600, gallons: 10.0) // 20 MPG
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10400, fuelAmount: 10.0, vehicle: vehicle) // 40
+        let record3 = createRecord(date: date3, odometer: 10600, fuelAmount: 10.0, vehicle: vehicle) // 20
 
         vehicle.fuelingRecords = [record1, record2, record3]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        XCTAssertEqual(vehicle.cachedBestMPG, 40.0)
-        XCTAssertEqual(vehicle.cachedWorstMPG, 20.0)
+        XCTAssertEqual(vehicle.cachedBestEfficiency, 40.0)
+        XCTAssertEqual(vehicle.cachedWorstEfficiency, 20.0)
     }
 
     func testRecalculateAllStatisticsPriceExtremes() {
@@ -125,16 +128,16 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let date2 = Date(timeIntervalSince1970: 2000000)
         let date3 = Date(timeIntervalSince1970: 3000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, pricePerGallon: 3.00, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10300, pricePerGallon: 4.50, gallons: 10.0)
-        let record3 = createRecord(date: date3, currentMiles: 10600, pricePerGallon: 2.80, gallons: 10.0)
+        let record1 = createRecord(date: date1, odometer: 10000, pricePerFuelUnit: 3.00, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, pricePerFuelUnit: 4.50, fuelAmount: 10.0, vehicle: vehicle)
+        let record3 = createRecord(date: date3, odometer: 10600, pricePerFuelUnit: 2.80, fuelAmount: 10.0, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record2, record3]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        XCTAssertEqual(vehicle.cachedHighestPricePerGallon, 4.50)
-        XCTAssertEqual(vehicle.cachedLowestPricePerGallon, 2.80)
+        XCTAssertEqual(vehicle.cachedHighestPricePerFuelUnit, 4.50)
+        XCTAssertEqual(vehicle.cachedLowestPricePerFuelUnit, 2.80)
     }
 
     func testRecalculateAllStatisticsWithPartialFillUp() {
@@ -144,17 +147,16 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let date2 = Date(timeIntervalSince1970: 2000000)
         let date3 = Date(timeIntervalSince1970: 3000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10300, gallons: 5.0, fillUpType: .partial) // Partial - no MPG
-        let record3 = createRecord(date: date3, currentMiles: 10600, gallons: 10.0) // After partial - no MPG
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, fuelAmount: 5.0, fillUpType: .partial, vehicle: vehicle)
+        let record3 = createRecord(date: date3, odometer: 10600, fuelAmount: 10.0, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record2, record3]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        // MPG should not be calculated for partial fill-up or the record after it
-        XCTAssertNil(record2.cachedMPG)
-        XCTAssertNil(record3.cachedMPG)
+        XCTAssertNil(record2.cachedEfficiency)
+        XCTAssertNil(record3.cachedEfficiency)
     }
 
     func testRecalculateAllStatisticsWithResetFillUp() {
@@ -164,35 +166,32 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let date2 = Date(timeIntervalSince1970: 2000000)
         let date3 = Date(timeIntervalSince1970: 3000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10300, gallons: 10.0, fillUpType: .reset) // Reset - no MPG
-        let record3 = createRecord(date: date3, currentMiles: 10600, gallons: 10.0) // After reset - MPG should be calculated
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, fuelAmount: 10.0, fillUpType: .reset, vehicle: vehicle)
+        let record3 = createRecord(date: date3, odometer: 10600, fuelAmount: 10.0, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record2, record3]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        // MPG should not be calculated for reset, but should be for the next one
-        XCTAssertNil(record2.cachedMPG)
-        // Note: Reset affects its own MPG but the next record can still calculate MPG
+        XCTAssertNil(record2.cachedEfficiency)
     }
 
-    func testRecalculateAllStatisticsCostPerMile() {
+    func testRecalculateAllStatisticsCostPerDistance() {
         let vehicle = createVehicle()
 
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, pricePerGallon: 3.50, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10350, pricePerGallon: 3.50, gallons: 10.0, totalCost: 35.0)
-        // 350 miles, $35 = $0.10/mile
+        let record1 = createRecord(date: date1, odometer: 10000, pricePerFuelUnit: 3.50, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10350, pricePerFuelUnit: 3.50, fuelAmount: 10.0, totalCost: 35.0, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record2]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        XCTAssertEqual(record2.cachedCostPerMile!, 0.10, accuracy: 0.001)
-        XCTAssertEqual(vehicle.cachedAverageCostPerMile!, 0.20, accuracy: 0.001) // $70 / 350 miles
+        XCTAssertEqual(record2.cachedCostPerDistance!, 0.10, accuracy: 0.001)
+        XCTAssertEqual(vehicle.cachedAverageCostPerDistance!, 0.20, accuracy: 0.001) // $70 / 350
     }
 
     // MARK: - Incremental Update Tests
@@ -201,7 +200,7 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let vehicle = createVehicle()
         vehicle.fuelingRecords = []
 
-        let record = createRecord(currentMiles: 10000)
+        let record = createRecord(odometer: 10000, vehicle: vehicle)
         vehicle.fuelingRecords = [record]
 
         StatisticsCacheService.updateForNewRecord(record, vehicle: vehicle)
@@ -216,18 +215,18 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000)
+        let record1 = createRecord(date: date1, odometer: 10000, vehicle: vehicle)
         vehicle.fuelingRecords = [record1]
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        let record2 = createRecord(date: date2, currentMiles: 10300)
+        let record2 = createRecord(date: date2, odometer: 10300, vehicle: vehicle)
         vehicle.fuelingRecords = [record1, record2]
 
         StatisticsCacheService.updateForNewRecord(record2, vehicle: vehicle)
 
         XCTAssertEqual(vehicle.cachedRecordCount, 2)
-        XCTAssertEqual(record2.cachedMilesDriven, 300.0)
-        XCTAssertEqual(record2.cachedPreviousMiles, 10000.0)
+        XCTAssertEqual(record2.cachedDistanceDriven, 300.0)
+        XCTAssertEqual(record2.cachedPreviousOdometer, 10000.0)
     }
 
     func testUpdateForNewRecordNotLatest() {
@@ -237,19 +236,17 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let date2 = Date(timeIntervalSince1970: 2000000)
         let date3 = Date(timeIntervalSince1970: 3000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000)
-        let record3 = createRecord(date: date3, currentMiles: 10600)
+        let record1 = createRecord(date: date1, odometer: 10000, vehicle: vehicle)
+        let record3 = createRecord(date: date3, odometer: 10600, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record3]
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        // Insert a record in the middle
-        let record2 = createRecord(date: date2, currentMiles: 10300)
+        let record2 = createRecord(date: date2, odometer: 10300, vehicle: vehicle)
         vehicle.fuelingRecords = [record1, record2, record3]
 
         StatisticsCacheService.updateForNewRecord(record2, vehicle: vehicle)
 
-        // Should trigger full recalculation
         XCTAssertEqual(vehicle.cachedRecordCount, 3)
     }
 
@@ -261,20 +258,18 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, pricePerGallon: 3.00, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10300, pricePerGallon: 4.00, gallons: 10.0)
+        let record1 = createRecord(date: date1, odometer: 10000, pricePerFuelUnit: 3.00, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, pricePerFuelUnit: 4.00, fuelAmount: 10.0, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record2]
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        // Simulate deletion
         vehicle.fuelingRecords = [record1]
-
         StatisticsCacheService.updateForDeletedRecord(vehicle: vehicle)
 
         XCTAssertEqual(vehicle.cachedRecordCount, 1)
         XCTAssertEqual(vehicle.cachedTotalSpent, 30.0)
-        XCTAssertEqual(vehicle.cachedAveragePricePerGallon, 3.00)
+        XCTAssertEqual(vehicle.cachedAveragePricePerFuelUnit, 3.00)
     }
 
     func testUpdateForEditedRecord() {
@@ -283,20 +278,19 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, pricePerGallon: 3.00, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10300, pricePerGallon: 4.00, gallons: 10.0)
+        let record1 = createRecord(date: date1, odometer: 10000, pricePerFuelUnit: 3.00, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, pricePerFuelUnit: 4.00, fuelAmount: 10.0, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record2]
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        // Edit record2
-        record2.pricePerGallon = 5.00
-        record2.gallons = 12.0
+        record2.pricePerFuelUnit = 5.00
+        record2.fuelAmount = 12.0
 
         StatisticsCacheService.updateForEditedRecord(vehicle: vehicle)
 
         XCTAssertEqual(vehicle.cachedRecordCount, 2)
-        XCTAssertEqual(vehicle.cachedAveragePricePerGallon!, 4.00, accuracy: 0.001) // (3 + 5) / 2
+        XCTAssertEqual(vehicle.cachedAveragePricePerFuelUnit!, 4.00, accuracy: 0.001) // (3 + 5) / 2
     }
 
     // MARK: - Cache Validation Tests
@@ -309,17 +303,15 @@ final class StatisticsCacheServiceTests: XCTestCase {
 
         StatisticsCacheService.ensureCacheValid(for: vehicle)
 
-        // Cache should remain unchanged
         XCTAssertEqual(vehicle.cachedRecordCount, 0)
     }
 
     func testEnsureCacheValidWhenCacheNeedsRebuild() {
         let vehicle = createVehicle()
 
-        let record = createRecord(currentMiles: 10000)
+        let record = createRecord(odometer: 10000, vehicle: vehicle)
         vehicle.fuelingRecords = [record]
 
-        // No cache set, so it needs rebuild
         XCTAssertNil(vehicle.cacheLastUpdated)
 
         StatisticsCacheService.ensureCacheValid(for: vehicle)
@@ -331,90 +323,82 @@ final class StatisticsCacheServiceTests: XCTestCase {
     func testEnsureCacheValidWhenRecordCountMismatch() {
         let vehicle = createVehicle()
 
-        let record = createRecord(currentMiles: 10000)
+        let record = createRecord(odometer: 10000, vehicle: vehicle)
         vehicle.fuelingRecords = [record]
-        vehicle.cachedRecordCount = 5 // Mismatch!
-        vehicle.cacheLastUpdated = Date()
+        vehicle.cachedRecordCount = 5
 
         StatisticsCacheService.ensureCacheValid(for: vehicle)
 
-        // Cache should be rebuilt
         XCTAssertEqual(vehicle.cachedRecordCount, 1)
     }
 
     // MARK: - Edge Cases
 
-    func testRecalculateWithZeroGallons() {
+    func testRecalculateWithZeroFuelAmount() {
         let vehicle = createVehicle()
 
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10300, gallons: 0) // Zero gallons
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, fuelAmount: 0, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record2]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        // Should handle zero gallons gracefully
-        XCTAssertNil(record2.cachedMPG) // Can't calculate MPG with zero gallons
+        XCTAssertNil(record2.cachedEfficiency)
     }
 
-    func testRecalculateWithSameMiles() {
+    func testRecalculateWithSameOdometer() {
         let vehicle = createVehicle()
 
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10000, gallons: 10.0) // Same miles
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
 
         vehicle.fuelingRecords = [record1, record2]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        // Should handle zero miles driven gracefully
-        XCTAssertEqual(record2.cachedMilesDriven, 0)
-        XCTAssertNil(record2.cachedMPG) // Can't calculate MPG with zero miles
+        XCTAssertEqual(record2.cachedDistanceDriven, 0)
+        XCTAssertNil(record2.cachedEfficiency)
     }
 
     func testRecalculateWithRecordsInReverseOrder() {
         let vehicle = createVehicle()
 
-        // Records added in reverse chronological order
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
         let date3 = Date(timeIntervalSince1970: 3000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10300, gallons: 10.0)
-        let record3 = createRecord(date: date3, currentMiles: 10600, gallons: 10.0)
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, fuelAmount: 10.0, vehicle: vehicle)
+        let record3 = createRecord(date: date3, odometer: 10600, fuelAmount: 10.0, vehicle: vehicle)
 
-        // Add in reverse order
         vehicle.fuelingRecords = [record3, record1, record2]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        // Should still calculate correctly after sorting
-        XCTAssertEqual(vehicle.cachedTotalMiles, 600.0)
+        XCTAssertEqual(vehicle.cachedTotalDistance, 600.0)
         XCTAssertEqual(vehicle.cachedRecordCount, 3)
     }
 
-    func testMPGCalculationAccuracy() {
+    func testEfficiencyCalculationAccuracy() {
         let vehicle = createVehicle()
 
         let date1 = Date(timeIntervalSince1970: 1000000)
         let date2 = Date(timeIntervalSince1970: 2000000)
 
-        let record1 = createRecord(date: date1, currentMiles: 10000, gallons: 10.0)
-        let record2 = createRecord(date: date2, currentMiles: 10333, gallons: 11.1) // 333 miles / 11.1 gallons = 30.0 MPG
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10333, fuelAmount: 11.1, vehicle: vehicle) // 333 / 11.1 = 30.0
 
         vehicle.fuelingRecords = [record1, record2]
 
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
-        XCTAssertEqual(record2.cachedMPG!, 30.0, accuracy: 0.01)
+        XCTAssertEqual(record2.cachedEfficiency!, 30.0, accuracy: 0.01)
     }
 }
-

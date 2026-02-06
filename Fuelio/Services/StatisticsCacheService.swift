@@ -25,115 +25,115 @@ final class StatisticsCacheService {
 
         // Single pass to compute all per-record cached values and aggregate statistics - O(n)
         var totalSpent: Double = 0
-        var totalMiles: Double = 0
-        var totalGallons: Double = 0
-        var totalPricePerGallon: Double = 0
+        var totalDistance: Double = 0
+        var totalFuel: Double = 0
+        var totalPricePerFuelUnit: Double = 0
 
-        var fullFillUpMiles: Double = 0
-        var fullFillUpGallons: Double = 0
+        var fullFillUpDistance: Double = 0
+        var fullFillUpFuel: Double = 0
 
-        var bestMPG: Double = 0
-        var worstMPG: Double = Double.greatestFiniteMagnitude
+        var bestEfficiency: Double = 0
+        var worstEfficiency: Double = Double.greatestFiniteMagnitude
         var highestPrice: Double = 0
         var lowestPrice: Double = Double.greatestFiniteMagnitude
 
-        var hasValidMPG = false
-        var previousMiles: Double = 0
+        var hasValidEfficiency = false
+        var previousOdometer: Double = 0
         var previousWasFullFillUp = false
 
         for (index, record) in sortedByDate.enumerated() {
-            // Cache previous miles for this record
-            record.cachedPreviousMiles = previousMiles
+            // Cache previous odometer for this record
+            record.cachedPreviousOdometer = previousOdometer
 
-            // Calculate miles driven
-            let milesDriven: Double
-            if previousMiles > 0 {
-                milesDriven = record.currentMiles - previousMiles
-                record.cachedMilesDriven = milesDriven
+            // Calculate distance driven
+            let distanceDriven: Double
+            if previousOdometer > 0 {
+                distanceDriven = record.odometer - previousOdometer
+                record.cachedDistanceDriven = distanceDriven
             } else {
-                milesDriven = 0
-                record.cachedMilesDriven = 0
+                distanceDriven = 0
+                record.cachedDistanceDriven = 0
             }
 
-            // Calculate MPG (only for full fill-ups where previous was also full)
-            // Partial: didn't fill tank completely (affects next record's MPG baseline)
-            // Reset: missed fueling(s) before this record (can't trust miles driven for this record)
-            let mpg: Double
-            if record.isFullFillUp && previousWasFullFillUp && milesDriven > 0 && record.gallons > 0 {
-                mpg = milesDriven / record.gallons
-                record.cachedMPG = mpg
+            // Calculate efficiency (only for full fill-ups where previous was also full)
+            // Partial: didn't fill tank completely (affects next record's efficiency baseline)
+            // Reset: missed fueling(s) before this record (can't trust distance driven for this record)
+            let efficiency: Double
+            if record.isFullFillUp && previousWasFullFillUp && distanceDriven > 0 && record.fuelAmount > 0 {
+                efficiency = distanceDriven / record.fuelAmount
+                record.cachedEfficiency = efficiency
 
-                // Track best/worst MPG
-                hasValidMPG = true
-                if mpg > bestMPG { bestMPG = mpg }
-                if mpg < worstMPG { worstMPG = mpg }
+                // Track best/worst efficiency
+                hasValidEfficiency = true
+                if efficiency > bestEfficiency { bestEfficiency = efficiency }
+                if efficiency < worstEfficiency { worstEfficiency = efficiency }
 
-                // Accumulate for average MPG calculation
-                fullFillUpMiles += milesDriven
-                fullFillUpGallons += record.gallons
+                // Accumulate for average efficiency calculation
+                fullFillUpDistance += distanceDriven
+                fullFillUpFuel += record.fuelAmount
             } else {
-                mpg = 0
-                record.cachedMPG = nil
+                efficiency = 0
+                record.cachedEfficiency = nil
             }
 
-            // Calculate cost per mile
-            if milesDriven > 0 {
-                record.cachedCostPerMile = record.totalCost / milesDriven
+            // Calculate cost per distance
+            if distanceDriven > 0 {
+                record.cachedCostPerDistance = record.totalCost / distanceDriven
             } else {
-                record.cachedCostPerMile = nil
+                record.cachedCostPerDistance = nil
             }
 
             // Accumulate totals
             totalSpent += record.totalCost
-            totalMiles += milesDriven
-            totalGallons += record.gallons
-            totalPricePerGallon += record.pricePerGallon
+            totalDistance += distanceDriven
+            totalFuel += record.fuelAmount
+            totalPricePerFuelUnit += record.pricePerFuelUnit
 
             // Track price extremes
-            if record.pricePerGallon > highestPrice { highestPrice = record.pricePerGallon }
-            if record.pricePerGallon < lowestPrice { lowestPrice = record.pricePerGallon }
+            if record.pricePerFuelUnit > highestPrice { highestPrice = record.pricePerFuelUnit }
+            if record.pricePerFuelUnit < lowestPrice { lowestPrice = record.pricePerFuelUnit }
 
             // Update state for next iteration
-            previousMiles = record.currentMiles
+            previousOdometer = record.odometer
             previousWasFullFillUp = record.isFullFillUp || index == 0
         }
 
         // Store aggregated statistics on the vehicle
         vehicle.cachedTotalSpent = totalSpent
-        vehicle.cachedTotalMiles = totalMiles
-        vehicle.cachedTotalGallons = totalGallons
+        vehicle.cachedTotalDistance = totalDistance
+        vehicle.cachedTotalFuel = totalFuel
         vehicle.cachedRecordCount = records.count
 
-        // Average MPG from full fill-ups only (more accurate)
-        if fullFillUpGallons > 0 {
-            vehicle.cachedAverageMPG = fullFillUpMiles / fullFillUpGallons
-        } else if totalGallons > 0 {
+        // Average efficiency from full fill-ups only (more accurate)
+        if fullFillUpFuel > 0 {
+            vehicle.cachedAverageEfficiency = fullFillUpDistance / fullFillUpFuel
+        } else if totalFuel > 0 {
             // Fallback to all records if no full fill-ups
-            vehicle.cachedAverageMPG = totalMiles / totalGallons
+            vehicle.cachedAverageEfficiency = totalDistance / totalFuel
         } else {
-            vehicle.cachedAverageMPG = 0
+            vehicle.cachedAverageEfficiency = 0
         }
 
-        // Average cost per mile
-        if totalMiles > 0 {
-            vehicle.cachedAverageCostPerMile = totalSpent / totalMiles
+        // Average cost per distance
+        if totalDistance > 0 {
+            vehicle.cachedAverageCostPerDistance = totalSpent / totalDistance
         } else {
-            vehicle.cachedAverageCostPerMile = 0
+            vehicle.cachedAverageCostPerDistance = 0
         }
 
         // Average fill-up cost
         vehicle.cachedAverageFillUpCost = totalSpent / Double(records.count)
 
-        // Average price per gallon
-        vehicle.cachedAveragePricePerGallon = totalPricePerGallon / Double(records.count)
+        // Average price per fuel unit
+        vehicle.cachedAveragePricePerFuelUnit = totalPricePerFuelUnit / Double(records.count)
 
-        // Best/worst MPG
-        vehicle.cachedBestMPG = hasValidMPG ? bestMPG : nil
-        vehicle.cachedWorstMPG = hasValidMPG && worstMPG != Double.greatestFiniteMagnitude ? worstMPG : nil
+        // Best/worst efficiency
+        vehicle.cachedBestEfficiency = hasValidEfficiency ? bestEfficiency : nil
+        vehicle.cachedWorstEfficiency = hasValidEfficiency && worstEfficiency != Double.greatestFiniteMagnitude ? worstEfficiency : nil
 
         // Price extremes
-        vehicle.cachedHighestPricePerGallon = highestPrice > 0 ? highestPrice : nil
-        vehicle.cachedLowestPricePerGallon = lowestPrice != Double.greatestFiniteMagnitude ? lowestPrice : nil
+        vehicle.cachedHighestPricePerFuelUnit = highestPrice > 0 ? highestPrice : nil
+        vehicle.cachedLowestPricePerFuelUnit = lowestPrice != Double.greatestFiniteMagnitude ? lowestPrice : nil
 
         vehicle.cacheLastUpdated = Date()
     }
@@ -175,46 +175,46 @@ final class StatisticsCacheService {
         }
 
         let previousRecord = sortedRecords[previousIndex]
-        let previousMiles = previousRecord.currentMiles
+        let previousOdometer = previousRecord.odometer
 
         // Cache values for the new record
-        record.cachedPreviousMiles = previousMiles
+        record.cachedPreviousOdometer = previousOdometer
 
-        let milesDriven = record.currentMiles - previousMiles
-        record.cachedMilesDriven = milesDriven > 0 ? milesDriven : 0
+        let distanceDriven = record.odometer - previousOdometer
+        record.cachedDistanceDriven = distanceDriven > 0 ? distanceDriven : 0
 
-        // Calculate MPG if applicable (only for full fill-ups where previous was also full)
-        if record.isFullFillUp && previousRecord.isFullFillUp && milesDriven > 0 && record.gallons > 0 {
-            let mpg = milesDriven / record.gallons
-            record.cachedMPG = mpg
+        // Calculate efficiency if applicable (only for full fill-ups where previous was also full)
+        if record.isFullFillUp && previousRecord.isFullFillUp && distanceDriven > 0 && record.fuelAmount > 0 {
+            let efficiency = distanceDriven / record.fuelAmount
+            record.cachedEfficiency = efficiency
 
-            // Update best/worst MPG
-            if let currentBest = vehicle.cachedBestMPG {
-                if mpg > currentBest { vehicle.cachedBestMPG = mpg }
+            // Update best/worst efficiency
+            if let currentBest = vehicle.cachedBestEfficiency {
+                if efficiency > currentBest { vehicle.cachedBestEfficiency = efficiency }
             } else {
-                vehicle.cachedBestMPG = mpg
+                vehicle.cachedBestEfficiency = efficiency
             }
 
-            if let currentWorst = vehicle.cachedWorstMPG {
-                if mpg < currentWorst { vehicle.cachedWorstMPG = mpg }
+            if let currentWorst = vehicle.cachedWorstEfficiency {
+                if efficiency < currentWorst { vehicle.cachedWorstEfficiency = efficiency }
             } else {
-                vehicle.cachedWorstMPG = mpg
+                vehicle.cachedWorstEfficiency = efficiency
             }
         } else {
-            record.cachedMPG = nil
+            record.cachedEfficiency = nil
         }
 
-        // Calculate cost per mile
-        if milesDriven > 0 {
-            record.cachedCostPerMile = record.totalCost / milesDriven
+        // Calculate cost per distance
+        if distanceDriven > 0 {
+            record.cachedCostPerDistance = record.totalCost / distanceDriven
         } else {
-            record.cachedCostPerMile = nil
+            record.cachedCostPerDistance = nil
         }
 
         // Update aggregate totals
         vehicle.cachedTotalSpent = (vehicle.cachedTotalSpent ?? 0) + record.totalCost
-        vehicle.cachedTotalMiles = (vehicle.cachedTotalMiles ?? 0) + (milesDriven > 0 ? milesDriven : 0)
-        vehicle.cachedTotalGallons = (vehicle.cachedTotalGallons ?? 0) + record.gallons
+        vehicle.cachedTotalDistance = (vehicle.cachedTotalDistance ?? 0) + (distanceDriven > 0 ? distanceDriven : 0)
+        vehicle.cachedTotalFuel = (vehicle.cachedTotalFuel ?? 0) + record.fuelAmount
 
         let newCount = (vehicle.cachedRecordCount ?? 0) + 1
         vehicle.cachedRecordCount = newCount
@@ -224,50 +224,50 @@ final class StatisticsCacheService {
             vehicle.cachedAverageFillUpCost = totalSpent / Double(newCount)
         }
 
-        if let totalMiles = vehicle.cachedTotalMiles, totalMiles > 0, let totalSpent = vehicle.cachedTotalSpent {
-            vehicle.cachedAverageCostPerMile = totalSpent / totalMiles
+        if let totalDistance = vehicle.cachedTotalDistance, totalDistance > 0, let totalSpent = vehicle.cachedTotalSpent {
+            vehicle.cachedAverageCostPerDistance = totalSpent / totalDistance
         }
 
-        // For average MPG and price, it's easier to just recalculate
+        // For average efficiency and price, it's easier to just recalculate
         // (they depend on specific subsets and would require tracking additional state)
         recalculateAverages(for: vehicle)
 
         // Update price extremes
-        if let currentHighest = vehicle.cachedHighestPricePerGallon {
-            if record.pricePerGallon > currentHighest {
-                vehicle.cachedHighestPricePerGallon = record.pricePerGallon
+        if let currentHighest = vehicle.cachedHighestPricePerFuelUnit {
+            if record.pricePerFuelUnit > currentHighest {
+                vehicle.cachedHighestPricePerFuelUnit = record.pricePerFuelUnit
             }
         } else {
-            vehicle.cachedHighestPricePerGallon = record.pricePerGallon
+            vehicle.cachedHighestPricePerFuelUnit = record.pricePerFuelUnit
         }
 
-        if let currentLowest = vehicle.cachedLowestPricePerGallon {
-            if record.pricePerGallon < currentLowest {
-                vehicle.cachedLowestPricePerGallon = record.pricePerGallon
+        if let currentLowest = vehicle.cachedLowestPricePerFuelUnit {
+            if record.pricePerFuelUnit < currentLowest {
+                vehicle.cachedLowestPricePerFuelUnit = record.pricePerFuelUnit
             }
         } else {
-            vehicle.cachedLowestPricePerGallon = record.pricePerGallon
+            vehicle.cachedLowestPricePerFuelUnit = record.pricePerFuelUnit
         }
 
         vehicle.cacheLastUpdated = Date()
     }
 
-    /// Recalculate just the averages (MPG and price per gallon) from cached record values
+    /// Recalculate just the averages (efficiency and price per fuel unit) from cached record values
     private static func recalculateAverages(for vehicle: Vehicle) {
         let records = vehicle.fuelingRecords ?? []
         guard !records.isEmpty else { return }
 
-        // Average price per gallon
-        let totalPrice = records.reduce(0.0) { $0 + $1.pricePerGallon }
-        vehicle.cachedAveragePricePerGallon = totalPrice / Double(records.count)
+        // Average price per fuel unit
+        let totalPrice = records.reduce(0.0) { $0 + $1.pricePerFuelUnit }
+        vehicle.cachedAveragePricePerFuelUnit = totalPrice / Double(records.count)
 
-        // Average MPG from full fill-ups
-        let fullFillUps = records.filter { $0.isFullFillUp && $0.cachedMPG != nil }
+        // Average efficiency from full fill-ups
+        let fullFillUps = records.filter { $0.isFullFillUp && $0.cachedEfficiency != nil }
         if !fullFillUps.isEmpty {
-            let totalMPGMiles = fullFillUps.reduce(0.0) { $0 + ($1.cachedMilesDriven ?? 0) }
-            let totalMPGGallons = fullFillUps.reduce(0.0) { $0 + $1.gallons }
-            if totalMPGGallons > 0 {
-                vehicle.cachedAverageMPG = totalMPGMiles / totalMPGGallons
+            let totalEfficiencyDistance = fullFillUps.reduce(0.0) { $0 + ($1.cachedDistanceDriven ?? 0) }
+            let totalEfficiencyFuel = fullFillUps.reduce(0.0) { $0 + $1.fuelAmount }
+            if totalEfficiencyFuel > 0 {
+                vehicle.cachedAverageEfficiency = totalEfficiencyDistance / totalEfficiencyFuel
             }
         }
     }
@@ -311,4 +311,3 @@ final class StatisticsCacheService {
         }
     }
 }
-

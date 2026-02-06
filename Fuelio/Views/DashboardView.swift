@@ -4,6 +4,8 @@ import SwiftData
 struct DashboardView: View {
     let vehicle: Vehicle
 
+    private var units: UnitSystem { vehicle.unitSystem }
+
     // Use cached records to avoid repeated sorting
     private var records: [FuelingRecord] {
         vehicle.sortedRecords
@@ -14,20 +16,21 @@ struct DashboardView: View {
         vehicle.cachedTotalSpent ?? 0
     }
 
-    private var totalMiles: Double {
-        vehicle.cachedTotalMiles ?? 0
+    private var totalDistance: Double {
+        vehicle.cachedTotalDistance ?? 0
     }
 
-    private var totalGallons: Double {
-        vehicle.cachedTotalGallons ?? 0
+    private var totalFuel: Double {
+        vehicle.cachedTotalFuel ?? 0
     }
 
-    private var averageMPG: Double {
-        vehicle.cachedAverageMPG ?? 0
+    private var averageEfficiency: Double {
+        let raw = vehicle.cachedAverageEfficiency ?? 0
+        return units.efficiencyDisplayValue(from: raw)
     }
 
-    private var averageCostPerMile: Double {
-        vehicle.cachedAverageCostPerMile ?? 0
+    private var averageCostPerDistance: Double {
+        vehicle.cachedAverageCostPerDistance ?? 0
     }
 
     private var averageFillUpCost: Double {
@@ -50,29 +53,29 @@ struct DashboardView: View {
                     )
 
                     StatCard(
-                        title: "Total Miles",
-                        value: totalMiles.formatted(.number.precision(.fractionLength(0))),
+                        title: "Total \(units.distanceName)",
+                        value: totalDistance.formatted(.number.precision(.fractionLength(0))),
                         icon: "road.lanes",
                         color: .blue
                     )
 
                     StatCard(
-                        title: "Total Gallons",
-                        value: totalGallons.formatted(.number.precision(.fractionLength(1))),
+                        title: "Total \(units.fuelName)",
+                        value: totalFuel.formatted(.number.precision(.fractionLength(1))),
                         icon: "fuelpump.fill",
                         color: .green
                     )
 
                     StatCard(
-                        title: "Avg MPG",
-                        value: averageMPG.formatted(.number.precision(.fractionLength(1))),
+                        title: "Avg \(units.efficiencyUnit)",
+                        value: averageEfficiency.formatted(.number.precision(.fractionLength(1))),
                         icon: "gauge.with.dots.needle.67percent",
                         color: .purple
                     )
 
                     StatCard(
-                        title: "Avg $/Mile",
-                        value: averageCostPerMile.currencyFormatted,
+                        title: units.avgCostPerDistanceLabel,
+                        value: averageCostPerDistance.currencyFormatted,
                         icon: "chart.line.uptrend.xyaxis",
                         color: .red
                     )
@@ -88,7 +91,7 @@ struct DashboardView: View {
 
                 // Last Fill-up Info - use cached values
                 if let lastRecord = records.first {
-                    LastFillUpCard(record: lastRecord, previousMiles: lastRecord.getPreviousMiles())
+                    LastFillUpCard(record: lastRecord, previousOdometer: lastRecord.getPreviousOdometer(), unitSystem: units)
                         .padding(.horizontal)
                 }
 
@@ -100,7 +103,7 @@ struct DashboardView: View {
                             .fontWeight(.bold)
                             .padding(.horizontal)
 
-                        ChartView(records: records)
+                        ChartView(records: records, unitSystem: units)
                             .frame(height: 250)
                             .padding(.horizontal)
                     }
@@ -160,15 +163,16 @@ struct StatCard: View {
 
 struct LastFillUpCard: View {
     let record: FuelingRecord
-    let previousMiles: Double
+    let previousOdometer: Double
+    let unitSystem: UnitSystem
 
-    // Use cached MPG if available
-    private var mpgValue: Double {
-        record.getMPG()
+    // Use cached efficiency if available
+    private var efficiencyValue: Double {
+        unitSystem.efficiencyDisplayValue(from: record.getEfficiency())
     }
 
-    private var hasMPG: Bool {
-        previousMiles > 0 && !record.isPartialFillUp && mpgValue > 0
+    private var hasEfficiency: Bool {
+        previousOdometer > 0 && !record.isPartialFillUp && record.getEfficiency() > 0
     }
 
     var body: some View {
@@ -190,10 +194,10 @@ struct LastFillUpCard: View {
 
             HStack(spacing: 24) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(record.gallons.formatted(.number.precision(.fractionLength(2)))) gal")
+                    Text("\(record.fuelAmount.formatted(.number.precision(.fractionLength(2)))) \(unitSystem.fuelUnit)")
                         .font(.custom("Avenir Next", size: 18))
                         .fontWeight(.semibold)
-                    Text("Gallons")
+                    Text(unitSystem.fuelName)
                         .font(.custom("Avenir Next", size: 12))
                         .foregroundColor(.secondary)
                 }
@@ -214,8 +218,8 @@ struct LastFillUpCard: View {
                     .frame(height: 40)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    if hasMPG {
-                        Text("\(mpgValue.formatted(.number.precision(.fractionLength(1)))) MPG")
+                    if hasEfficiency {
+                        Text("\(efficiencyValue.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit)")
                             .font(.custom("Avenir Next", size: 18))
                             .fontWeight(.semibold)
                         Text("Efficiency")
@@ -226,7 +230,7 @@ struct LastFillUpCard: View {
                             .font(.custom("Avenir Next", size: 18))
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
-                        Text(previousMiles > 0 ? "Partial" : "Baseline")
+                        Text(previousOdometer > 0 ? "Partial" : "Baseline")
                             .font(.custom("Avenir Next", size: 12))
                             .foregroundColor(.secondary)
                     }
@@ -477,4 +481,3 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
         .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
 }
-

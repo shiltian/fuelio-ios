@@ -9,6 +9,7 @@ struct AddVehicleView: View {
     @State private var make = ""
     @State private var model = ""
     @State private var yearString = ""
+    @State private var unitSystem: UnitSystem = .imperial
 
     private var isValid: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -42,6 +43,25 @@ struct AddVehicleView: View {
                     Text("Optional Details")
                         .font(.custom("Avenir Next", size: 12))
                 }
+
+                Section {
+                    Picker("Unit System", selection: $unitSystem) {
+                        ForEach(UnitSystem.allCases, id: \.self) { unit in
+                            VStack(alignment: .leading) {
+                                Text(unit.displayName)
+                            }
+                            .tag(unit)
+                        }
+                    }
+                    .font(.custom("Avenir Next", size: 16))
+                    .pickerStyle(.menu)
+                } header: {
+                    Text("Units")
+                        .font(.custom("Avenir Next", size: 12))
+                } footer: {
+                    Text(unitSystem.displayDescription)
+                        .font(.custom("Avenir Next", size: 12))
+                }
             }
             .navigationTitle("Add Vehicle")
             .navigationBarTitleDisplayMode(.inline)
@@ -72,7 +92,8 @@ struct AddVehicleView: View {
             name: trimmedName,
             make: trimmedMake.isEmpty ? nil : trimmedMake,
             model: trimmedModel.isEmpty ? nil : trimmedModel,
-            year: Int(yearString)
+            year: Int(yearString),
+            unitSystem: unitSystem
         )
 
         modelContext.insert(vehicle)
@@ -84,4 +105,3 @@ struct AddVehicleView: View {
     AddVehicleView()
         .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
 }
-

@@ -8,12 +8,14 @@ struct EditRecordView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
+    private var units: UnitSystem { vehicle.unitSystem }
+
     // Form fields
     @State private var date: Date
-    @State private var currentMilesString: String
+    @State private var odometerString: String
     // Store as integers (cents/mills) for right-to-left entry
-    @State private var pricePerGallonMills: Int   // 3 decimal places
-    @State private var gallonsMills: Int          // 3 decimal places
+    @State private var pricePerFuelUnitMills: Int   // 3 decimal places
+    @State private var fuelAmountMills: Int          // 3 decimal places
     @State private var totalCostCents: Int        // 2 decimal places
     @State private var fillUpType: FillUpType
     @State private var notes: String
@@ -22,8 +24,8 @@ struct EditRecordView: View {
     @State private var isCalculating = false
 
     enum EditableField: Equatable {
-        case pricePerGallon
-        case gallons
+        case pricePerFuelUnit
+        case fuelAmount
         case totalCost
     }
 
@@ -31,26 +33,26 @@ struct EditRecordView: View {
         self.record = record
         self.vehicle = vehicle
         _date = State(initialValue: record.date)
-        _currentMilesString = State(initialValue: String(format: "%.0f", record.currentMiles))
+        _odometerString = State(initialValue: String(format: "%.0f", record.odometer))
         // Convert Double to Int (mills/cents)
-        _pricePerGallonMills = State(initialValue: Int(round(record.pricePerGallon * 1000)))
-        _gallonsMills = State(initialValue: Int(round(record.gallons * 1000)))
+        _pricePerFuelUnitMills = State(initialValue: Int(round(record.pricePerFuelUnit * 1000)))
+        _fuelAmountMills = State(initialValue: Int(round(record.fuelAmount * 1000)))
         _totalCostCents = State(initialValue: Int(round(record.totalCost * 100)))
         _fillUpType = State(initialValue: record.fillUpType)
         _notes = State(initialValue: record.notes ?? "")
     }
 
     // Parsed values
-    private var currentMiles: Double? {
-        Double(currentMilesString)
+    private var currentOdometer: Double? {
+        Double(odometerString)
     }
 
-    private var pricePerGallon: Double {
-        Double(pricePerGallonMills) / 1000.0
+    private var pricePerFuelUnit: Double {
+        Double(pricePerFuelUnitMills) / 1000.0
     }
 
-    private var gallons: Double {
-        Double(gallonsMills) / 1000.0
+    private var fuelAmount: Double {
+        Double(fuelAmountMills) / 1000.0
     }
 
     private var totalCost: Double {
@@ -59,9 +61,9 @@ struct EditRecordView: View {
 
     // Validation
     private var isValid: Bool {
-        guard let _ = currentMiles else { return false }
-        guard pricePerGallon > 0 else { return false }
-        guard gallons > 0 else { return false }
+        guard let _ = currentOdometer else { return false }
+        guard pricePerFuelUnit > 0 else { return false }
+        guard fuelAmount > 0 else { return false }
         guard totalCost > 0 else { return false }
         return true
     }
@@ -84,7 +86,7 @@ struct EditRecordView: View {
                         Text("Odometer Reading")
                             .font(.custom("Avenir Next", size: 16))
                         Spacer()
-                        TextField("Miles", text: $currentMilesString)
+                        TextField(units.distanceUnit, text: $odometerString)
                             .font(.custom("Avenir Next", size: 16))
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
@@ -98,36 +100,36 @@ struct EditRecordView: View {
                 // Fuel Section
                 Section {
                     HStack {
-                        Text("Price per Gallon")
+                        Text(units.pricePerFuelLabel)
                             .font(.custom("Avenir Next", size: 16))
                         Spacer()
                         Text("$")
                             .foregroundColor(.secondary)
                         CurrencyInputField(
-                            value: $pricePerGallonMills,
+                            value: $pricePerFuelUnitMills,
                             decimalPlaces: 3,
                             width: 100
                         )
-                        .focused($focusedField, equals: .pricePerGallon)
-                        .onChange(of: pricePerGallonMills) { _, _ in
-                            if focusedField == .pricePerGallon { calculateGallons() }
+                        .focused($focusedField, equals: .pricePerFuelUnit)
+                        .onChange(of: pricePerFuelUnitMills) { _, _ in
+                            if focusedField == .pricePerFuelUnit { calculateFuelAmount() }
                         }
                     }
 
                     HStack {
-                        Text("Gallons")
+                        Text(units.fuelName)
                             .font(.custom("Avenir Next", size: 16))
                         Spacer()
                         CurrencyInputField(
-                            value: $gallonsMills,
+                            value: $fuelAmountMills,
                             decimalPlaces: 3,
                             width: 100
                         )
-                        .focused($focusedField, equals: .gallons)
-                        .onChange(of: gallonsMills) { _, _ in
-                            if focusedField == .gallons { calculatePricePerGallon() }
+                        .focused($focusedField, equals: .fuelAmount)
+                        .onChange(of: fuelAmountMills) { _, _ in
+                            if focusedField == .fuelAmount { calculatePricePerFuelUnit() }
                         }
-                        Text("gal")
+                        Text(units.fuelUnit)
                             .foregroundColor(.secondary)
                     }
 
@@ -144,7 +146,7 @@ struct EditRecordView: View {
                         )
                         .focused($focusedField, equals: .totalCost)
                         .onChange(of: totalCostCents) { _, _ in
-                            if focusedField == .totalCost { calculatePricePerGallon() }
+                            if focusedField == .totalCost { calculatePricePerFuelUnit() }
                         }
                     }
                 } header: {
@@ -211,39 +213,39 @@ struct EditRecordView: View {
     }
 
     // Auto-calculation rules:
-    // - Edit Gallons → Calculate Price/Gal (from Total Cost ÷ Gallons)
-    // - Edit Total Cost → Calculate Price/Gal (from Total Cost ÷ Gallons)
-    // - Edit Price/Gal → Calculate Gallons (from Total Cost ÷ Price)
+    // - Edit FuelAmount → Calculate Price/Unit (from Total Cost ÷ FuelAmount)
+    // - Edit Total Cost → Calculate Price/Unit (from Total Cost ÷ FuelAmount)
+    // - Edit Price/Unit → Calculate FuelAmount (from Total Cost ÷ Price)
 
-    private func calculatePricePerGallon() {
+    private func calculatePricePerFuelUnit() {
         guard !isCalculating else { return }
-        guard gallons > 0, totalCost > 0 else { return }
+        guard fuelAmount > 0, totalCost > 0 else { return }
 
         isCalculating = true
         defer { isCalculating = false }
 
-        let calculated = totalCost / gallons
-        pricePerGallonMills = Int(round(calculated * 1000))
+        let calculated = totalCost / fuelAmount
+        pricePerFuelUnitMills = Int(round(calculated * 1000))
     }
 
-    private func calculateGallons() {
+    private func calculateFuelAmount() {
         guard !isCalculating else { return }
-        guard pricePerGallon > 0, totalCost > 0 else { return }
+        guard pricePerFuelUnit > 0, totalCost > 0 else { return }
 
         isCalculating = true
         defer { isCalculating = false }
 
-        let calculated = totalCost / pricePerGallon
-        gallonsMills = Int(round(calculated * 1000))
+        let calculated = totalCost / pricePerFuelUnit
+        fuelAmountMills = Int(round(calculated * 1000))
     }
 
     private func saveChanges() {
-        guard let current = currentMiles else { return }
+        guard let current = currentOdometer else { return }
 
         record.date = date
-        record.currentMiles = current
-        record.pricePerGallon = pricePerGallon
-        record.gallons = gallons
+        record.odometer = current
+        record.pricePerFuelUnit = pricePerFuelUnit
+        record.fuelAmount = fuelAmount
         record.totalCost = totalCost
         record.fillUpType = fillUpType
         record.notes = notes.isEmpty ? nil : notes
@@ -259,9 +261,9 @@ struct EditRecordView: View {
 #Preview {
     let vehicle = Vehicle(name: "Test Car")
         let record = FuelingRecord(
-        currentMiles: 1000,
-        pricePerGallon: 3.459,
-        gallons: 12.5,
+        odometer: 1000,
+        pricePerFuelUnit: 3.459,
+        fuelAmount: 12.5,
         totalCost: 43.24,
         vehicle: vehicle
     )

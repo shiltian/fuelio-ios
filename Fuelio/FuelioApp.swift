@@ -6,6 +6,9 @@ struct FuelioApp: App {
     @State private var importedFileURL: URL?
     @State private var hasInitializedCache = false
 
+    /// CloudKit sync service -- shared across the app via environmentObject
+    @StateObject private var cloudSyncService = CloudSyncService()
+
     /// Check if we're running in a test environment
     private static var isRunningTests: Bool {
         NSClassFromString("XCTestCase") != nil
@@ -17,22 +20,29 @@ struct FuelioApp: App {
             FuelingRecord.self,
         ])
 
-        // Use in-memory storage for tests to avoid file system issues
+        // Use in-memory storage for tests to avoid file system issues.
+        // Explicitly disable CloudKit — we manage iCloud sync manually via CloudSyncService
+        // so SwiftData must not attempt its own automatic CloudKit integration.
         let modelConfiguration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: isRunningTests
+            isStoredInMemoryOnly: isRunningTests,
+            cloudKitDatabase: .none
         )
 
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            // Log the full error for diagnostics before crashing
+            let message = "Could not create ModelContainer: \(error.localizedDescription)\nFull error: \(error)"
+            print(message)
+            fatalError(message)
         }
     }()
 
     var body: some Scene {
         WindowGroup {
             ContentView(importedFileURL: $importedFileURL)
+                .environmentObject(cloudSyncService)
                 .onOpenURL { url in
                     handleIncomingURL(url)
                 }
@@ -41,7 +51,12 @@ struct FuelioApp: App {
                     if !hasInitializedCache {
                         hasInitializedCache = true
                         initializeCache()
+                        initializeCloudSync()
                     }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    // Pull remote changes when app returns to foreground
+                    pullRemoteChangesIfNeeded()
                 }
         }
         .modelContainer(sharedModelContainer)
@@ -51,6 +66,43 @@ struct FuelioApp: App {
     private func initializeCache() {
         let context = sharedModelContainer.mainContext
         StatisticsCacheService.rebuildCacheForAllVehicles(in: context)
+    }
+
+    /// Initialize CloudKit sync if enabled and iCloud is available
+    private func initializeCloudSync() {
+        let stateManager = cloudSyncService.stateManager
+
+        guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
+
+        Task {
+            // Verify the user still has iCloud available before touching CloudKit
+            let available = await cloudSyncService.checkiCloudAvailability()
+            guard available else { return }
+
+            // Start monitoring local saves
+            cloudSyncService.startMonitoring(container: sharedModelContainer)
+
+            // Subscribe to remote changes
+            await cloudSyncService.subscribeToRemoteChanges()
+
+            // Pull any changes that happened while the app was closed
+            let context = sharedModelContainer.mainContext
+            await cloudSyncService.pullRemoteChanges(to: context)
+        }
+    }
+
+    /// Pull remote changes if sync is enabled and iCloud is available
+    private func pullRemoteChangesIfNeeded() {
+        let stateManager = cloudSyncService.stateManager
+        guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
+
+        Task {
+            let available = await cloudSyncService.checkiCloudAvailability()
+            guard available else { return }
+
+            let context = sharedModelContainer.mainContext
+            await cloudSyncService.pullRemoteChanges(to: context)
+        }
     }
 
     private func handleIncomingURL(_ url: URL) {
@@ -87,4 +139,3 @@ struct FuelioApp: App {
         }
     }
 }
-

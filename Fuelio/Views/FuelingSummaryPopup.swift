@@ -2,25 +2,30 @@ import SwiftUI
 
 struct FuelingSummaryPopup: View {
     let record: FuelingRecord
-    let previousMiles: Double
+    let previousOdometer: Double
+    let unitSystem: UnitSystem
 
     @Environment(\.dismiss) private var dismiss
 
     // Use cached values for performance
-    private var mpgValue: Double {
-        record.getMPG()
+    private var efficiencyRaw: Double {
+        record.getEfficiency()
     }
 
-    private var costPerMileValue: Double {
-        record.getCostPerMile()
+    private var efficiencyDisplay: Double {
+        unitSystem.efficiencyDisplayValue(from: efficiencyRaw)
     }
 
-    private var milesDrivenValue: Double {
-        record.getMilesDriven()
+    private var costPerDistanceValue: Double {
+        record.getCostPerDistance()
     }
 
-    private var hasMPG: Bool {
-        previousMiles > 0 && !record.isPartialFillUp && mpgValue > 0
+    private var distanceDrivenValue: Double {
+        record.getDistanceDriven()
+    }
+
+    private var hasEfficiency: Bool {
+        previousOdometer > 0 && !record.isPartialFillUp && efficiencyRaw > 0
     }
 
     var body: some View {
@@ -56,21 +61,21 @@ struct FuelingSummaryPopup: View {
 
             // Stats Cards
             VStack(spacing: 16) {
-                // MPG Card - Hero Stat (only show for full fill-ups with valid previous record)
-                if hasMPG {
+                // Efficiency Card - Hero Stat (only show for full fill-ups with valid previous record)
+                if hasEfficiency {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Gas Mileage")
+                            Text("Fuel Efficiency")
                                 .font(.custom("Avenir Next", size: 14))
                                 .foregroundColor(.secondary)
 
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(mpgValue.formatted(.number.precision(.fractionLength(1))))
+                                Text(efficiencyDisplay.formatted(.number.precision(.fractionLength(1))))
                                     .font(.custom("Avenir Next", size: 48))
                                     .fontWeight(.bold)
                                     .foregroundColor(.purple)
 
-                                Text("MPG")
+                                Text(unitSystem.efficiencyUnit)
                                     .font(.custom("Avenir Next", size: 18))
                                     .fontWeight(.semibold)
                                     .foregroundColor(.purple.opacity(0.7))
@@ -95,20 +100,20 @@ struct FuelingSummaryPopup: View {
                             .fill(Color.purple.opacity(0.1))
                     )
 
-                    // Cost per Mile Card
+                    // Cost per Distance Card
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Cost per Mile")
+                            Text(unitSystem.costPerDistanceLabel)
                                 .font(.custom("Avenir Next", size: 14))
                                 .foregroundColor(.secondary)
 
                             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                                Text(costPerMileValue.currencyFormatted)
+                                Text(costPerDistanceValue.currencyFormatted)
                                     .font(.custom("Avenir Next", size: 36))
                                     .fontWeight(.bold)
                                     .foregroundColor(.orange)
 
-                                Text("/mile")
+                                Text(unitSystem.costPerDistanceShort)
                                     .font(.custom("Avenir Next", size: 16))
                                     .foregroundColor(.orange.opacity(0.7))
                             }
@@ -138,32 +143,32 @@ struct FuelingSummaryPopup: View {
                     GridItem(.flexible()),
                     GridItem(.flexible())
                 ], spacing: 12) {
-                    if previousMiles > 0 {
+                    if previousOdometer > 0 {
                         SummaryDetailCard(
-                            title: "Miles Driven",
-                            value: "\(milesDrivenValue.formatted(.number.precision(.fractionLength(0)))) mi",
+                            title: "\(unitSystem.distanceName) Driven",
+                            value: "\(distanceDrivenValue.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceUnit)",
                             icon: "road.lanes",
                             color: .blue
                         )
                     } else {
                         SummaryDetailCard(
                             title: "Odometer",
-                            value: "\(record.currentMiles.formatted(.number.precision(.fractionLength(0)))) mi",
+                            value: "\(record.odometer.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceUnit)",
                             icon: "speedometer",
                             color: .blue
                         )
                     }
 
                     SummaryDetailCard(
-                        title: "Gallons",
-                        value: "\(record.gallons.formatted(.number.precision(.fractionLength(2)))) gal",
+                        title: unitSystem.fuelName,
+                        value: "\(record.fuelAmount.formatted(.number.precision(.fractionLength(2)))) \(unitSystem.fuelUnit)",
                         icon: "fuelpump.fill",
                         color: .green
                     )
 
                     SummaryDetailCard(
-                        title: "Price/Gallon",
-                        value: record.pricePerGallon.currencyFormatted,
+                        title: unitSystem.pricePerFuelLabel.replacingOccurrences(of: "Price per ", with: "Price/"),
+                        value: record.pricePerFuelUnit.currencyFormatted,
                         icon: "tag.fill",
                         color: .teal
                     )
@@ -180,7 +185,7 @@ struct FuelingSummaryPopup: View {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.yellow)
-                        Text("Partial fill-up — MPG may be less accurate")
+                        Text("Partial fill-up — efficiency may be less accurate")
                             .font(.custom("Avenir Next", size: 13))
                             .foregroundColor(.secondary)
                     }
@@ -253,13 +258,13 @@ struct SummaryDetailCard: View {
     let vehicle = Vehicle(name: "Test Car")
     FuelingSummaryPopup(
         record: FuelingRecord(
-            currentMiles: 12500,
-            pricePerGallon: 3.459,
-            gallons: 10.5,
+            odometer: 12500,
+            pricePerFuelUnit: 3.459,
+            fuelAmount: 10.5,
             totalCost: 36.32,
             vehicle: vehicle
         ),
-        previousMiles: 12200
+        previousOdometer: 12200,
+        unitSystem: .imperial
     )
 }
-

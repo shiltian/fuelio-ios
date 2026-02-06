@@ -35,13 +35,13 @@ extension Array where Element == FuelingRecord {
         reduce(0) { $0 + $1.totalCost }
     }
 
-    /// Calculate total miles for records (using cached values)
-    var totalMiles: Double {
-        reduce(0) { $0 + $1.getMilesDriven() }
+    /// Calculate total distance for records (using cached values)
+    var totalDistance: Double {
+        reduce(0) { $0 + $1.getDistanceDriven() }
     }
 
-    /// Calculate total gallons for records
-    var totalGallons: Double {
-        reduce(0) { $0 + $1.gallons }
+    /// Calculate total fuel for records
+    var totalFuel: Double {
+        reduce(0) { $0 + $1.fuelAmount }
     }
 }

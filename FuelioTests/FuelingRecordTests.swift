@@ -9,15 +9,16 @@ final class FuelingRecordTests: XCTestCase {
 
     func testInitializationWithDefaultValues() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
-            totalCost: 43.75
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
+            totalCost: 43.75,
+            vehicle: testVehicle
         )
 
-        XCTAssertEqual(record.currentMiles, 10000)
-        XCTAssertEqual(record.pricePerGallon, 3.50)
-        XCTAssertEqual(record.gallons, 12.5)
+        XCTAssertEqual(record.odometer, 10000)
+        XCTAssertEqual(record.pricePerFuelUnit, 3.50)
+        XCTAssertEqual(record.fuelAmount, 12.5)
         XCTAssertEqual(record.totalCost, 43.75)
         XCTAssertEqual(record.fillUpType, .full)
         XCTAssertNil(record.notes)
@@ -33,20 +34,21 @@ final class FuelingRecordTests: XCTestCase {
         let record = FuelingRecord(
             id: customId,
             date: customDate,
-            currentMiles: 25000,
-            pricePerGallon: 4.25,
-            gallons: 15.0,
+            odometer: 25000,
+            pricePerFuelUnit: 4.25,
+            fuelAmount: 15.0,
             totalCost: 63.75,
             fillUpType: .partial,
             notes: "Test note",
-            createdAt: customDate
+            createdAt: customDate,
+            vehicle: testVehicle
         )
 
         XCTAssertEqual(record.id, customId)
         XCTAssertEqual(record.date, customDate)
-        XCTAssertEqual(record.currentMiles, 25000)
-        XCTAssertEqual(record.pricePerGallon, 4.25)
-        XCTAssertEqual(record.gallons, 15.0)
+        XCTAssertEqual(record.odometer, 25000)
+        XCTAssertEqual(record.pricePerFuelUnit, 4.25)
+        XCTAssertEqual(record.fuelAmount, 15.0)
         XCTAssertEqual(record.totalCost, 63.75)
         XCTAssertEqual(record.fillUpType, .partial)
         XCTAssertEqual(record.notes, "Test note")
@@ -56,11 +58,12 @@ final class FuelingRecordTests: XCTestCase {
 
     func testFillUpTypeAccessor() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
             totalCost: 43.75,
-            fillUpType: .full
+            fillUpType: .full,
+            vehicle: testVehicle
         )
 
         XCTAssertEqual(record.fillUpType, .full)
@@ -77,11 +80,12 @@ final class FuelingRecordTests: XCTestCase {
 
     func testIsPartialFillUp() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
             totalCost: 43.75,
-            fillUpType: .partial
+            fillUpType: .partial,
+            vehicle: testVehicle
         )
 
         XCTAssertTrue(record.isPartialFillUp)
@@ -91,11 +95,12 @@ final class FuelingRecordTests: XCTestCase {
 
     func testIsReset() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
             totalCost: 43.75,
-            fillUpType: .reset
+            fillUpType: .reset,
+            vehicle: testVehicle
         )
 
         XCTAssertTrue(record.isReset)
@@ -105,11 +110,12 @@ final class FuelingRecordTests: XCTestCase {
 
     func testIsFullFillUp() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
             totalCost: 43.75,
-            fillUpType: .full
+            fillUpType: .full,
+            vehicle: testVehicle
         )
 
         XCTAssertTrue(record.isFullFillUp)
@@ -119,163 +125,176 @@ final class FuelingRecordTests: XCTestCase {
 
     // MARK: - Cached Value Tests
 
-    func testGetPreviousMilesWithCachedValue() {
+    func testGetPreviousOdometerWithCachedValue() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
-            totalCost: 43.75
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
+            totalCost: 43.75,
+            vehicle: testVehicle
         )
 
-        record.cachedPreviousMiles = 9500
-        XCTAssertEqual(record.getPreviousMiles(), 9500)
+        record.cachedPreviousOdometer = 9500
+        XCTAssertEqual(record.getPreviousOdometer(), 9500)
     }
 
-    func testGetPreviousMilesWithFallback() {
+    func testGetPreviousOdometerWithFallback() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
-            totalCost: 43.75
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
+            totalCost: 43.75,
+            vehicle: testVehicle
         )
 
-        XCTAssertEqual(record.getPreviousMiles(fallback: 100), 100)
+        XCTAssertEqual(record.getPreviousOdometer(fallback: 100), 100)
     }
 
-    func testGetMilesDrivenWithCachedValue() {
+    func testGetDistanceDrivenWithCachedValue() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
-            totalCost: 43.75
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
+            totalCost: 43.75,
+            vehicle: testVehicle
         )
 
-        record.cachedMilesDriven = 500
-        XCTAssertEqual(record.getMilesDriven(), 500)
+        record.cachedDistanceDriven = 500
+        XCTAssertEqual(record.getDistanceDriven(), 500)
     }
 
-    func testGetMilesDrivenCalculated() {
+    func testGetDistanceDrivenCalculated() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
-            totalCost: 43.75
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
+            totalCost: 43.75,
+            vehicle: testVehicle
         )
 
-        record.cachedPreviousMiles = 9500
-        XCTAssertEqual(record.getMilesDriven(), 500)
+        record.cachedPreviousOdometer = 9500
+        XCTAssertEqual(record.getDistanceDriven(), 500)
     }
 
-    func testGetMilesDrivenNoPreviousMiles() {
+    func testGetDistanceDrivenNoPreviousOdometer() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
-            totalCost: 43.75
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
+            totalCost: 43.75,
+            vehicle: testVehicle
         )
 
-        XCTAssertEqual(record.getMilesDriven(), 0)
+        XCTAssertEqual(record.getDistanceDriven(), 0)
     }
 
-    func testGetMPGWithCachedValue() {
+    func testGetEfficiencyWithCachedValue() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 12.5,
-            totalCost: 43.75
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 12.5,
+            totalCost: 43.75,
+            vehicle: testVehicle
         )
 
-        record.cachedMPG = 32.5
-        XCTAssertEqual(record.getMPG(), 32.5)
+        record.cachedEfficiency = 32.5
+        XCTAssertEqual(record.getEfficiency(), 32.5)
     }
 
-    func testGetMPGCalculated() {
+    func testGetEfficiencyCalculated() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 10.0,
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10.0,
             totalCost: 35.0,
-            fillUpType: .full
+            fillUpType: .full,
+            vehicle: testVehicle
         )
 
-        record.cachedPreviousMiles = 9700
-        // Should calculate: (10000 - 9700) / 10 = 30 MPG
-        XCTAssertEqual(record.getMPG(), 30.0)
+        record.cachedPreviousOdometer = 9700
+        // Should calculate: (10000 - 9700) / 10 = 30
+        XCTAssertEqual(record.getEfficiency(), 30.0)
     }
 
-    func testGetMPGReturnsZeroForPartialFillUp() {
+    func testGetEfficiencyReturnsZeroForPartialFillUp() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 10.0,
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10.0,
             totalCost: 35.0,
-            fillUpType: .partial
+            fillUpType: .partial,
+            vehicle: testVehicle
         )
 
-        record.cachedPreviousMiles = 9700
-        XCTAssertEqual(record.getMPG(), 0)
+        record.cachedPreviousOdometer = 9700
+        XCTAssertEqual(record.getEfficiency(), 0)
     }
 
-    func testGetMPGReturnsZeroForReset() {
+    func testGetEfficiencyReturnsZeroForReset() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 10.0,
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10.0,
             totalCost: 35.0,
-            fillUpType: .reset
+            fillUpType: .reset,
+            vehicle: testVehicle
         )
 
-        record.cachedPreviousMiles = 9700
-        XCTAssertEqual(record.getMPG(), 0)
+        record.cachedPreviousOdometer = 9700
+        XCTAssertEqual(record.getEfficiency(), 0)
     }
 
-    func testGetMPGReturnsZeroForZeroGallons() {
+    func testGetEfficiencyReturnsZeroForZeroFuelAmount() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 0,
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 0,
             totalCost: 0,
-            fillUpType: .full
+            fillUpType: .full,
+            vehicle: testVehicle
         )
 
-        record.cachedPreviousMiles = 9700
-        XCTAssertEqual(record.getMPG(), 0)
+        record.cachedPreviousOdometer = 9700
+        XCTAssertEqual(record.getEfficiency(), 0)
     }
 
-    func testGetCostPerMileWithCachedValue() {
+    func testGetCostPerDistanceWithCachedValue() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 10.0,
-            totalCost: 35.0
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10.0,
+            totalCost: 35.0,
+            vehicle: testVehicle
         )
 
-        record.cachedCostPerMile = 0.12
-        XCTAssertEqual(record.getCostPerMile(), 0.12)
+        record.cachedCostPerDistance = 0.12
+        XCTAssertEqual(record.getCostPerDistance(), 0.12)
     }
 
-    func testGetCostPerMileCalculated() {
+    func testGetCostPerDistanceCalculated() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 10.0,
-            totalCost: 35.0
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10.0,
+            totalCost: 35.0,
+            vehicle: testVehicle
         )
 
-        record.cachedPreviousMiles = 9700
-        // Cost per mile: 35 / 300 = 0.1166...
-        XCTAssertEqual(record.getCostPerMile(), 35.0 / 300.0, accuracy: 0.0001)
+        record.cachedPreviousOdometer = 9700
+        // Cost per distance: 35 / 300 = 0.1166...
+        XCTAssertEqual(record.getCostPerDistance(), 35.0 / 300.0, accuracy: 0.0001)
     }
 
-    func testGetCostPerMileReturnsZeroForZeroMiles() {
+    func testGetCostPerDistanceReturnsZeroForZeroDistance() {
         let record = FuelingRecord(
-            currentMiles: 10000,
-            pricePerGallon: 3.50,
-            gallons: 10.0,
-            totalCost: 35.0
+            odometer: 10000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10.0,
+            totalCost: 35.0,
+            vehicle: testVehicle
         )
 
-        XCTAssertEqual(record.getCostPerMile(), 0)
+        XCTAssertEqual(record.getCostPerDistance(), 0)
     }
 
     // MARK: - CSV Export Tests
@@ -285,12 +304,13 @@ final class FuelingRecordTests: XCTestCase {
 
         let record = FuelingRecord(
             date: date,
-            currentMiles: 12500,
-            pricePerGallon: 3.459,
-            gallons: 10.5,
+            odometer: 12500,
+            pricePerFuelUnit: 3.459,
+            fuelAmount: 10.5,
             totalCost: 36.32,
             fillUpType: .full,
-            notes: "Test note"
+            notes: "Test note",
+            vehicle: testVehicle
         )
 
         let csvRow = record.toCSVRow()
@@ -309,17 +329,16 @@ final class FuelingRecordTests: XCTestCase {
 
         let record = FuelingRecord(
             date: date,
-            currentMiles: 12500,
-            pricePerGallon: 3.459,
-            gallons: 10.5,
+            odometer: 12500,
+            pricePerFuelUnit: 3.459,
+            fuelAmount: 10.5,
             totalCost: 36.32,
             fillUpType: .full,
-            notes: "Note with \"quotes\""
+            notes: "Note with \"quotes\"",
+            vehicle: testVehicle
         )
 
         let csvRow = record.toCSVRow()
-
-        // Quotes should be escaped as ""
         XCTAssertTrue(csvRow.contains("\"\"quotes\"\""))
     }
 
@@ -328,17 +347,16 @@ final class FuelingRecordTests: XCTestCase {
 
         let record = FuelingRecord(
             date: date,
-            currentMiles: 12500,
-            pricePerGallon: 3.459,
-            gallons: 10.5,
+            odometer: 12500,
+            pricePerFuelUnit: 3.459,
+            fuelAmount: 10.5,
             totalCost: 36.32,
             fillUpType: .full,
-            notes: nil
+            notes: nil,
+            vehicle: testVehicle
         )
 
         let csvRow = record.toCSVRow()
-
-        // Should have empty quotes for notes
         XCTAssertTrue(csvRow.hasSuffix(",\"\""))
     }
 
@@ -350,9 +368,9 @@ final class FuelingRecordTests: XCTestCase {
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
 
         XCTAssertNotNil(record)
-        XCTAssertEqual(record?.currentMiles, 12500)
-        XCTAssertEqual(record?.pricePerGallon, 3.459)
-        XCTAssertEqual(record?.gallons, 10.5)
+        XCTAssertEqual(record?.odometer, 12500)
+        XCTAssertEqual(record?.pricePerFuelUnit, 3.459)
+        XCTAssertEqual(record?.fuelAmount, 10.5)
         XCTAssertEqual(record?.totalCost, 36.32)
         XCTAssertEqual(record?.fillUpType, .full)
         XCTAssertEqual(record?.notes, "Test note")
@@ -360,88 +378,68 @@ final class FuelingRecordTests: XCTestCase {
 
     func testFromCSVRowWithPartialFillUp() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,partial,Note"
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.fillUpType, .partial)
     }
 
     func testFromCSVRowWithResetFillUp() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,reset,Note"
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.fillUpType, .reset)
     }
 
     func testFromCSVRowWithLegacyTrueFormat() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,true,Note"
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.fillUpType, .partial)
     }
 
     func testFromCSVRowWithLegacyFalseFormat() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,false,Note"
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.fillUpType, .full)
     }
 
     func testFromCSVRowWithMissingFillUpType() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32"
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNotNil(record)
-        XCTAssertEqual(record?.fillUpType, .full) // Default to full
+        XCTAssertEqual(record?.fillUpType, .full)
         XCTAssertNil(record?.notes)
     }
 
     func testFromCSVRowWithEmptyNotes() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,full,"
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNotNil(record)
         XCTAssertNil(record?.notes)
     }
 
     func testFromCSVRowInvalidDate() {
         let csvRow = "invalid-date,12500,3.459,10.5,36.32,full,Note"
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNil(record)
     }
 
     func testFromCSVRowInvalidNumbers() {
         let csvRow = "2024-01-15T10:30:00Z,not-a-number,3.459,10.5,36.32,full,Note"
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNil(record)
     }
 
     func testFromCSVRowTooFewComponents() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5"
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNil(record)
     }
 
     func testFromCSVRowWithQuotedNotes() {
         let csvRow = "2024-01-15T10:30:00Z,12500,3.459,10.5,36.32,full,\"Note with, comma\""
-
         let record = FuelingRecord.fromCSVRow(csvRow, vehicle: testVehicle)
-
         XCTAssertNotNil(record)
         XCTAssertEqual(record?.notes, "Note with, comma")
     }
@@ -449,8 +447,7 @@ final class FuelingRecordTests: XCTestCase {
     // MARK: - CSV Header Test
 
     func testCSVHeader() {
-        let expectedHeader = "date,currentMiles,pricePerGallon,gallons,totalCost,fillUpType,notes"
+        let expectedHeader = "date,odometer,pricePerFuelUnit,fuelAmount,totalCost,fillUpType,notes"
         XCTAssertEqual(FuelingRecord.csvHeader, expectedHeader)
     }
 }
-

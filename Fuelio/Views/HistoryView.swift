@@ -64,10 +64,10 @@ struct HistoryView: View {
                         .font(.custom("Avenir Next", size: 14))
                     }
 
-                    // Records section - use cached previousMiles
+                    // Records section - use cached previousOdometer
                     Section {
                         ForEach(filteredRecords) { record in
-                            FuelingRecordRow(record: record, previousMiles: record.getPreviousMiles())
+                            FuelingRecordRow(record: record, previousOdometer: record.getPreviousOdometer(), unitSystem: vehicle.unitSystem)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     recordToEdit = record
@@ -126,19 +126,24 @@ struct HistoryView: View {
 
 struct FuelingRecordRow: View {
     let record: FuelingRecord
-    let previousMiles: Double
+    let previousOdometer: Double
+    let unitSystem: UnitSystem
 
     // Use cached values for performance
-    private var mpgValue: Double {
-        record.getMPG()
+    private var efficiencyRaw: Double {
+        record.getEfficiency()
     }
 
-    private var milesDriven: Double {
-        record.getMilesDriven()
+    private var efficiencyDisplay: Double {
+        unitSystem.efficiencyDisplayValue(from: efficiencyRaw)
     }
 
-    private var hasMPG: Bool {
-        previousMiles > 0 && record.isFullFillUp && mpgValue > 0
+    private var distanceDriven: Double {
+        record.getDistanceDriven()
+    }
+
+    private var hasEfficiency: Bool {
+        previousOdometer > 0 && record.isFullFillUp && efficiencyRaw > 0
     }
 
     var body: some View {
@@ -167,21 +172,21 @@ struct FuelingRecordRow: View {
             HStack(spacing: 16) {
                 DetailChip(
                     icon: "fuelpump.fill",
-                    value: "\(record.gallons.formatted(.number.precision(.fractionLength(2)))) gal",
+                    value: "\(record.fuelAmount.formatted(.number.precision(.fractionLength(2)))) \(unitSystem.fuelUnit)",
                     color: .green
                 )
 
                 DetailChip(
                     icon: "dollarsign",
-                    value: "\(record.pricePerGallon.formatted(.number.precision(.fractionLength(3))))/gal",
+                    value: "\(record.pricePerFuelUnit.formatted(.number.precision(.fractionLength(3))))\(unitSystem.pricePerFuelShort)",
                     color: .orange
                 )
 
-                // Only show MPG for full fill-ups with valid previous record
-                if hasMPG {
+                // Only show efficiency for full fill-ups with valid previous record
+                if hasEfficiency {
                     DetailChip(
                         icon: "gauge",
-                        value: "\(mpgValue.formatted(.number.precision(.fractionLength(1)))) MPG",
+                        value: "\(efficiencyDisplay.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit)",
                         color: .purple
                     )
                 }
@@ -195,16 +200,16 @@ struct FuelingRecordRow: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                if previousMiles > 0 {
-                    Text("\(previousMiles.formatted(.number.precision(.fractionLength(0)))) → \(record.currentMiles.formatted(.number.precision(.fractionLength(0)))) mi")
+                if previousOdometer > 0 {
+                    Text("\(previousOdometer.formatted(.number.precision(.fractionLength(0)))) \u{2192} \(record.odometer.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceUnit)")
                         .font(.custom("Avenir Next", size: 12))
                         .foregroundColor(.secondary)
 
-                    Text("(\(milesDriven.formatted(.number.precision(.fractionLength(0)))) miles)")
+                    Text("(\(distanceDriven.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceName.lowercased()))")
                         .font(.custom("Avenir Next", size: 12))
                         .foregroundColor(.secondary.opacity(0.8))
                 } else {
-                    Text("\(record.currentMiles.formatted(.number.precision(.fractionLength(0)))) mi")
+                    Text("\(record.odometer.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceUnit)")
                         .font(.custom("Avenir Next", size: 12))
                         .foregroundColor(.secondary)
                 }
@@ -312,4 +317,3 @@ struct EmptyHistoryView: View {
     }
         .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
 }
-

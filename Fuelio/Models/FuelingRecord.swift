@@ -18,7 +18,7 @@ enum FillUpType: String, Codable, CaseIterable {
     var description: String {
         switch self {
         case .full: return "Filled the tank completely"
-        case .partial: return "Didn't fill completely (affects next MPG)"
+        case .partial: return "Didn't fill completely (affects next efficiency calculation)"
         case .reset: return "Missed recording previous fill-up(s)"
         }
     }
@@ -44,9 +44,9 @@ enum FillUpType: String, Codable, CaseIterable {
 final class FuelingRecord {
     var id: UUID = UUID()
     var date: Date = Date()
-    var currentMiles: Double = 0
-    var pricePerGallon: Double = 0
-    var gallons: Double = 0
+    @Attribute(originalName: "currentMiles") var odometer: Double = 0
+    @Attribute(originalName: "pricePerGallon") var pricePerFuelUnit: Double = 0
+    @Attribute(originalName: "gallons") var fuelAmount: Double = 0
     var totalCost: Double = 0
     var fillUpTypeRaw: String = FillUpType.full.rawValue  // Stored as String for SwiftData compatibility
     var notes: String?
@@ -56,10 +56,10 @@ final class FuelingRecord {
 
     // MARK: - Cached Computed Values (for performance)
     // These are pre-computed and stored to avoid O(n²) lookups
-    var cachedPreviousMiles: Double?
-    var cachedMilesDriven: Double?
-    var cachedMPG: Double?
-    var cachedCostPerMile: Double?
+    @Attribute(originalName: "cachedPreviousMiles") var cachedPreviousOdometer: Double?
+    @Attribute(originalName: "cachedMilesDriven") var cachedDistanceDriven: Double?
+    @Attribute(originalName: "cachedMPG") var cachedEfficiency: Double?
+    @Attribute(originalName: "cachedCostPerMile") var cachedCostPerDistance: Double?
 
     // MARK: - Fill-up Type Accessor
     var fillUpType: FillUpType {
@@ -75,9 +75,9 @@ final class FuelingRecord {
     init(
         id: UUID = UUID(),
         date: Date = Date(),
-        currentMiles: Double,
-        pricePerGallon: Double,
-        gallons: Double,
+        odometer: Double,
+        pricePerFuelUnit: Double,
+        fuelAmount: Double,
         totalCost: Double,
         fillUpType: FillUpType = .full,
         notes: String? = nil,
@@ -86,9 +86,9 @@ final class FuelingRecord {
     ) {
         self.id = id
         self.date = date
-        self.currentMiles = currentMiles
-        self.pricePerGallon = pricePerGallon
-        self.gallons = gallons
+        self.odometer = odometer
+        self.pricePerFuelUnit = pricePerFuelUnit
+        self.fuelAmount = fuelAmount
         self.totalCost = totalCost
         self.fillUpTypeRaw = fillUpType.rawValue
         self.notes = notes
@@ -96,83 +96,57 @@ final class FuelingRecord {
         self.vehicle = vehicle
     }
 
-    /// Deprecated: prefer init that requires a vehicle. Kept to avoid widespread call-site changes.
-    @available(*, deprecated, message: "Pass vehicle explicitly")
-    convenience init(
-        id: UUID = UUID(),
-        date: Date = Date(),
-        currentMiles: Double,
-        pricePerGallon: Double,
-        gallons: Double,
-        totalCost: Double,
-        fillUpType: FillUpType = .full,
-        notes: String? = nil,
-        createdAt: Date = Date()
-    ) {
-        let placeholderVehicle = Vehicle(name: "Unassigned")
-        self.init(
-            id: id,
-            date: date,
-            currentMiles: currentMiles,
-            pricePerGallon: pricePerGallon,
-            gallons: gallons,
-            totalCost: totalCost,
-            fillUpType: fillUpType,
-            notes: notes,
-            createdAt: createdAt,
-            vehicle: placeholderVehicle
-        )
-    }
-
     // MARK: - Cached Value Accessors
     // Use cached values if available, otherwise compute on-demand
 
-    /// Get previous miles (cached or computed)
-    func getPreviousMiles(fallback: Double = 0) -> Double {
-        cachedPreviousMiles ?? fallback
+    /// Get previous odometer reading (cached or fallback)
+    func getPreviousOdometer(fallback: Double = 0) -> Double {
+        cachedPreviousOdometer ?? fallback
     }
 
-    /// Get miles driven (cached or computed)
-    func getMilesDriven() -> Double {
-        if let cached = cachedMilesDriven {
+    /// Get distance driven (cached or computed)
+    func getDistanceDriven() -> Double {
+        if let cached = cachedDistanceDriven {
             return cached
         }
-        guard let prevMiles = cachedPreviousMiles, prevMiles > 0 else { return 0 }
-        return currentMiles - prevMiles
+        guard let prevOdometer = cachedPreviousOdometer, prevOdometer > 0 else { return 0 }
+        return odometer - prevOdometer
     }
 
-    /// Get MPG (cached or computed)
-    func getMPG() -> Double {
-        if let cached = cachedMPG {
+    /// Get efficiency ratio (cached or computed)
+    /// Returns distance/fuel ratio (higher = better, regardless of unit system)
+    /// For display, use vehicle.unitSystem.efficiencyDisplayValue(from:) to convert
+    func getEfficiency() -> Double {
+        if let cached = cachedEfficiency {
             return cached
         }
-        let miles = getMilesDriven()
-        guard gallons > 0, miles > 0, !isPartialFillUp, !isReset else { return 0 }
-        return miles / gallons
+        let distance = getDistanceDriven()
+        guard fuelAmount > 0, distance > 0, !isPartialFillUp, !isReset else { return 0 }
+        return distance / fuelAmount
     }
 
-    /// Get cost per mile (cached or computed)
-    func getCostPerMile() -> Double {
-        if let cached = cachedCostPerMile {
+    /// Get cost per distance unit (cached or computed)
+    func getCostPerDistance() -> Double {
+        if let cached = cachedCostPerDistance {
             return cached
         }
-        let miles = getMilesDriven()
-        guard miles > 0 else { return 0 }
-        return totalCost / miles
+        let distance = getDistanceDriven()
+        guard distance > 0 else { return 0 }
+        return totalCost / distance
     }
 
 }
 
 // MARK: - CSV Export/Import Support
 extension FuelingRecord {
-    static let csvHeader = "date,currentMiles,pricePerGallon,gallons,totalCost,fillUpType,notes"
+    static let csvHeader = "date,odometer,pricePerFuelUnit,fuelAmount,totalCost,fillUpType,notes"
 
     func toCSVRow() -> String {
         let dateFormatter = ISO8601DateFormatter()
         let dateString = dateFormatter.string(from: date)
         let notesEscaped = (notes ?? "").replacingOccurrences(of: "\"", with: "\"\"")
 
-        return "\(dateString),\(currentMiles),\(pricePerGallon),\(gallons),\(totalCost),\(fillUpType.rawValue),\"\(notesEscaped)\""
+        return "\(dateString),\(odometer),\(pricePerFuelUnit),\(fuelAmount),\(totalCost),\(fillUpType.rawValue),\"\(notesEscaped)\""
     }
 
     static func fromCSVRow(_ row: String, vehicle: Vehicle) -> FuelingRecord? {
@@ -182,9 +156,9 @@ extension FuelingRecord {
         let dateFormatter = ISO8601DateFormatter()
 
         guard let date = dateFormatter.date(from: components[0]),
-              let currentMiles = Double(components[1]),
-              let pricePerGallon = Double(components[2]),
-              let gallons = Double(components[3]),
+              let odometer = Double(components[1]),
+              let pricePerFuelUnit = Double(components[2]),
+              let fuelAmount = Double(components[3]),
               let totalCost = Double(components[4]) else {
             return nil
         }
@@ -210,9 +184,9 @@ extension FuelingRecord {
 
         return FuelingRecord(
             date: date,
-            currentMiles: currentMiles,
-            pricePerGallon: pricePerGallon,
-            gallons: gallons,
+            odometer: odometer,
+            pricePerFuelUnit: pricePerFuelUnit,
+            fuelAmount: fuelAmount,
             totalCost: totalCost,
             fillUpType: fillUpType,
             notes: notes,
@@ -240,4 +214,3 @@ extension FuelingRecord {
         return result
     }
 }
-
