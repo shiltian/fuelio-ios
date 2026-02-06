@@ -225,6 +225,9 @@ struct ChartView: View {
         .onChange(of: records.count) { _, _ in
             prepareChartData()
         }
+        .onChange(of: unitSystem) { _, _ in
+            prepareChartData()
+        }
     }
 
     private func prepareChartData() {
