@@ -9,29 +9,24 @@ enum CSVService {
     /// - Parameter records: Array of FuelingRecord to export
     /// - Returns: CSV formatted string
     static func exportRecords(_ records: [FuelingRecord]) -> String {
-        var csv = FuelingRecord.csvHeader + "\n"
-
-        for record in records.sorted(by: { $0.date < $1.date }) {
-            csv += record.toCSVRow() + "\n"
-        }
-
-        return csv
+        let rows = records.sorted(by: { $0.date < $1.date }).map { $0.toCSVRow() }
+        return ([FuelingRecord.csvHeader] + rows).joined(separator: "\n") + "\n"
     }
 
     /// Export multiple vehicles and their records to CSV format
     /// - Parameter vehicles: Array of Vehicle to export
     /// - Returns: CSV formatted string containing all vehicles' records
     static func exportAllVehicles(_ vehicles: [Vehicle]) -> String {
-        var csv = "vehicleName,vehicleMake,vehicleModel,vehicleYear,unitSystem," + FuelingRecord.csvHeader + "\n"
+        let header = "vehicleName,vehicleMake,vehicleModel,vehicleYear,unitSystem," + FuelingRecord.csvHeader
 
-        for vehicle in vehicles {
-            for record in vehicle.sortedRecords {
-                let vehicleInfo = "\"\(vehicle.name)\",\"\(vehicle.make ?? "")\",\"\(vehicle.model ?? "")\",\(vehicle.year ?? 0),\(vehicle.unitSystemRaw),"
-                csv += vehicleInfo + record.toCSVRow() + "\n"
+        let rows = vehicles.flatMap { vehicle in
+            vehicle.sortedRecords.map { record in
+                let vehicleInfo = "\"\(vehicle.name)\",\"\(vehicle.make ?? "")\",\"\(vehicle.model ?? "")\",\(vehicle.year ?? 0),\(vehicle.unitSystemRaw)"
+                return vehicleInfo + "," + record.toCSVRow()
             }
         }
 
-        return csv
+        return ([header] + rows).joined(separator: "\n") + "\n"
     }
 
     // MARK: - Import
@@ -141,7 +136,7 @@ enum CSVService {
     /// Parse a CSV line handling quoted fields
     /// - Parameter line: Single CSV line
     /// - Returns: Array of field values
-    private static func parseCSVLine(_ line: String) -> [String] {
+    static func parseCSVLine(_ line: String) -> [String] {
         var result: [String] = []
         var current = ""
         var insideQuotes = false

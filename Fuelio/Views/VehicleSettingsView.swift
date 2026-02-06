@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import os
 
 struct VehicleSettingsView: View {
     let vehicle: Vehicle
@@ -53,20 +54,20 @@ struct VehicleSettingsView: View {
                 // MARK: - Vehicle Details
                 Section {
                     TextField("Vehicle Name", text: $name)
-                        .font(.custom("Avenir Next", size: 16))
+                        .font(.appBody)
 
                     TextField("Make (e.g., Toyota)", text: $make)
-                        .font(.custom("Avenir Next", size: 16))
+                        .font(.appBody)
 
                     TextField("Model (e.g., Camry)", text: $model)
-                        .font(.custom("Avenir Next", size: 16))
+                        .font(.appBody)
 
                     TextField("Year (e.g., 2023)", text: $yearString)
-                        .font(.custom("Avenir Next", size: 16))
+                        .font(.appBody)
                         .keyboardType(.numberPad)
                 } header: {
                     Text("Vehicle Details")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                 }
 
                 // MARK: - Unit System
@@ -78,11 +79,11 @@ struct VehicleSettingsView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(unit.displayName)
-                                        .font(.custom("Avenir Next", size: 16))
+                                        .font(.appBody)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.primary)
                                     Text(unit.displayDescription)
-                                        .font(.custom("Avenir Next", size: 13))
+                                        .font(.appFootnote)
                                         .foregroundColor(.secondary)
                                 }
 
@@ -98,11 +99,11 @@ struct VehicleSettingsView: View {
                     }
                 } header: {
                     Text("Unit System")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                 } footer: {
                     if unitHasChanged && recordCount > 0 {
                         Text("Changing the unit system will convert all \(recordCount) existing record(s) to \(selectedUnit.displayName). This cannot be undone.")
-                            .font(.custom("Avenir Next", size: 12))
+                            .font(.appCaption)
                             .foregroundColor(.orange)
                     }
                 }
@@ -113,7 +114,7 @@ struct VehicleSettingsView: View {
                         showingExportOptions = true
                     } label: {
                         Label("Export CSV", systemImage: "square.and.arrow.up")
-                            .font(.custom("Avenir Next", size: 16))
+                            .font(.appBody)
                     }
                     .disabled(vehicle.fuelingRecords?.isEmpty ?? true)
 
@@ -121,11 +122,11 @@ struct VehicleSettingsView: View {
                         showingImportPicker = true
                     } label: {
                         Label("Import CSV", systemImage: "square.and.arrow.down")
-                            .font(.custom("Avenir Next", size: 16))
+                            .font(.appBody)
                     }
                 } header: {
                     Text("Data")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                 }
 
                 // MARK: - Danger Zone
@@ -134,16 +135,16 @@ struct VehicleSettingsView: View {
                         showingClearHistoryAlert = true
                     } label: {
                         Label("Clear Fueling History", systemImage: "trash")
-                            .font(.custom("Avenir Next", size: 16))
+                            .font(.appBody)
                     }
                     .disabled(vehicle.fuelingRecords?.isEmpty ?? true)
                 } header: {
                     Text("Danger Zone")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                 } footer: {
                     if recordCount > 0 {
                         Text("This will permanently delete all \(recordCount) fueling record(s). The vehicle itself will be kept.")
-                            .font(.custom("Avenir Next", size: 12))
+                            .font(.appCaption)
                     }
                 }
             }
@@ -228,7 +229,8 @@ struct VehicleSettingsView: View {
         do {
             try modelContext.save()
         } catch {
-            print("Failed to save vehicle settings: \(error)")
+            Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "VehicleSettings")
+                .error("Failed to save vehicle settings: \(error)")
         }
 
         dismiss()

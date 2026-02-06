@@ -1,0 +1,195 @@
+import SwiftUI
+import SwiftData
+
+// MARK: - iCloud Sync Detail View
+
+struct iCloudSyncDetailView: View {
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var cloudSyncService: CloudSyncService
+
+    @Query private var vehicles: [Vehicle]
+    @Query private var records: [FuelingRecord]
+
+    @State private var cloudVehicleCount: Int?
+    @State private var cloudRecordCount: Int?
+    @State private var isLoadingCloudCounts = false
+    @State private var showingForceResyncAlert = false
+    @State private var isResyncing = false
+    @State private var showingError = false
+    @State private var errorMessage = ""
+
+    var body: some View {
+        List {
+            // Local counts for comparison
+            Section {
+                InfoRow(label: "Vehicles", value: "\(vehicles.count)")
+                InfoRow(label: "Fueling Records", value: "\(records.count)")
+            } header: {
+                Text("Local Data")
+                    .font(.appCaption)
+            }
+
+            // iCloud counts
+            Section {
+                cloudCountRow(label: "Vehicles", cloudCount: cloudVehicleCount, localCount: vehicles.count)
+                cloudCountRow(label: "Fueling Records", cloudCount: cloudRecordCount, localCount: records.count)
+            } header: {
+                Text("iCloud Data")
+                    .font(.appCaption)
+            } footer: {
+                if let vc = cloudVehicleCount, let rc = cloudRecordCount,
+                   (vc != vehicles.count || rc != records.count) {
+                    Text("Counts differ from local data. Use \"Force Re-sync from Local\" to wipe iCloud and re-upload all local data.")
+                        .font(.appCaption)
+                        .foregroundColor(.orange)
+                }
+            }
+
+            // Actions
+            Section {
+                Button {
+                    loadCloudCounts()
+                } label: {
+                    HStack {
+                        Label("Refresh Counts", systemImage: "arrow.clockwise")
+                            .font(.appBody)
+                        Spacer()
+                        if isLoadingCloudCounts {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
+                }
+                .disabled(isLoadingCloudCounts || isResyncing)
+
+                Button {
+                    showingForceResyncAlert = true
+                } label: {
+                    HStack {
+                        Label("Force Re-sync from Local", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.appBody)
+                        Spacer()
+                        if isResyncing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
+                }
+                .disabled(isResyncing || isLoadingCloudCounts)
+            } header: {
+                Text("Actions")
+                    .font(.appCaption)
+            } footer: {
+                Text("Force re-sync will delete all iCloud data and re-upload everything from this device.")
+                    .font(.appCaption)
+            }
+
+            // Sync status
+            Section {
+                InfoRow(label: "Status", value: cloudSyncService.stateManager.syncStatus.displayText)
+                InfoRow(label: "Sync Enabled", value: cloudSyncService.stateManager.iCloudSyncEnabled ? "Yes" : "No")
+                InfoRow(label: "Initial Sync Done", value: cloudSyncService.stateManager.initialSyncCompleted ? "Yes" : "No")
+            } header: {
+                Text("Sync Status")
+                    .font(.appCaption)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("iCloud Sync Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("Force Re-sync?", isPresented: $showingForceResyncAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Re-sync", role: .destructive) {
+                forceResyncFromLocal()
+            }
+        } message: {
+            Text("This will delete all data in iCloud and re-upload all local data (\(vehicles.count) vehicle(s), \(records.count) record(s)). This may take a moment.")
+        }
+        .alert("Error", isPresented: $showingError) {
+            Button("OK") { }
+        } message: {
+            Text(errorMessage)
+        }
+        .onAppear {
+            loadCloudCounts()
+        }
+    }
+
+    @ViewBuilder
+    private func cloudCountRow(label: String, cloudCount: Int?, localCount: Int) -> some View {
+        HStack {
+            Text(label)
+                .font(.appBody)
+            Spacer()
+            if isLoadingCloudCounts {
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else if let count = cloudCount {
+                Text("\(count)")
+                    .font(.appBody)
+                    .foregroundColor(count == localCount ? .secondary : .orange)
+            } else {
+                Text("--")
+                    .font(.appBody)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func loadCloudCounts() {
+        isLoadingCloudCounts = true
+        cloudVehicleCount = nil
+        cloudRecordCount = nil
+        Task {
+            let counts = await cloudSyncService.fetchCloudRecordCounts()
+            await MainActor.run {
+                cloudVehicleCount = counts.vehicles
+                cloudRecordCount = counts.fuelingRecords
+                isLoadingCloudCounts = false
+            }
+        }
+    }
+
+    private func forceResyncFromLocal() {
+        isResyncing = true
+        cloudVehicleCount = nil
+        cloudRecordCount = nil
+        Task {
+            do {
+                try await cloudSyncService.deleteAllCloudData()
+                try await cloudSyncService.uploadAllLocalData(from: modelContext)
+                let counts = await cloudSyncService.fetchCloudRecordCounts()
+
+                await MainActor.run {
+                    cloudVehicleCount = counts.vehicles
+                    cloudRecordCount = counts.fuelingRecords
+                    isResyncing = false
+                }
+            } catch {
+                await MainActor.run {
+                    isResyncing = false
+                    errorMessage = "Re-sync failed: \(error.localizedDescription)"
+                    showingError = true
+                }
+            }
+        }
+    }
+}
+
+// MARK: - InfoRow
+
+struct InfoRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.appBody)
+            Spacer()
+            Text(value)
+                .font(.appBody)
+                .foregroundColor(.secondary)
+        }
+    }
+}

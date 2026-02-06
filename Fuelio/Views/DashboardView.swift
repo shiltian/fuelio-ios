@@ -99,7 +99,7 @@ struct DashboardView: View {
                 if records.count >= 2 {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Trends")
-                            .font(.custom("Avenir Next", size: 20))
+                            .font(.appTitle3)
                             .fontWeight(.bold)
                             .padding(.horizontal)
 
@@ -143,21 +143,19 @@ struct StatCard: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(value)
-                    .font(.custom("Avenir Next", size: 22))
+                    .font(.appTitle2)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
 
                 Text(title)
-                    .font(.custom("Avenir Next", size: 13))
+                    .font(.appFootnote)
                     .foregroundColor(.secondary)
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .cardStyle()
     }
 }
 
@@ -182,23 +180,23 @@ struct LastFillUpCard: View {
                     .foregroundColor(.teal)
 
                 Text("Last Fill-up")
-                    .font(.custom("Avenir Next", size: 16))
+                    .font(.appBody)
                     .fontWeight(.semibold)
 
                 Spacer()
 
                 Text(record.date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.custom("Avenir Next", size: 14))
+                    .font(.appSubheadline)
                     .foregroundColor(.secondary)
             }
 
             HStack(spacing: 24) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(record.fuelAmount.formatted(.number.precision(.fractionLength(2)))) \(unitSystem.fuelUnit)")
-                        .font(.custom("Avenir Next", size: 18))
+                        .font(.appButton)
                         .fontWeight(.semibold)
                     Text(unitSystem.fuelName)
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                         .foregroundColor(.secondary)
                 }
 
@@ -207,10 +205,10 @@ struct LastFillUpCard: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(record.totalCost.currencyFormatted)
-                        .font(.custom("Avenir Next", size: 18))
+                        .font(.appButton)
                         .fontWeight(.semibold)
                     Text("Total")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                         .foregroundColor(.secondary)
                 }
 
@@ -220,18 +218,18 @@ struct LastFillUpCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if hasEfficiency {
                         Text("\(efficiencyValue.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit)")
-                            .font(.custom("Avenir Next", size: 18))
+                            .font(.appButton)
                             .fontWeight(.semibold)
                         Text("Efficiency")
-                            .font(.custom("Avenir Next", size: 12))
+                            .font(.appCaption)
                             .foregroundColor(.secondary)
                     } else {
                         Text("—")
-                            .font(.custom("Avenir Next", size: 18))
+                            .font(.appButton)
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
                         Text(previousOdometer > 0 ? "Partial" : "Baseline")
-                            .font(.custom("Avenir Next", size: 12))
+                            .font(.appCaption)
                             .foregroundColor(.secondary)
                     }
                 }
@@ -245,15 +243,13 @@ struct LastFillUpCard: View {
                         .foregroundColor(.yellow)
                         .font(.caption)
                     Text("Partial fill-up")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                         .foregroundColor(.secondary)
                 }
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+        .cardStyle()
     }
 }
 
@@ -265,215 +261,17 @@ struct EmptyRecordsView: View {
                 .foregroundColor(.secondary.opacity(0.5))
 
             Text("No fueling records yet")
-                .font(.custom("Avenir Next", size: 18))
+                .font(.appButton)
                 .fontWeight(.medium)
                 .foregroundColor(.secondary)
 
             Text("Tap + to add your first fill-up")
-                .font(.custom("Avenir Next", size: 14))
+                .font(.appSubheadline)
                 .foregroundColor(.secondary.opacity(0.8))
         }
     }
 }
 
-
-// MARK: - Export/Import Views
-
-struct ExportableURL: Identifiable {
-    let id = UUID()
-    let url: URL
-}
-
-struct ExportCSVView: View {
-    let vehicle: Vehicle
-    @Environment(\.dismiss) private var dismiss
-    @State private var exportItem: ExportableURL?
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Image(systemName: "doc.text")
-                    .font(.system(size: 60))
-                    .foregroundColor(.teal)
-
-                Text("Export Fueling Data")
-                    .font(.custom("Avenir Next", size: 24))
-                    .fontWeight(.bold)
-
-                Text("Export \(vehicle.sortedRecords.count) records as a CSV file")
-                    .font(.custom("Avenir Next", size: 16))
-                    .foregroundColor(.secondary)
-
-                Button(action: exportData) {
-                    Label("Export CSV", systemImage: "square.and.arrow.up")
-                        .font(.custom("Avenir Next", size: 18))
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            LinearGradient(
-                                colors: [.teal, .cyan],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .padding(.horizontal, 40)
-
-                Spacer()
-            }
-            .padding(.top, 60)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-            .sheet(item: $exportItem) { item in
-                ShareSheet(activityItems: [item.url])
-            }
-        }
-    }
-
-    private func exportData() {
-        let csvContent = CSVService.exportRecords(vehicle.sortedRecords)
-
-        let fileName = "\(vehicle.displayName.replacingOccurrences(of: " ", with: "_"))_fuel_records.csv"
-        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-
-        do {
-            try csvContent.write(to: tempURL, atomically: true, encoding: .utf8)
-            exportItem = ExportableURL(url: tempURL)
-        } catch {
-            print("Export error: \(error)")
-        }
-    }
-}
-
-struct ImportCSVView: View {
-    let vehicle: Vehicle
-    @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
-    @State private var showingFilePicker = false
-    @State private var importedCount = 0
-    @State private var showingSuccess = false
-    @State private var errorMessage: String?
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                Image(systemName: "doc.badge.plus")
-                    .font(.system(size: 60))
-                    .foregroundColor(.teal)
-
-                Text("Import Fueling Data")
-                    .font(.custom("Avenir Next", size: 24))
-                    .fontWeight(.bold)
-
-                Text("Select a CSV file to import fueling records")
-                    .font(.custom("Avenir Next", size: 16))
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-
-                Button(action: { showingFilePicker = true }) {
-                    Label("Choose File", systemImage: "folder")
-                        .font(.custom("Avenir Next", size: 18))
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(
-                            LinearGradient(
-                                colors: [.teal, .cyan],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .padding(.horizontal, 40)
-
-                if let error = errorMessage {
-                    Text(error)
-                        .font(.custom("Avenir Next", size: 14))
-                        .foregroundColor(.red)
-                        .multilineTextAlignment(.center)
-                        .padding()
-                }
-
-                Spacer()
-            }
-            .padding(.top, 60)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-            .fileImporter(
-                isPresented: $showingFilePicker,
-                allowedContentTypes: [.commaSeparatedText],
-                allowsMultipleSelection: false
-            ) { result in
-                handleFileImport(result)
-            }
-            .alert("Import Successful", isPresented: $showingSuccess) {
-                Button("OK") { dismiss() }
-            } message: {
-                Text("Successfully imported \(importedCount) records.")
-            }
-        }
-    }
-
-    private func handleFileImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first else { return }
-
-            guard url.startAccessingSecurityScopedResource() else {
-                errorMessage = "Unable to access the selected file."
-                return
-            }
-            defer { url.stopAccessingSecurityScopedResource() }
-
-            do {
-                let content = try String(contentsOf: url, encoding: .utf8)
-                let records = CSVService.importRecords(from: content, vehicle: vehicle)
-
-                for record in records {
-                    modelContext.insert(record)
-                }
-
-                // Full recalculation after bulk import
-                StatisticsCacheService.recalculateAllStatistics(for: vehicle)
-
-                importedCount = records.count
-                // Delay showing alert to ensure file picker UI is fully dismissed
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    showingSuccess = true
-                }
-            } catch {
-                errorMessage = "Failed to read file: \(error.localizedDescription)"
-            }
-
-        case .failure(let error):
-            errorMessage = "Failed to select file: \(error.localizedDescription)"
-        }
-    }
-}
-
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
-}
 
 #Preview {
     NavigationStack {

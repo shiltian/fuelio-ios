@@ -20,28 +20,28 @@ struct AddVehicleView: View {
             Form {
                 Section {
                     TextField("Vehicle Name", text: $name)
-                        .font(.custom("Avenir Next", size: 16))
+                        .font(.appBody)
                 } header: {
                     Text("Required")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                 } footer: {
                     Text("Give your vehicle a nickname (e.g., \"My Tesla\", \"Family SUV\")")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                 }
 
                 Section {
                     TextField("Make (e.g., Toyota)", text: $make)
-                        .font(.custom("Avenir Next", size: 16))
+                        .font(.appBody)
 
                     TextField("Model (e.g., Camry)", text: $model)
-                        .font(.custom("Avenir Next", size: 16))
+                        .font(.appBody)
 
                     TextField("Year (e.g., 2023)", text: $yearString)
-                        .font(.custom("Avenir Next", size: 16))
+                        .font(.appBody)
                         .keyboardType(.numberPad)
                 } header: {
                     Text("Optional Details")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                 }
 
                 Section {
@@ -53,14 +53,14 @@ struct AddVehicleView: View {
                             .tag(unit)
                         }
                     }
-                    .font(.custom("Avenir Next", size: 16))
+                    .font(.appBody)
                     .pickerStyle(.menu)
                 } header: {
                     Text("Units")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                 } footer: {
                     Text(unitSystem.displayDescription)
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                 }
             }
             .navigationTitle("Add Vehicle")

@@ -1,8 +1,14 @@
 import SwiftUI
 import SwiftData
+import os
 
 @main
 struct FuelioApp: App {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
+        category: "App"
+    )
+
     @State private var importedFileURL: URL?
     @State private var hasInitializedCache = false
 
@@ -34,7 +40,7 @@ struct FuelioApp: App {
         } catch {
             // Log the full error for diagnostics before crashing
             let message = "Could not create ModelContainer: \(error.localizedDescription)\nFull error: \(error)"
-            print(message)
+            logger.fault("Could not create ModelContainer: \(error)")
             fatalError(message)
         }
     }()
@@ -135,7 +141,7 @@ struct FuelioApp: App {
             // Set the URL - this will trigger the sheet in ContentView
             importedFileURL = tempURL
         } catch {
-            print("Failed to copy file: \(error.localizedDescription)")
+            Self.logger.error("Failed to copy file: \(error.localizedDescription)")
         }
     }
 }

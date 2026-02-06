@@ -1,9 +1,15 @@
 import Foundation
 import SwiftData
+import os
 
 /// Service for efficiently computing and caching vehicle statistics
 /// Reduces complexity from O(n² log n) to O(n log n) by computing everything in a single pass
 final class StatisticsCacheService {
+
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
+        category: "StatisticsCache"
+    )
 
     // MARK: - Full Recalculation
 
@@ -151,12 +157,12 @@ final class StatisticsCacheService {
             return
         }
 
-        // Check if this record is the most recent by date
-        let sortedByDate = records.sorted { $0.date < $1.date }
-        let isLatestRecord = sortedByDate.last?.id == record.id
+        // Check if this record is the most recent by date — O(n) scan avoids O(n log n) sort
+        let isLatestRecord = records.allSatisfy { $0.id == record.id || $0.date <= record.date }
 
         if isLatestRecord {
-            // Incremental update - O(1)
+            // Incremental update — still needs sorted list for the previous record lookup
+            let sortedByDate = records.sorted { $0.date < $1.date }
             incrementalAddLatestRecord(record, to: vehicle, sortedRecords: sortedByDate)
         } else {
             // Record inserted in the middle - need to recalculate from that point
@@ -307,7 +313,7 @@ final class StatisticsCacheService {
 
             try modelContext.save()
         } catch {
-            print("Failed to rebuild cache for all vehicles: \(error)")
+            logger.error("Failed to rebuild cache for all vehicles: \(error)")
         }
     }
 }

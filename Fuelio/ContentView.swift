@@ -143,50 +143,32 @@ struct EmptyVehicleView: View {
         VStack(spacing: 24) {
             Image(systemName: "car.fill")
                 .font(.system(size: 80))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [.teal, .cyan],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .foregroundStyle(LinearGradient.brandDiagonal)
 
             Text("Welcome to Fuelio")
-                .font(.custom("Avenir Next", size: 32))
+                .font(.appDisplay)
                 .fontWeight(.bold)
 
             Text("Track your fuel consumption, costs, and efficiency.")
-                .font(.custom("Avenir Next", size: 16))
+                .font(.appBody)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
 
             Button(action: { showingAddVehicle = true }) {
                 Label("Add Your First Vehicle", systemImage: "plus.circle.fill")
-                    .font(.custom("Avenir Next", size: 18))
+                    .font(.appButton)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
                     .padding(.horizontal, 32)
                     .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [.teal, .cyan],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .background(LinearGradient.brandHorizontal)
                     .clipShape(Capsule())
             }
             .padding(.top, 16)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(
-                colors: [Color(.systemBackground), Color(.systemGray6)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        .background(LinearGradient.subtleBackground)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { showingSettings = true }) {

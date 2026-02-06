@@ -28,11 +28,11 @@ struct CSVImportView: View {
                             .foregroundColor(.orange)
 
                         Text("Error Reading File")
-                            .font(.custom("Avenir Next", size: 20))
+                            .font(.appTitle3)
                             .fontWeight(.semibold)
 
                         Text(error)
-                            .font(.custom("Avenir Next", size: 14))
+                            .font(.appSubheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
@@ -95,17 +95,17 @@ struct CSVImportView: View {
     private var fileInfoSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("File Information", systemImage: "doc.text")
-                .font(.custom("Avenir Next", size: 16))
+                .font(.appBody)
                 .fontWeight(.semibold)
 
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(fileURL?.lastPathComponent ?? "Unknown file")
-                        .font(.custom("Avenir Next", size: 14))
+                        .font(.appSubheadline)
                         .fontWeight(.medium)
 
                     Text("\(parsedRecords.count) records found")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                         .foregroundColor(.secondary)
                 }
 
@@ -124,7 +124,7 @@ struct CSVImportView: View {
     private var previewSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Data Preview", systemImage: "eye")
-                .font(.custom("Avenir Next", size: 16))
+                .font(.appBody)
                 .fontWeight(.semibold)
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -152,11 +152,11 @@ struct CSVImportView: View {
     private var vehicleSelectionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Select Vehicle", systemImage: "car")
-                .font(.custom("Avenir Next", size: 16))
+                .font(.appBody)
                 .fontWeight(.semibold)
 
             Text("Choose which vehicle to import the records to:")
-                .font(.custom("Avenir Next", size: 12))
+                .font(.appCaption)
                 .foregroundColor(.secondary)
 
             ForEach(vehicles) { vehicle in
@@ -166,12 +166,12 @@ struct CSVImportView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(vehicle.name)
-                                .font(.custom("Avenir Next", size: 14))
+                                .font(.appSubheadline)
                                 .fontWeight(.medium)
 
                             if let make = vehicle.make, let model = vehicle.model {
                                 Text("\(make) \(model)")
-                                    .font(.custom("Avenir Next", size: 12))
+                                    .font(.appCaption)
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -205,11 +205,11 @@ struct CSVImportView: View {
                 .foregroundColor(.orange)
 
             Text("No Vehicles Found")
-                .font(.custom("Avenir Next", size: 16))
+                .font(.appBody)
                 .fontWeight(.semibold)
 
             Text("Please add a vehicle first before importing records.")
-                .font(.custom("Avenir Next", size: 14))
+                .font(.appSubheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         }
@@ -222,7 +222,7 @@ struct CSVImportView: View {
     private var importSummarySection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Import Summary", systemImage: "list.bullet.clipboard")
-                .font(.custom("Avenir Next", size: 16))
+                .font(.appBody)
                 .fontWeight(.semibold)
 
             if !parsedRecords.isEmpty {
@@ -314,11 +314,11 @@ private struct SummaryRow: View {
     var body: some View {
         HStack {
             Text(label)
-                .font(.custom("Avenir Next", size: 14))
+                .font(.appSubheadline)
                 .foregroundColor(.secondary)
             Spacer()
             Text(value)
-                .font(.custom("Avenir Next", size: 14))
+                .font(.appSubheadline)
                 .fontWeight(.medium)
         }
     }

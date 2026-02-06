@@ -44,9 +44,9 @@ enum FillUpType: String, Codable, CaseIterable {
 final class FuelingRecord {
     var id: UUID = UUID()
     var date: Date = Date()
-    @Attribute(originalName: "currentMiles") var odometer: Double = 0
-    @Attribute(originalName: "pricePerGallon") var pricePerFuelUnit: Double = 0
-    @Attribute(originalName: "gallons") var fuelAmount: Double = 0
+    var odometer: Double = 0
+    var pricePerFuelUnit: Double = 0
+    var fuelAmount: Double = 0
     var totalCost: Double = 0
     var fillUpTypeRaw: String = FillUpType.full.rawValue  // Stored as String for SwiftData compatibility
     var notes: String?
@@ -56,10 +56,10 @@ final class FuelingRecord {
 
     // MARK: - Cached Computed Values (for performance)
     // These are pre-computed and stored to avoid O(n²) lookups
-    @Attribute(originalName: "cachedPreviousMiles") var cachedPreviousOdometer: Double?
-    @Attribute(originalName: "cachedMilesDriven") var cachedDistanceDriven: Double?
-    @Attribute(originalName: "cachedMPG") var cachedEfficiency: Double?
-    @Attribute(originalName: "cachedCostPerMile") var cachedCostPerDistance: Double?
+    var cachedPreviousOdometer: Double?
+    var cachedDistanceDriven: Double?
+    var cachedEfficiency: Double?
+    var cachedCostPerDistance: Double?
 
     // MARK: - Fill-up Type Accessor
     var fillUpType: FillUpType {
@@ -150,7 +150,7 @@ extension FuelingRecord {
     }
 
     static func fromCSVRow(_ row: String, vehicle: Vehicle) -> FuelingRecord? {
-        let components = parseCSVRow(row)
+        let components = CSVService.parseCSVLine(row)
         guard components.count >= 5 else { return nil }
 
         let dateFormatter = ISO8601DateFormatter()
@@ -194,23 +194,4 @@ extension FuelingRecord {
         )
     }
 
-    private static func parseCSVRow(_ row: String) -> [String] {
-        var result: [String] = []
-        var current = ""
-        var insideQuotes = false
-
-        for char in row {
-            if char == "\"" {
-                insideQuotes.toggle()
-            } else if char == "," && !insideQuotes {
-                result.append(current)
-                current = ""
-            } else {
-                current.append(char)
-            }
-        }
-        result.append(current)
-
-        return result
-    }
 }

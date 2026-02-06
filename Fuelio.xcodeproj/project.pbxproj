@@ -38,6 +38,9 @@
 		E1000005296E0001 /* SyncStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000006296E0001 /* SyncStateManager.swift */; };
 		E1000007296E0001 /* UnitSystemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000008296E0001 /* UnitSystemTests.swift */; };
 		F1000001296F0001 /* VehicleSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000002296F0001 /* VehicleSettingsView.swift */; };
+		G1000001297A0001 /* FuelingRecordFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1000002297A0001 /* FuelingRecordFormView.swift */; };
+		G1000003297A0001 /* iCloudSyncDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1000004297A0001 /* iCloudSyncDetailView.swift */; };
+		G1000005297A0001 /* CSVExportImportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1000006297A0001 /* CSVExportImportViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -86,6 +89,9 @@
 		E1000006296E0001 /* SyncStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateManager.swift; sourceTree = "<group>"; };
 		E1000008296E0001 /* UnitSystemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitSystemTests.swift; sourceTree = "<group>"; };
 		F1000002296F0001 /* VehicleSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleSettingsView.swift; sourceTree = "<group>"; };
+		G1000002297A0001 /* FuelingRecordFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelingRecordFormView.swift; sourceTree = "<group>"; };
+		G1000004297A0001 /* iCloudSyncDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudSyncDetailView.swift; sourceTree = "<group>"; };
+		G1000006297A0001 /* CSVExportImportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVExportImportViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -158,6 +164,8 @@
 				A100001E296A0001 /* ChartView.swift */,
 				A1000028296A0001 /* SettingsView.swift */,
 				F1000002296F0001 /* VehicleSettingsView.swift */,
+				G1000004297A0001 /* iCloudSyncDetailView.swift */,
+				G1000006297A0001 /* CSVExportImportViews.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -223,6 +231,7 @@
 			isa = PBXGroup;
 			children = (
 				D1000002296D0001 /* CurrencyInputField.swift */,
+				G1000002297A0001 /* FuelingRecordFormView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -349,6 +358,9 @@
 				E1000003296E0001 /* CloudSyncService.swift in Sources */,
 				E1000005296E0001 /* SyncStateManager.swift in Sources */,
 				F1000001296F0001 /* VehicleSettingsView.swift in Sources */,
+				G1000001297A0001 /* FuelingRecordFormView.swift in Sources */,
+				G1000003297A0001 /* iCloudSyncDetailView.swift in Sources */,
+				G1000005297A0001 /* CSVExportImportViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

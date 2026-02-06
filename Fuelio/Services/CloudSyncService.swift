@@ -2,6 +2,7 @@ import Foundation
 import CloudKit
 import SwiftData
 import Combine
+import os
 
 /// Core CloudKit sync engine that mirrors local SwiftData to a private CloudKit database.
 /// The local store is always the source of truth; CloudKit acts as a mirror.
@@ -10,12 +11,18 @@ final class CloudSyncService: ObservableObject {
 
     // MARK: - Properties
 
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
+        category: "CloudSync"
+    )
+
     let stateManager: SyncStateManager
 
     /// CloudKit container — created lazily so the app never touches CloudKit
     /// until the user actually tries to enable iCloud sync.
+    /// Uses the default container configured in the app's entitlements.
     private lazy var container: CKContainer = {
-        CKContainer(identifier: "iCloud.me.tianshilei.fuelio")
+        CKContainer.default()
     }()
 
     private lazy var privateDatabase: CKDatabase = {
@@ -33,7 +40,7 @@ final class CloudSyncService: ObservableObject {
     /// Flag to prevent re-entrant push when we're applying remote changes locally
     private var isApplyingRemoteChanges = false
 
-    // MARK: - Record Type Constants
+    // MARK: - Constants
 
     private enum RecordType {
         static let vehicle = "Vehicle"
@@ -41,6 +48,18 @@ final class CloudSyncService: ObservableObject {
     }
 
     private static let zoneName = "FuelioZone"
+    private static let subscriptionID = "FuelioZoneChanges"
+
+    /// CloudKit has a 400-record limit per operation; we use a smaller batch for reliability.
+    private static let batchSize = 200
+    /// Maximum retry attempts for a failed batch save.
+    private static let maxRetries = 3
+    /// Delay between retry attempts (in nanoseconds per attempt, multiplied by attempt number).
+    private static let retryBaseDelay: UInt64 = 2_000_000_000  // 2 seconds
+    /// Delay between consecutive batch operations to avoid rate limiting.
+    private static let interBatchDelay: UInt64 = 500_000_000  // 0.5 seconds
+    /// Debounce interval for local save observations (seconds).
+    private static let saveDebounceInterval: TimeInterval = 1
 
     // MARK: - Initialization
 
@@ -106,7 +125,7 @@ final class CloudSyncService: ObservableObject {
 
             return !results.modificationResultsByID.isEmpty
         } catch {
-            print("Error checking cloud data: \(error)")
+            Self.logger.error("Error checking cloud data: \(error)")
             return false
         }
     }
@@ -270,7 +289,7 @@ final class CloudSyncService: ObservableObject {
                     // Only in cloud: insert locally
                     if let vehicleUUIDString = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
                        let vehicleUUID = UUID(uuidString: vehicleUUIDString),
-                       let vehicle = ckRecordIDToVehicle.values.first(where: { $0.id == vehicleUUID }) {
+                       let vehicle = localVehicleMap[vehicleUUID] ?? ckRecordIDToVehicle.values.first(where: { $0.id == vehicleUUID }) {
                         let record = fuelingRecordFromCKRecord(ckRecord, vehicle: vehicle)
                         context.insert(record)
                     }
@@ -323,7 +342,7 @@ final class CloudSyncService: ObservableObject {
             let (vehicles, fuelingRecords) = try await fetchAllCloudRecords()
             return (vehicles.count, fuelingRecords.count)
         } catch {
-            print("Failed to fetch cloud record counts: \(error)")
+            Self.logger.error("Failed to fetch cloud record counts: \(error)")
             return (0, 0)
         }
     }
@@ -403,7 +422,7 @@ final class CloudSyncService: ObservableObject {
         do {
             try await batchSave(records: recordsToSave)
         } catch {
-            print("Failed to push changes to CloudKit: \(error)")
+            Self.logger.error("Failed to push changes to CloudKit: \(error)")
         }
     }
 
@@ -445,7 +464,7 @@ final class CloudSyncService: ObservableObject {
 
             stateManager.syncStatus = .synced
         } catch {
-            print("Failed to pull remote changes: \(error)")
+            Self.logger.error("Failed to pull remote changes: \(error)")
             stateManager.syncStatus = .error("Pull failed")
         }
     }
@@ -522,18 +541,16 @@ final class CloudSyncService: ObservableObject {
 
     /// Subscribe to remote changes via CKDatabaseSubscription
     func subscribeToRemoteChanges() async {
-        let subscriptionID = "FuelioZoneChanges"
-
         // Check if already subscribed
         do {
-            let _ = try await privateDatabase.subscription(for: subscriptionID)
+            let _ = try await privateDatabase.subscription(for: Self.subscriptionID)
             // Already subscribed
             return
         } catch {
             // Not subscribed yet, proceed
         }
 
-        let subscription = CKDatabaseSubscription(subscriptionID: subscriptionID)
+        let subscription = CKDatabaseSubscription(subscriptionID: Self.subscriptionID)
 
         let notificationInfo = CKSubscription.NotificationInfo()
         notificationInfo.shouldSendContentAvailable = true // Silent push
@@ -542,7 +559,7 @@ final class CloudSyncService: ObservableObject {
         do {
             let _ = try await privateDatabase.modifySubscriptions(saving: [subscription], deleting: [])
         } catch {
-            print("Failed to create subscription: \(error)")
+            Self.logger.error("Failed to create subscription: \(error)")
         }
     }
 
@@ -556,7 +573,7 @@ final class CloudSyncService: ObservableObject {
         saveObserver = NotificationCenter.default.publisher(
             for: Notification.Name.NSManagedObjectContextDidSave
         )
-        .debounce(for: .seconds(1), scheduler: RunLoop.main) // Debounce to batch rapid saves
+        .debounce(for: .seconds(Self.saveDebounceInterval), scheduler: RunLoop.main)
         .sink { [weak self] notification in
             guard let self = self, !self.isApplyingRemoteChanges else { return }
 
@@ -585,7 +602,7 @@ final class CloudSyncService: ObservableObject {
         do {
             try await uploadAllLocalData(from: context)
         } catch {
-            print("Failed to push local data: \(error)")
+            Self.logger.error("Failed to push local data: \(error)")
         }
     }
 
@@ -725,20 +742,17 @@ final class CloudSyncService: ObservableObject {
     // MARK: - Batch Operations
 
     /// Save records in batches with retry logic.
-    /// CloudKit has a 400-record limit per operation, but we use 200 for reliability.
     private func batchSave(records: [CKRecord]) async throws {
-        let batchSize = 200
         var offset = 0
-        let maxRetries = 3
 
         while offset < records.count {
-            let end = min(offset + batchSize, records.count)
+            let end = min(offset + Self.batchSize, records.count)
             let batch = Array(records[offset..<end])
 
             var lastError: Error?
             var succeeded = false
 
-            for attempt in 1...maxRetries {
+            for attempt in 1...Self.maxRetries {
                 do {
                     let (saveResults, _) = try await privateDatabase.modifyRecords(
                         saving: batch, deleting: [], savePolicy: .changedKeys
@@ -750,7 +764,7 @@ final class CloudSyncService: ObservableObject {
                         if case .failure(let error) = result {
                             failedRecordIDs.append(recordID)
                             lastError = error
-                            print("Failed to save record \(recordID): \(error)")
+                            Self.logger.warning("Failed to save record \(recordID): \(error)")
                         }
                     }
 
@@ -758,17 +772,16 @@ final class CloudSyncService: ObservableObject {
                         succeeded = true
                         break
                     } else {
-                        print("Batch attempt \(attempt): \(failedRecordIDs.count)/\(batch.count) records failed")
-                        if attempt < maxRetries {
-                            // Wait before retry (exponential backoff)
-                            try await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
+                        Self.logger.warning("Batch attempt \(attempt): \(failedRecordIDs.count)/\(batch.count) records failed")
+                        if attempt < Self.maxRetries {
+                            try await Task.sleep(nanoseconds: UInt64(attempt) * Self.retryBaseDelay)
                         }
                     }
                 } catch {
                     lastError = error
-                    print("Batch save attempt \(attempt) threw error: \(error)")
-                    if attempt < maxRetries {
-                        try await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
+                    Self.logger.error("Batch save attempt \(attempt) threw error: \(error)")
+                    if attempt < Self.maxRetries {
+                        try await Task.sleep(nanoseconds: UInt64(attempt) * Self.retryBaseDelay)
                     }
                 }
             }
@@ -779,9 +792,8 @@ final class CloudSyncService: ObservableObject {
 
             offset = end
 
-            // Small delay between batches to avoid rate limiting
             if offset < records.count {
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+                try await Task.sleep(nanoseconds: Self.interBatchDelay)
             }
         }
     }

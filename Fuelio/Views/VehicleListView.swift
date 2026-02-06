@@ -80,11 +80,7 @@ struct VehicleRowView: View {
             ZStack {
                 Circle()
                     .fill(
-                        LinearGradient(
-                            colors: [.teal.opacity(0.7), .cyan.opacity(0.7)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
+                        LinearGradient.brandSubdued
                     )
                     .frame(width: 50, height: 50)
 
@@ -95,16 +91,16 @@ struct VehicleRowView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(vehicle.displayName)
-                    .font(.custom("Avenir Next", size: 17))
+                    .font(.appHeadline)
                     .fontWeight(.semibold)
 
                 if let lastRecord = vehicle.lastRecord {
                     Text("Last fill: \(lastRecord.date.formatted(date: .abbreviated, time: .omitted))")
-                        .font(.custom("Avenir Next", size: 13))
+                        .font(.appFootnote)
                         .foregroundColor(.secondary)
                 } else {
                     Text("No records yet")
-                        .font(.custom("Avenir Next", size: 13))
+                        .font(.appFootnote)
                         .foregroundColor(.secondary)
                 }
             }
@@ -113,7 +109,7 @@ struct VehicleRowView: View {
 
             if recordCount > 0 {
                 Text("\(recordCount)")
-                    .font(.custom("Avenir Next", size: 14))
+                    .font(.appSubheadline)
                     .fontWeight(.medium)
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 10)
@@ -170,13 +166,7 @@ struct VehicleDetailView: View {
                 Button(action: { showingAddRecord = true }) {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [.teal, .cyan],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .foregroundStyle(LinearGradient.brandDiagonal)
                 }
             }
         }

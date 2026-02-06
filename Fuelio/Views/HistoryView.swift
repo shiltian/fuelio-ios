@@ -61,7 +61,7 @@ struct HistoryView: View {
                                     .tag(order)
                             }
                         }
-                        .font(.custom("Avenir Next", size: 14))
+                        .font(.appSubheadline)
                     }
 
                     // Records section - use cached previousOdometer
@@ -90,7 +90,7 @@ struct HistoryView: View {
                         }
                     } header: {
                         Text("\(filteredRecords.count) records")
-                            .font(.custom("Avenir Next", size: 12))
+                            .font(.appCaption)
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -152,18 +152,18 @@ struct FuelingRecordRow: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(record.date.formatted(date: .abbreviated, time: .omitted))
-                        .font(.custom("Avenir Next", size: 16))
+                        .font(.appBody)
                         .fontWeight(.semibold)
 
                     Text(record.date.formatted(date: .omitted, time: .shortened))
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                         .foregroundColor(.secondary)
                 }
 
                 Spacer()
 
                 Text(record.totalCost.currencyFormatted)
-                    .font(.custom("Avenir Next", size: 20))
+                    .font(.appTitle3)
                     .fontWeight(.bold)
                     .foregroundColor(.primary)
             }
@@ -202,15 +202,15 @@ struct FuelingRecordRow: View {
 
                 if previousOdometer > 0 {
                     Text("\(previousOdometer.formatted(.number.precision(.fractionLength(0)))) \u{2192} \(record.odometer.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceUnit)")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                         .foregroundColor(.secondary)
 
                     Text("(\(distanceDriven.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceName.lowercased()))")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                         .foregroundColor(.secondary.opacity(0.8))
                 } else {
                     Text("\(record.odometer.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceUnit)")
-                        .font(.custom("Avenir Next", size: 12))
+                        .font(.appCaption)
                         .foregroundColor(.secondary)
                 }
 
@@ -230,7 +230,7 @@ struct FuelingRecordRow: View {
                         .foregroundColor(.secondary)
 
                     Text(notes)
-                        .font(.custom("Avenir Next", size: 13))
+                        .font(.appFootnote)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
 
@@ -254,7 +254,7 @@ struct DetailChip: View {
                 .foregroundColor(color)
 
             Text(value)
-                .font(.custom("Avenir Next", size: 12))
+                .font(.appCaption)
                 .fontWeight(.medium)
         }
         .padding(.horizontal, 8)
@@ -280,7 +280,7 @@ struct FillUpTypeBadge: View {
             Image(systemName: fillUpType.icon)
                 .font(.caption2)
             Text(label)
-                .font(.custom("Avenir Next", size: 11))
+                .font(.appCaption2)
         }
         .foregroundColor(fillUpType.color)
         .padding(.horizontal, 8)
@@ -298,12 +298,12 @@ struct EmptyHistoryView: View {
                 .foregroundColor(.secondary.opacity(0.5))
 
             Text("No Fueling History")
-                .font(.custom("Avenir Next", size: 20))
+                .font(.appTitle3)
                 .fontWeight(.semibold)
                 .foregroundColor(.secondary)
 
             Text("Your fueling records will appear here")
-                .font(.custom("Avenir Next", size: 14))
+                .font(.appSubheadline)
                 .foregroundColor(.secondary.opacity(0.8))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -19,16 +19,16 @@ final class Vehicle {
     // MARK: - Cached Statistics (for performance)
     // These are pre-computed and stored to avoid recalculating on every view render
     var cachedTotalSpent: Double?
-    @Attribute(originalName: "cachedTotalMiles") var cachedTotalDistance: Double?
-    @Attribute(originalName: "cachedTotalGallons") var cachedTotalFuel: Double?
-    @Attribute(originalName: "cachedAverageMPG") var cachedAverageEfficiency: Double?
-    @Attribute(originalName: "cachedAverageCostPerMile") var cachedAverageCostPerDistance: Double?
+    var cachedTotalDistance: Double?
+    var cachedTotalFuel: Double?
+    var cachedAverageEfficiency: Double?
+    var cachedAverageCostPerDistance: Double?
     var cachedAverageFillUpCost: Double?
-    @Attribute(originalName: "cachedAveragePricePerGallon") var cachedAveragePricePerFuelUnit: Double?
-    @Attribute(originalName: "cachedBestMPG") var cachedBestEfficiency: Double?
-    @Attribute(originalName: "cachedWorstMPG") var cachedWorstEfficiency: Double?
-    @Attribute(originalName: "cachedHighestPricePerGallon") var cachedHighestPricePerFuelUnit: Double?
-    @Attribute(originalName: "cachedLowestPricePerGallon") var cachedLowestPricePerFuelUnit: Double?
+    var cachedAveragePricePerFuelUnit: Double?
+    var cachedBestEfficiency: Double?
+    var cachedWorstEfficiency: Double?
+    var cachedHighestPricePerFuelUnit: Double?
+    var cachedLowestPricePerFuelUnit: Double?
     var cachedRecordCount: Int?
     var cacheLastUpdated: Date?
 
@@ -72,7 +72,7 @@ final class Vehicle {
     }
 
     var lastRecord: FuelingRecord? {
-        sortedRecords.first
+        (fuelingRecords ?? []).max(by: { $0.date < $1.date })
     }
 
     // MARK: - Cache Status

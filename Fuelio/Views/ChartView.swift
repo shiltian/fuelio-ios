@@ -217,9 +217,7 @@ struct ChartView: View {
                 }
             }
             .padding()
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 4)
+            .cardStyle()
         }
         .onAppear {
             prepareChartData()
@@ -246,13 +244,13 @@ struct EfficiencyChart: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(unitSystem.efficiencyName)
-                    .font(.custom("Avenir Next", size: 14))
+                    .font(.appSubheadline)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
                 Text("Avg: \(average.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit)")
-                    .font(.custom("Avenir Next", size: 12))
+                    .font(.appCaption)
                     .foregroundColor(.purple)
             }
 
@@ -270,13 +268,7 @@ struct EfficiencyChart: View {
                         yStart: .value("Min", yRange.lowerBound),
                         yEnd: .value(unitSystem.efficiencyUnit, point.value)
                     )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.purple.opacity(0.3), .purple.opacity(0.05)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.efficiencyChartFill)
 
                     // Only show points if there aren't too many
                     if showPoints {
@@ -317,13 +309,13 @@ struct CostChart: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Cost per Fill-up")
-                    .font(.custom("Avenir Next", size: 14))
+                    .font(.appSubheadline)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
                 Text("Avg: \(average.currencyFormatted)")
-                    .font(.custom("Avenir Next", size: 12))
+                    .font(.appCaption)
                     .foregroundColor(.orange)
             }
 
@@ -374,13 +366,13 @@ struct PricePerFuelUnitChart: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(unitSystem.pricePerFuelLabel)
-                    .font(.custom("Avenir Next", size: 14))
+                    .font(.appSubheadline)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
                 Text("Avg: \(average.currencyFormatted)")
-                    .font(.custom("Avenir Next", size: 12))
+                    .font(.appCaption)
                     .foregroundColor(.green)
             }
 
@@ -398,13 +390,7 @@ struct PricePerFuelUnitChart: View {
                         yStart: .value("Min", yRange.lowerBound),
                         yEnd: .value("Price", point.value)
                     )
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [.green.opacity(0.3), .green.opacity(0.05)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
+                    .foregroundStyle(LinearGradient.priceChartFill)
 
                     // Only show points if there aren't too many
                     if showPoints {

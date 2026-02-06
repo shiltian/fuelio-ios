@@ -1,8 +1,14 @@
 import Foundation
 import CloudKit
+import os
 
 /// Manages iCloud sync state and preferences using UserDefaults/AppStorage
 final class SyncStateManager: ObservableObject {
+
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
+        category: "SyncState"
+    )
 
     // MARK: - Published State
 
@@ -71,7 +77,7 @@ final class SyncStateManager: ObservableObject {
             do {
                 return try NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: data)
             } catch {
-                print("Failed to decode server change token: \(error)")
+                Self.logger.error("Failed to decode server change token: \(error)")
                 return nil
             }
         }
@@ -81,7 +87,7 @@ final class SyncStateManager: ObservableObject {
                     let data = try NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true)
                     UserDefaults.standard.set(data, forKey: Keys.serverChangeToken)
                 } catch {
-                    print("Failed to encode server change token: \(error)")
+                    Self.logger.error("Failed to encode server change token: \(error)")
                 }
             } else {
                 UserDefaults.standard.removeObject(forKey: Keys.serverChangeToken)

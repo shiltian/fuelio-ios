@@ -34,13 +34,7 @@ struct FuelingSummaryPopup: View {
             VStack(spacing: 16) {
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [.green.opacity(0.8), .mint.opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .fill(LinearGradient.success)
                         .frame(width: 80, height: 80)
 
                     Image(systemName: "checkmark")
@@ -49,11 +43,11 @@ struct FuelingSummaryPopup: View {
                 }
 
                 Text("Fill-up Recorded!")
-                    .font(.custom("Avenir Next", size: 26))
+                    .font(.appLargeTitle)
                     .fontWeight(.bold)
 
                 Text(record.date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.custom("Avenir Next", size: 14))
+                    .font(.appSubheadline)
                     .foregroundColor(.secondary)
             }
             .padding(.top, 40)
@@ -66,17 +60,17 @@ struct FuelingSummaryPopup: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Fuel Efficiency")
-                                .font(.custom("Avenir Next", size: 14))
+                                .font(.appSubheadline)
                                 .foregroundColor(.secondary)
 
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
                                 Text(efficiencyDisplay.formatted(.number.precision(.fractionLength(1))))
-                                    .font(.custom("Avenir Next", size: 48))
+                                    .font(.appHero)
                                     .fontWeight(.bold)
                                     .foregroundColor(.purple)
 
                                 Text(unitSystem.efficiencyUnit)
-                                    .font(.custom("Avenir Next", size: 18))
+                                    .font(.appButton)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.purple.opacity(0.7))
                             }
@@ -86,13 +80,7 @@ struct FuelingSummaryPopup: View {
 
                         Image(systemName: "gauge.with.dots.needle.67percent")
                             .font(.system(size: 50))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.purple, .indigo],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundStyle(LinearGradient.efficiencyIcon)
                     }
                     .padding(20)
                     .background(
@@ -104,17 +92,17 @@ struct FuelingSummaryPopup: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(unitSystem.costPerDistanceLabel)
-                                .font(.custom("Avenir Next", size: 14))
+                                .font(.appSubheadline)
                                 .foregroundColor(.secondary)
 
                             HStack(alignment: .firstTextBaseline, spacing: 2) {
                                 Text(costPerDistanceValue.currencyFormatted)
-                                    .font(.custom("Avenir Next", size: 36))
+                                    .font(.appHero2)
                                     .fontWeight(.bold)
                                     .foregroundColor(.orange)
 
                                 Text(unitSystem.costPerDistanceShort)
-                                    .font(.custom("Avenir Next", size: 16))
+                                    .font(.appBody)
                                     .foregroundColor(.orange.opacity(0.7))
                             }
                         }
@@ -123,13 +111,7 @@ struct FuelingSummaryPopup: View {
 
                         Image(systemName: "dollarsign.circle.fill")
                             .font(.system(size: 44))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.orange, .yellow],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundStyle(LinearGradient.costIcon)
                     }
                     .padding(20)
                     .background(
@@ -186,7 +168,7 @@ struct FuelingSummaryPopup: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.yellow)
                         Text("Partial fill-up — efficiency may be less accurate")
-                            .font(.custom("Avenir Next", size: 13))
+                            .font(.appFootnote)
                             .foregroundColor(.secondary)
                     }
                     .padding(.vertical, 12)
@@ -204,17 +186,13 @@ struct FuelingSummaryPopup: View {
             // Done Button
             Button(action: { dismiss() }) {
                 Text("Done")
-                    .font(.custom("Avenir Next", size: 18))
+                    .font(.appButton)
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .background(
-                        LinearGradient(
-                            colors: [.teal, .cyan],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+                    LinearGradient.brandHorizontal
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
@@ -240,11 +218,11 @@ struct SummaryDetailCard: View {
                 .foregroundColor(color)
 
             Text(value)
-                .font(.custom("Avenir Next", size: 17))
+                .font(.appHeadline)
                 .fontWeight(.semibold)
 
             Text(title)
-                .font(.custom("Avenir Next", size: 12))
+                .font(.appCaption)
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
