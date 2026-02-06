@@ -169,9 +169,18 @@ final class CloudSyncService: ObservableObject {
             vehicleMap[ckRecord.recordID] = vehicle
         }
 
+        // Build UUID-based lookup from the CKRecord.ID-keyed map
+        var vehiclesByUUID: [UUID: Vehicle] = [:]
+        for (ckRecordID, vehicle) in vehicleMap {
+            if let uuid = UUID(uuidString: ckRecordID.recordName) {
+                vehiclesByUUID[uuid] = vehicle
+            }
+        }
+
         for ckRecord in fuelingCKRecords {
-            if let vehicleRef = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? CKRecord.Reference,
-               let vehicle = vehicleMap[vehicleRef.recordID] {
+            if let vehicleUUIDString = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
+               let vehicleUUID = UUID(uuidString: vehicleUUIDString),
+               let vehicle = vehiclesByUUID[vehicleUUID] {
                 let record = fuelingRecordFromCKRecord(ckRecord, vehicle: vehicle)
                 context.insert(record)
             }
@@ -259,8 +268,9 @@ final class CloudSyncService: ObservableObject {
                     }
                 } else {
                     // Only in cloud: insert locally
-                    if let vehicleRef = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? CKRecord.Reference,
-                       let vehicle = ckRecordIDToVehicle[vehicleRef.recordID] {
+                    if let vehicleUUIDString = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
+                       let vehicleUUID = UUID(uuidString: vehicleUUIDString),
+                       let vehicle = ckRecordIDToVehicle.values.first(where: { $0.id == vehicleUUID }) {
                         let record = fuelingRecordFromCKRecord(ckRecord, vehicle: vehicle)
                         context.insert(record)
                     }
@@ -303,6 +313,19 @@ final class CloudSyncService: ObservableObject {
         // Reset the change token
         stateManager.serverChangeToken = nil
         stateManager.syncStatus = .synced
+    }
+
+    // MARK: - Cloud Record Counts
+
+    /// Fetch the number of vehicles and fueling records currently in CloudKit.
+    func fetchCloudRecordCounts() async -> (vehicles: Int, fuelingRecords: Int) {
+        do {
+            let (vehicles, fuelingRecords) = try await fetchAllCloudRecords()
+            return (vehicles.count, fuelingRecords.count)
+        } catch {
+            print("Failed to fetch cloud record counts: \(error)")
+            return (0, 0)
+        }
     }
 
     // MARK: - Fetch All Cloud Records Helper
@@ -450,13 +473,11 @@ final class CloudSyncService: ObservableObject {
                    let uuid = UUID(uuidString: idString) {
                     if let existing = recordMap[uuid] {
                         updateFuelingRecord(existing, from: ckRecord)
-                    } else if let vehicleRef = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? CKRecord.Reference {
-                        let vehicleUUIDString = vehicleRef.recordID.recordName
-                        if let vehicleUUID = UUID(uuidString: vehicleUUIDString),
-                           let vehicle = vehicleMap[vehicleUUID] {
-                            let record = fuelingRecordFromCKRecord(ckRecord, vehicle: vehicle)
-                            context.insert(record)
-                        }
+                    } else if let vehicleUUIDString = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
+                              let vehicleUUID = UUID(uuidString: vehicleUUIDString),
+                              let vehicle = vehicleMap[vehicleUUID] {
+                        let record = fuelingRecordFromCKRecord(ckRecord, vehicle: vehicle)
+                        context.insert(record)
                     }
                 }
 
@@ -577,7 +598,7 @@ final class CloudSyncService: ObservableObject {
             static let fillUpTypeRaw = "fillUpTypeRaw"
             static let notes = "notes"
             static let createdAt = "fuelingCreatedAt"
-            static let vehicleRef = "vehicle"
+            static let vehicleRef = "vehicleOwnerID"
         }
     }
 
@@ -644,9 +665,8 @@ final class CloudSyncService: ObservableObject {
         record[CloudFieldKey.FuelingRecord.notes] = fuelingRecord.notes
         record[CloudFieldKey.FuelingRecord.createdAt] = fuelingRecord.createdAt
 
-        // Reference to parent vehicle
-        let vehicleRef = CKRecord.Reference(recordID: vehicleRecordID, action: .deleteSelf)
-        record[CloudFieldKey.FuelingRecord.vehicleRef] = vehicleRef
+        // Store parent vehicle ID as plain string (avoids CloudKit's 750 owning-reference limit)
+        record[CloudFieldKey.FuelingRecord.vehicleRef] = vehicleRecordID.recordName
 
         return record
     }
@@ -690,18 +710,65 @@ final class CloudSyncService: ObservableObject {
 
     // MARK: - Batch Operations
 
-    /// Save records in batches of 400 (CloudKit limit)
+    /// Save records in batches with retry logic.
+    /// CloudKit has a 400-record limit per operation, but we use 200 for reliability.
     private func batchSave(records: [CKRecord]) async throws {
-        let batchSize = 400
+        let batchSize = 200
         var offset = 0
+        let maxRetries = 3
 
         while offset < records.count {
             let end = min(offset + batchSize, records.count)
             let batch = Array(records[offset..<end])
 
-            let _ = try await privateDatabase.modifyRecords(saving: batch, deleting: [], savePolicy: .changedKeys)
+            var lastError: Error?
+            var succeeded = false
+
+            for attempt in 1...maxRetries {
+                do {
+                    let (saveResults, _) = try await privateDatabase.modifyRecords(
+                        saving: batch, deleting: [], savePolicy: .changedKeys
+                    )
+
+                    // Check per-record results for failures
+                    var failedRecordIDs: [CKRecord.ID] = []
+                    for (recordID, result) in saveResults {
+                        if case .failure(let error) = result {
+                            failedRecordIDs.append(recordID)
+                            lastError = error
+                            print("Failed to save record \(recordID): \(error)")
+                        }
+                    }
+
+                    if failedRecordIDs.isEmpty {
+                        succeeded = true
+                        break
+                    } else {
+                        print("Batch attempt \(attempt): \(failedRecordIDs.count)/\(batch.count) records failed")
+                        if attempt < maxRetries {
+                            // Wait before retry (exponential backoff)
+                            try await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
+                        }
+                    }
+                } catch {
+                    lastError = error
+                    print("Batch save attempt \(attempt) threw error: \(error)")
+                    if attempt < maxRetries {
+                        try await Task.sleep(nanoseconds: UInt64(attempt) * 2_000_000_000)
+                    }
+                }
+            }
+
+            if !succeeded, let error = lastError {
+                throw error
+            }
 
             offset = end
+
+            // Small delay between batches to avoid rate limiting
+            if offset < records.count {
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+            }
         }
     }
 }

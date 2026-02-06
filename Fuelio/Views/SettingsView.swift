@@ -20,6 +20,7 @@ struct SettingsView: View {
     @State private var showingICloudError = false
     @State private var iCloudErrorMessage = ""
 
+
     private var stateManager: SyncStateManager {
         cloudSyncService.stateManager
     }
@@ -33,52 +34,56 @@ struct SettingsView: View {
         Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
     }
 
+    @ViewBuilder
+    private var iCloudSyncSection: some View {
+        Section {
+            Toggle(isOn: Binding(
+                get: { isSyncToggleOn },
+                set: { newValue in
+                    if newValue {
+                        isSyncToggleOn = true
+                        handleToggleOn()
+                    } else {
+                        showingToggleOffAlert = true
+                    }
+                }
+            )) {
+                HStack {
+                    Image(systemName: "icloud.fill")
+                        .foregroundColor(.blue)
+                    Text("iCloud Sync")
+                        .font(.custom("Avenir Next", size: 16))
+                }
+            }
+            .disabled(stateManager.syncStatus.isInProgress)
+
+            HStack {
+                Text("Status")
+                    .font(.custom("Avenir Next", size: 14))
+                    .foregroundColor(.secondary)
+                Spacer()
+                if stateManager.syncStatus.isInProgress {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .padding(.trailing, 4)
+                }
+                Text(stateManager.syncStatus.displayText)
+                    .font(.custom("Avenir Next", size: 14))
+                    .foregroundColor(.secondary)
+            }
+        } header: {
+            Text("iCloud")
+                .font(.custom("Avenir Next", size: 12))
+        } footer: {
+            Text("Sync your fueling data across all your devices using iCloud.")
+                .font(.custom("Avenir Next", size: 12))
+        }
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                // iCloud Sync Section
-                Section {
-                    Toggle(isOn: Binding(
-                        get: { isSyncToggleOn },
-                        set: { newValue in
-                            if newValue {
-                                isSyncToggleOn = true
-                                handleToggleOn()
-                            } else {
-                                showingToggleOffAlert = true
-                            }
-                        }
-                    )) {
-                        HStack {
-                            Image(systemName: "icloud.fill")
-                                .foregroundColor(.blue)
-                            Text("iCloud Sync")
-                                .font(.custom("Avenir Next", size: 16))
-                        }
-                    }
-                    .disabled(stateManager.syncStatus.isInProgress)
-
-                    HStack {
-                        Text("Status")
-                            .font(.custom("Avenir Next", size: 14))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                        if stateManager.syncStatus.isInProgress {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                                .padding(.trailing, 4)
-                        }
-                        Text(stateManager.syncStatus.displayText)
-                            .font(.custom("Avenir Next", size: 14))
-                            .foregroundColor(.secondary)
-                    }
-                } header: {
-                    Text("iCloud")
-                        .font(.custom("Avenir Next", size: 12))
-                } footer: {
-                    Text("Sync your fueling data across all your devices using iCloud.")
-                        .font(.custom("Avenir Next", size: 12))
-                }
+                iCloudSyncSection
 
                 // App Info Section
                 Section {
@@ -94,8 +99,24 @@ struct SettingsView: View {
                     InfoRow(label: "Vehicles", value: "\(vehicles.count)")
                     InfoRow(label: "Fueling Records", value: "\(records.count)")
                 } header: {
-                    Text("Data Statistics")
+                    Text("Local Data")
                         .font(.custom("Avenir Next", size: 12))
+                }
+
+                // iCloud Sync Details (only when sync is enabled)
+                if stateManager.iCloudSyncEnabled {
+                    Section {
+                        NavigationLink {
+                            iCloudSyncDetailView()
+                        } label: {
+                            HStack {
+                                Image(systemName: "icloud.and.arrow.up.fill")
+                                    .foregroundColor(.blue)
+                                Text("iCloud Sync Details")
+                                    .font(.custom("Avenir Next", size: 16))
+                            }
+                        }
+                    }
                 }
 
                 // Danger Zone Section
@@ -249,8 +270,9 @@ struct SettingsView: View {
 
                 stateManager.markInitialSyncComplete()
 
-                // Subscribe to remote changes and start monitoring
+                // Subscribe to remote changes and start monitoring local saves
                 await cloudSyncService.subscribeToRemoteChanges()
+                cloudSyncService.startMonitoring(container: modelContext.container)
             } catch {
                 stateManager.iCloudSyncEnabled = false
                 isSyncToggleOn = false
@@ -285,6 +307,181 @@ struct SettingsView: View {
             showingDeleteSuccess = true
         } catch {
             print("Failed to delete all data: \(error)")
+        }
+    }
+}
+
+// MARK: - iCloud Sync Detail View
+
+struct iCloudSyncDetailView: View {
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var cloudSyncService: CloudSyncService
+
+    @Query private var vehicles: [Vehicle]
+    @Query private var records: [FuelingRecord]
+
+    @State private var cloudVehicleCount: Int?
+    @State private var cloudRecordCount: Int?
+    @State private var isLoadingCloudCounts = false
+    @State private var showingForceResyncAlert = false
+    @State private var isResyncing = false
+    @State private var showingError = false
+    @State private var errorMessage = ""
+
+    var body: some View {
+        List {
+            // Local counts for comparison
+            Section {
+                InfoRow(label: "Vehicles", value: "\(vehicles.count)")
+                InfoRow(label: "Fueling Records", value: "\(records.count)")
+            } header: {
+                Text("Local Data")
+                    .font(.custom("Avenir Next", size: 12))
+            }
+
+            // iCloud counts
+            Section {
+                cloudCountRow(label: "Vehicles", cloudCount: cloudVehicleCount, localCount: vehicles.count)
+                cloudCountRow(label: "Fueling Records", cloudCount: cloudRecordCount, localCount: records.count)
+            } header: {
+                Text("iCloud Data")
+                    .font(.custom("Avenir Next", size: 12))
+            } footer: {
+                if let vc = cloudVehicleCount, let rc = cloudRecordCount,
+                   (vc != vehicles.count || rc != records.count) {
+                    Text("Counts differ from local data. Use \"Force Re-sync from Local\" to wipe iCloud and re-upload all local data.")
+                        .font(.custom("Avenir Next", size: 12))
+                        .foregroundColor(.orange)
+                }
+            }
+
+            // Actions
+            Section {
+                Button {
+                    loadCloudCounts()
+                } label: {
+                    HStack {
+                        Label("Refresh Counts", systemImage: "arrow.clockwise")
+                            .font(.custom("Avenir Next", size: 16))
+                        Spacer()
+                        if isLoadingCloudCounts {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
+                }
+                .disabled(isLoadingCloudCounts || isResyncing)
+
+                Button {
+                    showingForceResyncAlert = true
+                } label: {
+                    HStack {
+                        Label("Force Re-sync from Local", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.custom("Avenir Next", size: 16))
+                        Spacer()
+                        if isResyncing {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                        }
+                    }
+                }
+                .disabled(isResyncing || isLoadingCloudCounts)
+            } header: {
+                Text("Actions")
+                    .font(.custom("Avenir Next", size: 12))
+            } footer: {
+                Text("Force re-sync will delete all iCloud data and re-upload everything from this device.")
+                    .font(.custom("Avenir Next", size: 12))
+            }
+
+            // Sync status
+            Section {
+                InfoRow(label: "Status", value: cloudSyncService.stateManager.syncStatus.displayText)
+                InfoRow(label: "Sync Enabled", value: cloudSyncService.stateManager.iCloudSyncEnabled ? "Yes" : "No")
+                InfoRow(label: "Initial Sync Done", value: cloudSyncService.stateManager.initialSyncCompleted ? "Yes" : "No")
+            } header: {
+                Text("Sync Status")
+                    .font(.custom("Avenir Next", size: 12))
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle("iCloud Sync Details")
+        .navigationBarTitleDisplayMode(.inline)
+        .alert("Force Re-sync?", isPresented: $showingForceResyncAlert) {
+            Button("Cancel", role: .cancel) { }
+            Button("Re-sync", role: .destructive) {
+                forceResyncFromLocal()
+            }
+        } message: {
+            Text("This will delete all data in iCloud and re-upload all local data (\(vehicles.count) vehicle(s), \(records.count) record(s)). This may take a moment.")
+        }
+        .alert("Error", isPresented: $showingError) {
+            Button("OK") { }
+        } message: {
+            Text(errorMessage)
+        }
+        .onAppear {
+            loadCloudCounts()
+        }
+    }
+
+    @ViewBuilder
+    private func cloudCountRow(label: String, cloudCount: Int?, localCount: Int) -> some View {
+        HStack {
+            Text(label)
+                .font(.custom("Avenir Next", size: 16))
+            Spacer()
+            if isLoadingCloudCounts {
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else if let count = cloudCount {
+                Text("\(count)")
+                    .font(.custom("Avenir Next", size: 16))
+                    .foregroundColor(count == localCount ? .secondary : .orange)
+            } else {
+                Text("--")
+                    .font(.custom("Avenir Next", size: 16))
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func loadCloudCounts() {
+        isLoadingCloudCounts = true
+        cloudVehicleCount = nil
+        cloudRecordCount = nil
+        Task {
+            let counts = await cloudSyncService.fetchCloudRecordCounts()
+            await MainActor.run {
+                cloudVehicleCount = counts.vehicles
+                cloudRecordCount = counts.fuelingRecords
+                isLoadingCloudCounts = false
+            }
+        }
+    }
+
+    private func forceResyncFromLocal() {
+        isResyncing = true
+        cloudVehicleCount = nil
+        cloudRecordCount = nil
+        Task {
+            do {
+                try await cloudSyncService.deleteAllCloudData()
+                try await cloudSyncService.uploadAllLocalData(from: modelContext)
+                let counts = await cloudSyncService.fetchCloudRecordCounts()
+
+                await MainActor.run {
+                    cloudVehicleCount = counts.vehicles
+                    cloudRecordCount = counts.fuelingRecords
+                    isResyncing = false
+                }
+            } catch {
+                await MainActor.run {
+                    isResyncing = false
+                    errorMessage = "Re-sync failed: \(error.localizedDescription)"
+                    showingError = true
+                }
+            }
         }
     }
 }
