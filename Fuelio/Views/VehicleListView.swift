@@ -170,11 +170,17 @@ struct VehicleDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAddRecord) {
+        .sheet(isPresented: $showingAddRecord, onDismiss: {
+            // Present the summary popup only AFTER the add-record sheet has fully
+            // dismissed. Presenting two sheets simultaneously causes the second
+            // sheet to appear empty or fail silently.
+            if lastAddedRecord != nil {
+                showingSummary = true
+            }
+        }) {
             AddRecordView(vehicle: vehicle) { record, prevOdometer in
                 lastAddedRecord = record
                 lastAddedRecordPreviousOdometer = prevOdometer
-                showingSummary = true
             }
         }
         .sheet(isPresented: $showingSummary) {
@@ -198,3 +204,4 @@ struct VehicleDetailView: View {
     }
         .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
 }
+

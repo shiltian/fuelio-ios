@@ -130,7 +130,6 @@
 				A1000004296A0001 /* ContentView.swift */,
 				A1000002296A0002 /* Models */,
 				A1000003296A0002 /* Views */,
-				A1000004296A0002 /* ViewModels */,
 				A1000005296A0002 /* Services */,
 				A1000006296A0002 /* Extensions */,
 				A1000006296A0001 /* Assets.xcassets */,
@@ -168,13 +167,6 @@
 				G1000006297A0001 /* CSVExportImportViews.swift */,
 			);
 			path = Views;
-			sourceTree = "<group>";
-		};
-		A1000004296A0002 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		A1000005296A0002 /* Services */ = {

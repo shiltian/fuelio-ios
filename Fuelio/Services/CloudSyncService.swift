@@ -577,7 +577,10 @@ final class CloudSyncService: ObservableObject {
         .sink { [weak self] notification in
             guard let self = self, !self.isApplyingRemoteChanges else { return }
 
-            Task { @MainActor in
+            // Use .utility priority so the Swift runtime schedules UI-interactive
+            // work (sheet transitions, list updates) ahead of the sync task.
+            Task(priority: .utility) { @MainActor [weak self] in
+                guard let self = self else { return }
                 let context = container.mainContext
                 // On local save, do an incremental push
                 // We can't easily get the specific changes from the notification with SwiftData,
