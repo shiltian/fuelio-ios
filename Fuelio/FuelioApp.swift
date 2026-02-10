@@ -78,6 +78,16 @@ struct FuelioApp: App {
     private func initializeCloudSync() {
         let stateManager = cloudSyncService.stateManager
 
+        // Detect interrupted initial sync: the user toggled sync ON but the app
+        // was killed before the initial upload/download/merge finished.
+        // Reset the flag so the toggle shows OFF and the user can try again.
+        if stateManager.iCloudSyncEnabled && !stateManager.initialSyncCompleted {
+            Self.logger.warning("Detected interrupted initial sync — resetting iCloudSyncEnabled")
+            stateManager.iCloudSyncEnabled = false
+            stateManager.syncStatus = .idle
+            return
+        }
+
         guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
 
         Task {
