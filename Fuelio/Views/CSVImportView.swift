@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import os
 
 struct CSVImportView: View {
     @Environment(\.dismiss) private var dismiss
@@ -14,6 +15,11 @@ struct CSVImportView: View {
     @State private var isLoading = true
     @State private var parseError: String?
     @State private var previewLines: [String] = []
+
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
+        category: "CSVImport"
+    )
 
     var body: some View {
         NavigationStack {
@@ -279,7 +285,8 @@ struct CSVImportView: View {
 
             isLoading = false
         } catch {
-            parseError = "Failed to read file: \(error.localizedDescription)"
+            Self.logger.error("Failed to read CSV file: \(error)")
+            parseError = "Unable to read the selected file. Please make sure it is a valid CSV file."
             isLoading = false
         }
     }

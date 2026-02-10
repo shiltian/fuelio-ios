@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import os
 
 // MARK: - iCloud Sync Detail View
 
@@ -168,7 +169,9 @@ struct iCloudSyncDetailView: View {
             } catch {
                 await MainActor.run {
                     isResyncing = false
-                    errorMessage = "Re-sync failed: \(error.localizedDescription)"
+                    Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "iCloudSync")
+                        .error("Re-sync failed: \(error)")
+                    errorMessage = "Unable to re-sync with iCloud. Please check your connection and try again."
                     showingError = true
                 }
             }

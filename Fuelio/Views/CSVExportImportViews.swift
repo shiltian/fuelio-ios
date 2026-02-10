@@ -119,6 +119,11 @@ struct ImportCSVView: View {
     @State private var showingSuccess = false
     @State private var errorMessage: String?
 
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
+        category: "CSVImport"
+    )
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
@@ -207,11 +212,13 @@ struct ImportCSVView: View {
                     showingSuccess = true
                 }
             } catch {
-                errorMessage = "Failed to read file: \(error.localizedDescription)"
+                Self.logger.error("Failed to read CSV file: \(error)")
+                errorMessage = "Unable to read the selected file. Please make sure it is a valid CSV file."
             }
 
         case .failure(let error):
-            errorMessage = "Failed to select file: \(error.localizedDescription)"
+            Self.logger.error("File picker failed: \(error)")
+            errorMessage = "Unable to open the selected file. Please try again."
         }
     }
 }

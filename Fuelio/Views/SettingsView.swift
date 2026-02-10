@@ -277,7 +277,9 @@ struct SettingsView: View {
             } catch {
                 stateManager.iCloudSyncEnabled = false
                 isSyncToggleOn = false
-                iCloudErrorMessage = "Sync failed: \(error.localizedDescription)"
+                Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "Settings")
+                    .error("iCloud sync failed: \(error)")
+                iCloudErrorMessage = "Unable to sync with iCloud. Please check your internet connection and iCloud settings, then try again."
                 showingICloudError = true
             }
         }

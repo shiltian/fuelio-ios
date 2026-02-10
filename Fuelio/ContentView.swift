@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import os
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -111,7 +112,9 @@ struct ContentView: View {
                 showingImportSuccess = true
             }
         } catch {
-            csvImportError = "Failed to save records: \(error.localizedDescription)"
+            Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "CSVImport")
+                .error("Failed to save imported records: \(error)")
+            csvImportError = "Unable to save the imported records. Please try again."
             showingImportError = true
         }
     }
