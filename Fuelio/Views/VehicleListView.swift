@@ -126,9 +126,8 @@ struct VehicleDetailView: View {
     let vehicle: Vehicle
 
     @State private var showingAddRecord = false
-    @State private var showingSummary = false
-    @State private var lastAddedRecord: FuelingRecord?
-    @State private var lastAddedRecordPreviousOdometer: Double = 0
+    @State private var pendingSummary: FuelingSummaryData?
+    @State private var activeSummary: FuelingSummaryData?
     @State private var showingVehicleSettings = false
 
     var body: some View {
@@ -172,21 +171,27 @@ struct VehicleDetailView: View {
         }
         .sheet(isPresented: $showingAddRecord, onDismiss: {
             // Present the summary popup only AFTER the add-record sheet has fully
-            // dismissed. Presenting two sheets simultaneously causes the second
-            // sheet to appear empty or fail silently.
-            if lastAddedRecord != nil {
-                showingSummary = true
+            // dismissed. A small delay ensures SwiftUI completes the sheet
+            // transition before presenting the next one.
+            if let summary = pendingSummary {
+                pendingSummary = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    activeSummary = summary
+                }
             }
         }) {
             AddRecordView(vehicle: vehicle) { record, prevOdometer in
-                lastAddedRecord = record
-                lastAddedRecordPreviousOdometer = prevOdometer
+                // Snapshot all display values NOW while the model is guaranteed valid.
+                // This avoids SwiftData faulting issues during the sheet transition.
+                pendingSummary = FuelingSummaryData(
+                    record: record,
+                    previousOdometer: prevOdometer,
+                    unitSystem: vehicle.unitSystem
+                )
             }
         }
-        .sheet(isPresented: $showingSummary) {
-            if let record = lastAddedRecord {
-                FuelingSummaryPopup(record: record, previousOdometer: lastAddedRecordPreviousOdometer, unitSystem: vehicle.unitSystem)
-            }
+        .sheet(item: $activeSummary) { summary in
+            FuelingSummaryPopup(data: summary)
         }
         .sheet(isPresented: $showingVehicleSettings) {
             VehicleSettingsView(vehicle: vehicle)

@@ -1,32 +1,51 @@
 import SwiftUI
 
-struct FuelingSummaryPopup: View {
-    let record: FuelingRecord
+// MARK: - Value-type snapshot of a fueling record for the summary popup.
+// Using a plain struct instead of the SwiftData model object avoids any
+// issues with model faulting / context invalidation during sheet transitions.
+struct FuelingSummaryData: Identifiable {
+    let id = UUID()
+    let date: Date
+    let odometer: Double
+    let fuelAmount: Double
+    let pricePerFuelUnit: Double
+    let totalCost: Double
+    let isPartialFillUp: Bool
     let previousOdometer: Double
+    let efficiencyRaw: Double
+    let costPerDistance: Double
+    let distanceDriven: Double
     let unitSystem: UnitSystem
 
-    @Environment(\.dismiss) private var dismiss
-
-    // Use cached values for performance
-    private var efficiencyRaw: Double {
-        record.getEfficiency()
+    /// Create a snapshot from a FuelingRecord at save time, capturing all
+    /// computed values while the model object is guaranteed to be valid.
+    init(record: FuelingRecord, previousOdometer: Double, unitSystem: UnitSystem) {
+        self.date = record.date
+        self.odometer = record.odometer
+        self.fuelAmount = record.fuelAmount
+        self.pricePerFuelUnit = record.pricePerFuelUnit
+        self.totalCost = record.totalCost
+        self.isPartialFillUp = record.isPartialFillUp
+        self.previousOdometer = previousOdometer
+        self.efficiencyRaw = record.getEfficiency()
+        self.costPerDistance = record.getCostPerDistance()
+        self.distanceDriven = record.getDistanceDriven()
+        self.unitSystem = unitSystem
     }
 
-    private var efficiencyDisplay: Double {
+    var efficiencyDisplay: Double {
         unitSystem.efficiencyDisplayValue(from: efficiencyRaw)
     }
 
-    private var costPerDistanceValue: Double {
-        record.getCostPerDistance()
+    var hasEfficiency: Bool {
+        previousOdometer > 0 && !isPartialFillUp && efficiencyRaw > 0
     }
+}
 
-    private var distanceDrivenValue: Double {
-        record.getDistanceDriven()
-    }
+struct FuelingSummaryPopup: View {
+    let data: FuelingSummaryData
 
-    private var hasEfficiency: Bool {
-        previousOdometer > 0 && !record.isPartialFillUp && efficiencyRaw > 0
-    }
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,7 +65,7 @@ struct FuelingSummaryPopup: View {
                     .font(.appLargeTitle)
                     .fontWeight(.bold)
 
-                Text(record.date.formatted(date: .abbreviated, time: .shortened))
+                Text(data.date.formatted(date: .abbreviated, time: .shortened))
                     .font(.appSubheadline)
                     .foregroundColor(.secondary)
             }
@@ -56,7 +75,7 @@ struct FuelingSummaryPopup: View {
             // Stats Cards
             VStack(spacing: 16) {
                 // Efficiency Card - Hero Stat (only show for full fill-ups with valid previous record)
-                if hasEfficiency {
+                if data.hasEfficiency {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Fuel Efficiency")
@@ -64,12 +83,12 @@ struct FuelingSummaryPopup: View {
                                 .foregroundColor(.secondary)
 
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(efficiencyDisplay.formatted(.number.precision(.fractionLength(1))))
+                                Text(data.efficiencyDisplay.formatted(.number.precision(.fractionLength(1))))
                                     .font(.appHero)
                                     .fontWeight(.bold)
                                     .foregroundColor(.purple)
 
-                                Text(unitSystem.efficiencyUnit)
+                                Text(data.unitSystem.efficiencyUnit)
                                     .font(.appButton)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.purple.opacity(0.7))
@@ -91,17 +110,17 @@ struct FuelingSummaryPopup: View {
                     // Cost per Distance Card
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(unitSystem.costPerDistanceLabel)
+                            Text(data.unitSystem.costPerDistanceLabel)
                                 .font(.appSubheadline)
                                 .foregroundColor(.secondary)
 
                             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                                Text(costPerDistanceValue.currencyFormatted)
+                                Text(data.costPerDistance.currencyFormatted)
                                     .font(.appHero2)
                                     .fontWeight(.bold)
                                     .foregroundColor(.orange)
 
-                                Text(unitSystem.costPerDistanceShort)
+                                Text(data.unitSystem.costPerDistanceShort)
                                     .font(.appBody)
                                     .foregroundColor(.orange.opacity(0.7))
                             }
@@ -125,45 +144,45 @@ struct FuelingSummaryPopup: View {
                     GridItem(.flexible()),
                     GridItem(.flexible())
                 ], spacing: 12) {
-                    if previousOdometer > 0 {
+                    if data.previousOdometer > 0 {
                         SummaryDetailCard(
-                            title: "\(unitSystem.distanceName) Driven",
-                            value: "\(distanceDrivenValue.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceUnit)",
+                            title: "\(data.unitSystem.distanceName) Driven",
+                            value: "\(data.distanceDriven.formatted(.number.precision(.fractionLength(0)))) \(data.unitSystem.distanceUnit)",
                             icon: "road.lanes",
                             color: .blue
                         )
                     } else {
                         SummaryDetailCard(
                             title: "Odometer",
-                            value: "\(record.odometer.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceUnit)",
+                            value: "\(data.odometer.formatted(.number.precision(.fractionLength(0)))) \(data.unitSystem.distanceUnit)",
                             icon: "speedometer",
                             color: .blue
                         )
                     }
 
                     SummaryDetailCard(
-                        title: unitSystem.fuelName,
-                        value: "\(record.fuelAmount.formatted(.number.precision(.fractionLength(2)))) \(unitSystem.fuelUnit)",
+                        title: data.unitSystem.fuelName,
+                        value: "\(data.fuelAmount.formatted(.number.precision(.fractionLength(2)))) \(data.unitSystem.fuelUnit)",
                         icon: "fuelpump.fill",
                         color: .green
                     )
 
                     SummaryDetailCard(
-                        title: unitSystem.pricePerFuelLabel.replacingOccurrences(of: "Price per ", with: "Price/"),
-                        value: record.pricePerFuelUnit.currencyFormatted,
+                        title: data.unitSystem.pricePerFuelLabel.replacingOccurrences(of: "Price per ", with: "Price/"),
+                        value: data.pricePerFuelUnit.currencyFormatted,
                         icon: "tag.fill",
                         color: .teal
                     )
 
                     SummaryDetailCard(
                         title: "Total Cost",
-                        value: record.totalCost.currencyFormatted,
+                        value: data.totalCost.currencyFormatted,
                         icon: "creditcard.fill",
                         color: .pink
                     )
                 }
 
-                if record.isPartialFillUp {
+                if data.isPartialFillUp {
                     HStack {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(.yellow)
@@ -234,15 +253,18 @@ struct SummaryDetailCard: View {
 
 #Preview {
     let vehicle = Vehicle(name: "Test Car")
-    FuelingSummaryPopup(
-        record: FuelingRecord(
-            odometer: 12500,
-            pricePerFuelUnit: 3.459,
-            fuelAmount: 10.5,
-            totalCost: 36.32,
-            vehicle: vehicle
-        ),
-        previousOdometer: 12200,
-        unitSystem: .imperial
+    let record = FuelingRecord(
+        odometer: 12500,
+        pricePerFuelUnit: 3.459,
+        fuelAmount: 10.5,
+        totalCost: 36.32,
+        vehicle: vehicle
+    )
+    record.cachedPreviousOdometer = 12200
+    record.cachedDistanceDriven = 300
+    record.cachedEfficiency = 300.0 / 10.5
+    record.cachedCostPerDistance = 36.32 / 300.0
+    return FuelingSummaryPopup(
+        data: FuelingSummaryData(record: record, previousOdometer: 12200, unitSystem: .imperial)
     )
 }

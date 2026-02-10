@@ -582,10 +582,10 @@ final class CloudSyncService: ObservableObject {
             Task(priority: .utility) { @MainActor [weak self] in
                 guard let self = self else { return }
                 let context = container.mainContext
-                // On local save, do an incremental push
+                // On local save, do a full sync: upload local + delete stale cloud records.
                 // We can't easily get the specific changes from the notification with SwiftData,
-                // so we rely on the server change token mechanism to identify what's new
-                await self.pushAllLocalData(context: context)
+                // so we compare local vs cloud to determine what to save/delete.
+                await self.syncLocalToCloud(context: context)
             }
         }
     }
@@ -597,15 +597,70 @@ final class CloudSyncService: ObservableObject {
         modelContainer = nil
     }
 
-    /// Push all local data (simplified incremental push)
-    private func pushAllLocalData(context: ModelContext) async {
+    /// Sync local data to CloudKit: upload all local records AND delete any
+    /// cloud records whose UUIDs no longer exist locally.
+    private func syncLocalToCloud(context: ModelContext) async {
         guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
         guard !isApplyingRemoteChanges else { return }
 
         do {
-            try await uploadAllLocalData(from: context)
+            stateManager.syncStatus = .syncing
+
+            try await ensureZoneExists()
+
+            // 1. Build set of all local UUIDs
+            let vehicleDescriptor = FetchDescriptor<Vehicle>()
+            let localVehicles = try context.fetch(vehicleDescriptor)
+
+            let recordDescriptor = FetchDescriptor<FuelingRecord>()
+            let localRecords = try context.fetch(recordDescriptor)
+
+            var localUUIDs = Set<String>()
+            for v in localVehicles { localUUIDs.insert(v.id.uuidString) }
+            for r in localRecords { localUUIDs.insert(r.id.uuidString) }
+
+            // 2. Build CKRecords to save (same as uploadAllLocalData)
+            var recordsToSave: [CKRecord] = []
+            for vehicle in localVehicles {
+                let vehicleRecord = vehicleToCKRecord(vehicle)
+                recordsToSave.append(vehicleRecord)
+
+                for fuelingRecord in vehicle.fuelingRecords ?? [] {
+                    let ckRecord = fuelingRecordToCKRecord(fuelingRecord, vehicleRecordID: vehicleRecord.recordID)
+                    recordsToSave.append(ckRecord)
+                }
+            }
+
+            // 3. Fetch all cloud record IDs to find stale ones
+            let (cloudVehicles, cloudFuelingRecords) = try await fetchAllCloudRecords()
+
+            var idsToDelete: [CKRecord.ID] = []
+            for ckRecord in cloudVehicles {
+                if !localUUIDs.contains(ckRecord.recordID.recordName) {
+                    idsToDelete.append(ckRecord.recordID)
+                }
+            }
+            for ckRecord in cloudFuelingRecords {
+                if !localUUIDs.contains(ckRecord.recordID.recordName) {
+                    idsToDelete.append(ckRecord.recordID)
+                }
+            }
+
+            // 4. Upload local records
+            if !recordsToSave.isEmpty {
+                try await batchSave(records: recordsToSave)
+            }
+
+            // 5. Delete stale cloud records
+            if !idsToDelete.isEmpty {
+                Self.logger.info("Deleting \(idsToDelete.count) stale cloud record(s)")
+                try await batchDelete(recordIDs: idsToDelete)
+            }
+
+            stateManager.syncStatus = .synced
         } catch {
-            Self.logger.error("Failed to push local data: \(error)")
+            Self.logger.error("Failed to sync local data to cloud: \(error)")
+            stateManager.syncStatus = .error("Sync failed")
         }
     }
 
@@ -796,6 +851,62 @@ final class CloudSyncService: ObservableObject {
             offset = end
 
             if offset < records.count {
+                try await Task.sleep(nanoseconds: Self.interBatchDelay)
+            }
+        }
+    }
+
+    /// Delete CKRecord IDs in batches with retry logic.
+    private func batchDelete(recordIDs: [CKRecord.ID]) async throws {
+        var offset = 0
+
+        while offset < recordIDs.count {
+            let end = min(offset + Self.batchSize, recordIDs.count)
+            let batch = Array(recordIDs[offset..<end])
+
+            var lastError: Error?
+            var succeeded = false
+
+            for attempt in 1...Self.maxRetries {
+                do {
+                    let (_, deleteResults) = try await privateDatabase.modifyRecords(
+                        saving: [], deleting: batch, savePolicy: .changedKeys
+                    )
+
+                    var failedIDs: [CKRecord.ID] = []
+                    for (recordID, result) in deleteResults {
+                        if case .failure(let error) = result {
+                            failedIDs.append(recordID)
+                            lastError = error
+                            Self.logger.warning("Failed to delete record \(recordID): \(error)")
+                        }
+                    }
+
+                    if failedIDs.isEmpty {
+                        succeeded = true
+                        break
+                    } else {
+                        Self.logger.warning("Delete batch attempt \(attempt): \(failedIDs.count)/\(batch.count) records failed")
+                        if attempt < Self.maxRetries {
+                            try await Task.sleep(nanoseconds: UInt64(attempt) * Self.retryBaseDelay)
+                        }
+                    }
+                } catch {
+                    lastError = error
+                    Self.logger.error("Batch delete attempt \(attempt) threw error: \(error)")
+                    if attempt < Self.maxRetries {
+                        try await Task.sleep(nanoseconds: UInt64(attempt) * Self.retryBaseDelay)
+                    }
+                }
+            }
+
+            if !succeeded, let error = lastError {
+                throw error
+            }
+
+            offset = end
+
+            if offset < recordIDs.count {
                 try await Task.sleep(nanoseconds: Self.interBatchDelay)
             }
         }

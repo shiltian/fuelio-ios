@@ -263,6 +263,7 @@ struct VehicleSettingsView: View {
         for record in records {
             modelContext.delete(record)
         }
+        try? modelContext.save()
 
         // Invalidate cache after clearing
         vehicle.invalidateCache()

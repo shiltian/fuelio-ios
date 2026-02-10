@@ -97,6 +97,9 @@ struct EditRecordView: View {
         record.fillUpType = fillUpType
         record.notes = notes.isEmpty ? nil : notes
 
+        // Force an immediate save so the change is visible in HistoryView right away.
+        try? modelContext.save()
+
         StatisticsCacheService.updateForEditedRecord(vehicle: vehicle)
         dismiss()
     }

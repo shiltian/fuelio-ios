@@ -102,6 +102,13 @@ struct AddRecordView: View {
         )
 
         modelContext.insert(record)
+
+        // Force an immediate save so SwiftData processes the inverse
+        // relationship (vehicle.fuelingRecords) right away. Without this,
+        // the auto-save can be deferred for seconds, causing HistoryView
+        // to appear stale.
+        try? modelContext.save()
+
         StatisticsCacheService.updateForNewRecord(record, vehicle: vehicle)
         onSave?(record, previousOdometer)
         dismiss()

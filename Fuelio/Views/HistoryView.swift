@@ -117,6 +117,8 @@ struct HistoryView: View {
     private func deleteRecord(_ record: FuelingRecord) {
         withAnimation {
             modelContext.delete(record)
+            // Force an immediate save so the list updates right away.
+            try? modelContext.save()
             recordToDelete = nil
             // Update cache after deletion
             StatisticsCacheService.updateForDeletedRecord(vehicle: vehicle)

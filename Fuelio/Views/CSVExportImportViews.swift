@@ -198,6 +198,7 @@ struct ImportCSVView: View {
                 for record in records {
                     modelContext.insert(record)
                 }
+                try? modelContext.save()
 
                 StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
