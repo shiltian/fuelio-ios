@@ -93,7 +93,7 @@ final class CloudSyncService: ObservableObject {
             }
         } catch {
             await MainActor.run {
-                stateManager.syncStatus = .error("Failed to check iCloud status")
+                stateManager.syncStatus = .error(String(localized: "Failed to check iCloud status"))
             }
             return false
         }
@@ -465,7 +465,7 @@ final class CloudSyncService: ObservableObject {
             stateManager.syncStatus = .synced
         } catch {
             Self.logger.error("Failed to pull remote changes: \(error)")
-            stateManager.syncStatus = .error("Pull failed")
+            stateManager.syncStatus = .error(String(localized: "Pull failed"))
         }
     }
 
@@ -660,7 +660,7 @@ final class CloudSyncService: ObservableObject {
             stateManager.syncStatus = .synced
         } catch {
             Self.logger.error("Failed to sync local data to cloud: \(error)")
-            stateManager.syncStatus = .error("Sync failed")
+            stateManager.syncStatus = .error(String(localized: "Sync failed"))
         }
     }
 

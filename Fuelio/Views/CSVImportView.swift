@@ -257,7 +257,7 @@ struct CSVImportView: View {
 
     private func loadAndParseCSV() {
         guard let url = fileURL else {
-            parseError = "No file URL provided"
+            parseError = String(localized: "No file URL provided")
             isLoading = false
             return
         }
@@ -286,7 +286,7 @@ struct CSVImportView: View {
             isLoading = false
         } catch {
             Self.logger.error("Failed to read CSV file: \(error)")
-            parseError = "Unable to read the selected file. Please make sure it is a valid CSV file."
+            parseError = String(localized: "Unable to read the selected file. Please make sure it is a valid CSV file.")
             isLoading = false
         }
     }
@@ -315,7 +315,7 @@ struct CSVImportView: View {
 // MARK: - Supporting Views
 
 private struct SummaryRow: View {
-    let label: String
+    let label: LocalizedStringKey
     let value: String
 
     var body: some View {

@@ -9,17 +9,17 @@ enum FillUpType: String, Codable, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .full: return "Full Tank"
-        case .partial: return "Partial Fill"
-        case .reset: return "Missed Fueling"
+        case .full: return String(localized: "Full Tank")
+        case .partial: return String(localized: "Partial Fill")
+        case .reset: return String(localized: "Missed Fueling")
         }
     }
 
     var description: String {
         switch self {
-        case .full: return "Filled the tank completely"
-        case .partial: return "Didn't fill completely (affects next efficiency calculation)"
-        case .reset: return "Missed recording previous fill-up(s)"
+        case .full: return String(localized: "Filled the tank completely")
+        case .partial: return String(localized: "Didn't fill completely (affects next efficiency calculation)")
+        case .reset: return String(localized: "Missed recording previous fill-up(s)")
         }
     }
 

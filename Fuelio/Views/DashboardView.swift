@@ -46,28 +46,28 @@ struct DashboardView: View {
                     GridItem(.flexible())
                 ], spacing: 16) {
                     StatCard(
-                        title: "Total Spent",
+                        title: String(localized: "Total Spent"),
                         value: totalSpent.currencyFormatted,
                         icon: "dollarsign.circle.fill",
                         color: .orange
                     )
 
                     StatCard(
-                        title: "Total \(units.distanceName)",
+                        title: String(localized: "Total \(units.distanceName)"),
                         value: totalDistance.formatted(.number.precision(.fractionLength(0))),
                         icon: "road.lanes",
                         color: .blue
                     )
 
                     StatCard(
-                        title: "Total \(units.fuelName)",
+                        title: String(localized: "Total \(units.fuelName)"),
                         value: totalFuel.formatted(.number.precision(.fractionLength(1))),
                         icon: "fuelpump.fill",
                         color: .green
                     )
 
                     StatCard(
-                        title: "Avg \(units.efficiencyUnit)",
+                        title: String(localized: "Avg \(units.efficiencyUnit)"),
                         value: averageEfficiency.formatted(.number.precision(.fractionLength(1))),
                         icon: "gauge.with.dots.needle.67percent",
                         color: .purple
@@ -81,7 +81,7 @@ struct DashboardView: View {
                     )
 
                     StatCard(
-                        title: "Avg Fill-up",
+                        title: String(localized: "Avg Fill-up"),
                         value: averageFillUpCost.currencyFormatted,
                         icon: "creditcard.fill",
                         color: .teal
@@ -228,7 +228,7 @@ struct LastFillUpCard: View {
                             .font(.appButton)
                             .fontWeight(.semibold)
                             .foregroundColor(.secondary)
-                        Text(previousOdometer > 0 ? "Partial" : "Baseline")
+                        Text(previousOdometer > 0 ? String(localized: "Partial") : String(localized: "Baseline"))
                             .font(.appCaption)
                             .foregroundColor(.secondary)
                     }

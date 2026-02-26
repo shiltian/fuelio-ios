@@ -146,14 +146,14 @@ struct FuelingSummaryPopup: View {
                 ], spacing: 12) {
                     if data.previousOdometer > 0 {
                         SummaryDetailCard(
-                            title: "\(data.unitSystem.distanceName) Driven",
+                            title: String(localized: "\(data.unitSystem.distanceName) Driven"),
                             value: "\(data.distanceDriven.formatted(.number.precision(.fractionLength(0)))) \(data.unitSystem.distanceUnit)",
                             icon: "road.lanes",
                             color: .blue
                         )
                     } else {
                         SummaryDetailCard(
-                            title: "Odometer",
+                            title: String(localized: "Odometer"),
                             value: "\(data.odometer.formatted(.number.precision(.fractionLength(0)))) \(data.unitSystem.distanceUnit)",
                             icon: "speedometer",
                             color: .blue
@@ -168,14 +168,14 @@ struct FuelingSummaryPopup: View {
                     )
 
                     SummaryDetailCard(
-                        title: data.unitSystem.pricePerFuelLabel.replacingOccurrences(of: "Price per ", with: "Price/"),
+                        title: data.unitSystem.pricePerFuelShortLabel,
                         value: data.pricePerFuelUnit.currencyFormatted,
                         icon: "tag.fill",
                         color: .teal
                     )
 
                     SummaryDetailCard(
-                        title: "Total Cost",
+                        title: String(localized: "Total Cost"),
                         value: data.totalCost.currencyFormatted,
                         icon: "creditcard.fill",
                         color: .pink

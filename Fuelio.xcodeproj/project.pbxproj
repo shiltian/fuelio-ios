@@ -41,6 +41,7 @@
 		G1000001297A0001 /* FuelingRecordFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1000002297A0001 /* FuelingRecordFormView.swift */; };
 		G1000003297A0001 /* iCloudSyncDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1000004297A0001 /* iCloudSyncDetailView.swift */; };
 		G1000005297A0001 /* CSVExportImportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1000006297A0001 /* CSVExportImportViews.swift */; };
+		H1000001298A0001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = H1000002298A0001 /* Localizable.xcstrings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -92,6 +93,7 @@
 		G1000002297A0001 /* FuelingRecordFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelingRecordFormView.swift; sourceTree = "<group>"; };
 		G1000004297A0001 /* iCloudSyncDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudSyncDetailView.swift; sourceTree = "<group>"; };
 		G1000006297A0001 /* CSVExportImportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVExportImportViews.swift; sourceTree = "<group>"; };
+		H1000002298A0001 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,6 +128,7 @@
 			children = (
 				A1000023296A0001 /* Fuelio.entitlements */,
 				A1000024296A0001 /* Info.plist */,
+				H1000002298A0001 /* Localizable.xcstrings */,
 				A1000002296A0001 /* FuelioApp.swift */,
 				A1000004296A0001 /* ContentView.swift */,
 				A1000002296A0002 /* Models */,
@@ -274,7 +277,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1500;
-				LastUpgradeCheck = 2610;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					A10000FF296A0001 = {
 						CreatedOnToolsVersion = 15.0;
@@ -292,6 +295,8 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hans",
+				es,
 			);
 			mainGroup = A10000F7296A0001;
 			productRefGroup = A1000000296A0002 /* Products */;
@@ -311,6 +316,7 @@
 			files = (
 				A1000007296A0001 /* Preview Assets.xcassets in Resources */,
 				A1000005296A0001 /* Assets.xcassets in Resources */,
+				H1000001298A0001 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -386,6 +392,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -451,6 +458,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -512,7 +520,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Fuelio/Fuelio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "\"Fuelio/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;
@@ -550,7 +558,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Fuelio/Fuelio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 5;
+				CURRENT_PROJECT_VERSION = 6;
 				DEVELOPMENT_ASSET_PATHS = "\"Fuelio/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;

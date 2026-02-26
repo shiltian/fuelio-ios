@@ -191,7 +191,7 @@ struct ImportCSVView: View {
             guard let url = urls.first else { return }
 
             guard url.startAccessingSecurityScopedResource() else {
-                errorMessage = "Unable to access the selected file."
+                errorMessage = String(localized: "Unable to access the selected file.")
                 return
             }
             defer { url.stopAccessingSecurityScopedResource() }
@@ -213,12 +213,12 @@ struct ImportCSVView: View {
                 }
             } catch {
                 Self.logger.error("Failed to read CSV file: \(error)")
-                errorMessage = "Unable to read the selected file. Please make sure it is a valid CSV file."
+                errorMessage = String(localized: "Unable to read the selected file. Please make sure it is a valid CSV file.")
             }
 
         case .failure(let error):
             Self.logger.error("File picker failed: \(error)")
-            errorMessage = "Unable to open the selected file. Please try again."
+            errorMessage = String(localized: "Unable to open the selected file. Please try again.")
         }
     }
 }

@@ -183,7 +183,7 @@ struct ChartView: View {
         func label(for unitSystem: UnitSystem) -> String {
             switch self {
             case .efficiency: return unitSystem.efficiencyUnit
-            case .cost: return "Cost"
+            case .cost: return String(localized: "Cost")
             case .pricePerFuelUnit: return "$\(unitSystem.pricePerFuelShort)"
             }
         }

@@ -163,11 +163,11 @@ enum CSVService {
         let lines = content.components(separatedBy: .newlines).filter { !$0.isEmpty }
 
         guard !lines.isEmpty else {
-            return (false, "The file is empty")
+            return (false, String(localized: "The file is empty"))
         }
 
         guard lines.count > 1 else {
-            return (false, "The file only contains a header row with no data")
+            return (false, String(localized: "The file only contains a header row with no data"))
         }
 
         // Check if first line looks like a header
@@ -175,7 +175,7 @@ enum CSVService {
         let hasHeader = firstLine.contains("date") || firstLine.contains("odometer") || firstLine.contains("fuel")
 
         if !hasHeader {
-            return (false, "The file doesn't appear to have a valid header row")
+            return (false, String(localized: "The file doesn't appear to have a valid header row"))
         }
 
         return (true, nil)

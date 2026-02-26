@@ -85,7 +85,7 @@ struct ContentView: View {
         .alert("Import Error", isPresented: $showingImportError) {
             Button("OK", role: .cancel) { }
         } message: {
-            Text(csvImportError ?? "An unknown error occurred")
+            Text(csvImportError ?? String(localized: "An unknown error occurred"))
         }
         .alert("Import Successful", isPresented: $showingImportSuccess) {
             Button("OK", role: .cancel) { }
@@ -114,7 +114,7 @@ struct ContentView: View {
         } catch {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "CSVImport")
                 .error("Failed to save imported records: \(error)")
-            csvImportError = "Unable to save the imported records. Please try again."
+            csvImportError = String(localized: "Unable to save the imported records. Please try again.")
             showingImportError = true
         }
     }

@@ -18,8 +18,8 @@ enum UnitSystem: String, Codable, CaseIterable {
     /// Full distance name: "Miles" or "Kilometers"
     var distanceName: String {
         switch self {
-        case .imperial: return "Miles"
-        case .metric: return "Kilometers"
+        case .imperial: return String(localized: "Miles")
+        case .metric: return String(localized: "Kilometers")
         }
     }
 
@@ -34,8 +34,8 @@ enum UnitSystem: String, Codable, CaseIterable {
     /// Full fuel name: "Gallons" or "Liters"
     var fuelName: String {
         switch self {
-        case .imperial: return "Gallons"
-        case .metric: return "Liters"
+        case .imperial: return String(localized: "Gallons")
+        case .metric: return String(localized: "Liters")
         }
     }
 
@@ -50,16 +50,16 @@ enum UnitSystem: String, Codable, CaseIterable {
     /// Full efficiency name: "Miles Per Gallon" or "Liters per 100 km"
     var efficiencyName: String {
         switch self {
-        case .imperial: return "Miles Per Gallon"
-        case .metric: return "Liters per 100 km"
+        case .imperial: return String(localized: "Miles Per Gallon")
+        case .metric: return String(localized: "Liters per 100 km")
         }
     }
 
     /// Label for price per fuel unit: "Price per Gallon" or "Price per Liter"
     var pricePerFuelLabel: String {
         switch self {
-        case .imperial: return "Price per Gallon"
-        case .metric: return "Price per Liter"
+        case .imperial: return String(localized: "Price per Gallon")
+        case .metric: return String(localized: "Price per Liter")
         }
     }
 
@@ -74,8 +74,8 @@ enum UnitSystem: String, Codable, CaseIterable {
     /// Label for cost per distance: "Cost per Mile" or "Cost per km"
     var costPerDistanceLabel: String {
         switch self {
-        case .imperial: return "Cost per Mile"
-        case .metric: return "Cost per km"
+        case .imperial: return String(localized: "Cost per Mile")
+        case .metric: return String(localized: "Cost per km")
         }
     }
 
@@ -90,24 +90,32 @@ enum UnitSystem: String, Codable, CaseIterable {
     /// Average cost per distance label for dashboard: "Avg $/Mile" or "Avg $/km"
     var avgCostPerDistanceLabel: String {
         switch self {
-        case .imperial: return "Avg $/Mile"
-        case .metric: return "Avg $/km"
+        case .imperial: return String(localized: "Avg $/Mile")
+        case .metric: return String(localized: "Avg $/km")
         }
     }
 
     /// Display name for the unit system itself
     var displayName: String {
         switch self {
-        case .imperial: return "Imperial"
-        case .metric: return "Metric"
+        case .imperial: return String(localized: "Imperial")
+        case .metric: return String(localized: "Metric")
         }
     }
 
     /// Description of what the unit system uses
     var displayDescription: String {
         switch self {
-        case .imperial: return "Miles, Gallons, MPG"
-        case .metric: return "Kilometers, Liters, L/100km"
+        case .imperial: return String(localized: "Miles, Gallons, MPG")
+        case .metric: return String(localized: "Kilometers, Liters, L/100km")
+        }
+    }
+
+    /// Short label for price per fuel unit: "Price/Gallon" or "Price/Liter"
+    var pricePerFuelShortLabel: String {
+        switch self {
+        case .imperial: return String(localized: "Price/Gallon")
+        case .metric: return String(localized: "Price/Liter")
         }
     }
 

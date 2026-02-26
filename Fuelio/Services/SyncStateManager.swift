@@ -37,11 +37,11 @@ final class SyncStateManager: ObservableObject {
 
         var displayText: String {
             switch self {
-            case .idle: return "Not Syncing"
-            case .syncing: return "Syncing..."
-            case .synced: return "Synced"
-            case .error(let msg): return "Error: \(msg)"
-            case .unavailable: return "iCloud Unavailable"
+            case .idle: return String(localized: "Not Syncing")
+            case .syncing: return String(localized: "Syncing...")
+            case .synced: return String(localized: "Synced")
+            case .error(let msg): return String(localized: "Error: \(msg)")
+            case .unavailable: return String(localized: "iCloud Unavailable")
             }
         }
 

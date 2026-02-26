@@ -16,6 +16,15 @@ struct HistoryView: View {
         case dateAscending = "Oldest First"
         case costHighest = "Highest Cost"
         case costLowest = "Lowest Cost"
+
+        var displayName: String {
+            switch self {
+            case .dateDescending: return String(localized: "Newest First")
+            case .dateAscending: return String(localized: "Oldest First")
+            case .costHighest: return String(localized: "Highest Cost")
+            case .costLowest: return String(localized: "Lowest Cost")
+            }
+        }
     }
 
     private var records: [FuelingRecord] {
@@ -57,7 +66,7 @@ struct HistoryView: View {
                     Section {
                         Picker("Sort By", selection: $sortOrder) {
                             ForEach(SortOrder.allCases, id: \.self) { order in
-                                Text(order.rawValue)
+                                Text(order.displayName)
                                     .tag(order)
                             }
                         }
@@ -271,9 +280,9 @@ struct FillUpTypeBadge: View {
 
     private var label: String {
         switch fillUpType {
-        case .full: return "Full"
-        case .partial: return "Partial"
-        case .reset: return "Missed"
+        case .full: return String(localized: "Full")
+        case .partial: return String(localized: "Partial")
+        case .reset: return String(localized: "Missed")
         }
     }
 

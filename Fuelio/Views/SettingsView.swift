@@ -224,7 +224,7 @@ struct SettingsView: View {
             let available = await cloudSyncService.checkiCloudAvailability()
             guard available else {
                 isSyncToggleOn = false
-                iCloudErrorMessage = "Please sign in to iCloud in Settings to use this feature."
+                iCloudErrorMessage = String(localized: "Please sign in to iCloud in Settings to use this feature.")
                 showingICloudError = true
                 return
             }
@@ -279,7 +279,7 @@ struct SettingsView: View {
                 isSyncToggleOn = false
                 Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "Settings")
                     .error("iCloud sync failed: \(error)")
-                iCloudErrorMessage = "Unable to sync with iCloud. Please check your internet connection and iCloud settings, then try again."
+                iCloudErrorMessage = String(localized: "Unable to sync with iCloud. Please check your internet connection and iCloud settings, then try again.")
                 showingICloudError = true
             }
         }

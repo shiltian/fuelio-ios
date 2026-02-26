@@ -88,8 +88,8 @@ struct iCloudSyncDetailView: View {
             // Sync status
             Section {
                 InfoRow(label: "Status", value: cloudSyncService.stateManager.syncStatus.displayText)
-                InfoRow(label: "Sync Enabled", value: cloudSyncService.stateManager.iCloudSyncEnabled ? "Yes" : "No")
-                InfoRow(label: "Initial Sync Done", value: cloudSyncService.stateManager.initialSyncCompleted ? "Yes" : "No")
+                InfoRow(label: "Sync Enabled", value: cloudSyncService.stateManager.iCloudSyncEnabled ? String(localized: "Yes") : String(localized: "No"))
+                InfoRow(label: "Initial Sync Done", value: cloudSyncService.stateManager.initialSyncCompleted ? String(localized: "Yes") : String(localized: "No"))
             } header: {
                 Text("Sync Status")
                     .font(.appCaption)
@@ -117,7 +117,7 @@ struct iCloudSyncDetailView: View {
     }
 
     @ViewBuilder
-    private func cloudCountRow(label: String, cloudCount: Int?, localCount: Int) -> some View {
+    private func cloudCountRow(label: LocalizedStringKey, cloudCount: Int?, localCount: Int) -> some View {
         HStack {
             Text(label)
                 .font(.appBody)
@@ -171,7 +171,7 @@ struct iCloudSyncDetailView: View {
                     isResyncing = false
                     Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "iCloudSync")
                         .error("Re-sync failed: \(error)")
-                    errorMessage = "Unable to re-sync with iCloud. Please check your connection and try again."
+                    errorMessage = String(localized: "Unable to re-sync with iCloud. Please check your connection and try again.")
                     showingError = true
                 }
             }
@@ -182,7 +182,7 @@ struct iCloudSyncDetailView: View {
 // MARK: - InfoRow
 
 struct InfoRow: View {
-    let label: String
+    let label: LocalizedStringKey
     let value: String
 
     var body: some View {
