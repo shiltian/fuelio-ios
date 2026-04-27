@@ -40,6 +40,10 @@ final class CloudSyncService: ObservableObject {
     /// Flag to prevent re-entrant push when we're applying remote changes locally
     private var isApplyingRemoteChanges = false
 
+    /// Snapshot of local UUIDs from the last successful push, used to detect
+    /// local deletions without fetching all cloud records every time.
+    private var lastKnownLocalUUIDs: Set<String> = []
+
     // MARK: - Constants
 
     private enum RecordType {
@@ -569,6 +573,8 @@ final class CloudSyncService: ObservableObject {
     func startMonitoring(container: ModelContainer) {
         self.modelContainer = container
 
+        initializeKnownUUIDs(container: container)
+
         // Observe managed object context saves
         saveObserver = NotificationCenter.default.publisher(
             for: Notification.Name.NSManagedObjectContextDidSave
@@ -582,11 +588,24 @@ final class CloudSyncService: ObservableObject {
             Task(priority: .utility) { @MainActor [weak self] in
                 guard let self = self else { return }
                 let context = container.mainContext
-                // On local save, do a full sync: upload local + delete stale cloud records.
-                // We can't easily get the specific changes from the notification with SwiftData,
-                // so we compare local vs cloud to determine what to save/delete.
-                await self.syncLocalToCloud(context: context)
+                await self.pushLocalChangesToCloud(context: context)
             }
+        }
+    }
+
+    /// Populate lastKnownLocalUUIDs from the current database so the first push
+    /// can detect deletions that happened while the app was closed.
+    private func initializeKnownUUIDs(container: ModelContainer) {
+        do {
+            let context = container.mainContext
+            let vehicles = try context.fetch(FetchDescriptor<Vehicle>())
+            let records = try context.fetch(FetchDescriptor<FuelingRecord>())
+            var uuids = Set<String>()
+            for v in vehicles { uuids.insert(v.id.uuidString) }
+            for r in records { uuids.insert(r.id.uuidString) }
+            lastKnownLocalUUIDs = uuids
+        } catch {
+            Self.logger.error("Failed to initialize known UUIDs: \(error)")
         }
     }
 
@@ -597,9 +616,9 @@ final class CloudSyncService: ObservableObject {
         modelContainer = nil
     }
 
-    /// Sync local data to CloudKit: upload all local records AND delete any
-    /// cloud records whose UUIDs no longer exist locally.
-    private func syncLocalToCloud(context: ModelContext) async {
+    /// Push local changes to CloudKit by comparing current local UUIDs against
+    /// the last-known snapshot. Avoids fetching all cloud records on every save.
+    private func pushLocalChangesToCloud(context: ModelContext) async {
         guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
         guard !isApplyingRemoteChanges else { return }
 
@@ -608,58 +627,45 @@ final class CloudSyncService: ObservableObject {
 
             try await ensureZoneExists()
 
-            // 1. Build set of all local UUIDs
             let vehicleDescriptor = FetchDescriptor<Vehicle>()
             let localVehicles = try context.fetch(vehicleDescriptor)
 
-            let recordDescriptor = FetchDescriptor<FuelingRecord>()
-            let localRecords = try context.fetch(recordDescriptor)
-
-            var localUUIDs = Set<String>()
-            for v in localVehicles { localUUIDs.insert(v.id.uuidString) }
-            for r in localRecords { localUUIDs.insert(r.id.uuidString) }
-
-            // 2. Build CKRecords to save (same as uploadAllLocalData)
+            // Build current UUID set and CKRecords to save
+            var currentUUIDs = Set<String>()
             var recordsToSave: [CKRecord] = []
+
             for vehicle in localVehicles {
+                currentUUIDs.insert(vehicle.id.uuidString)
                 let vehicleRecord = vehicleToCKRecord(vehicle)
                 recordsToSave.append(vehicleRecord)
 
                 for fuelingRecord in vehicle.fuelingRecords ?? [] {
+                    currentUUIDs.insert(fuelingRecord.id.uuidString)
                     let ckRecord = fuelingRecordToCKRecord(fuelingRecord, vehicleRecordID: vehicleRecord.recordID)
                     recordsToSave.append(ckRecord)
                 }
             }
 
-            // 3. Fetch all cloud record IDs to find stale ones
-            let (cloudVehicles, cloudFuelingRecords) = try await fetchAllCloudRecords()
-
+            // Detect deletions by diffing against last-known UUIDs
+            let deletedUUIDs = lastKnownLocalUUIDs.subtracting(currentUUIDs)
             var idsToDelete: [CKRecord.ID] = []
-            for ckRecord in cloudVehicles {
-                if !localUUIDs.contains(ckRecord.recordID.recordName) {
-                    idsToDelete.append(ckRecord.recordID)
-                }
-            }
-            for ckRecord in cloudFuelingRecords {
-                if !localUUIDs.contains(ckRecord.recordID.recordName) {
-                    idsToDelete.append(ckRecord.recordID)
-                }
+            for uuid in deletedUUIDs {
+                idsToDelete.append(CKRecord.ID(recordName: uuid, zoneID: zoneID))
             }
 
-            // 4. Upload local records
             if !recordsToSave.isEmpty {
                 try await batchSave(records: recordsToSave)
             }
 
-            // 5. Delete stale cloud records
             if !idsToDelete.isEmpty {
                 Self.logger.info("Deleting \(idsToDelete.count) stale cloud record(s)")
                 try await batchDelete(recordIDs: idsToDelete)
             }
 
+            lastKnownLocalUUIDs = currentUUIDs
             stateManager.syncStatus = .synced
         } catch {
-            Self.logger.error("Failed to sync local data to cloud: \(error)")
+            Self.logger.error("Failed to push local changes to cloud: \(error)")
             stateManager.syncStatus = .error(String(localized: "Sync failed"))
         }
     }

@@ -141,9 +141,10 @@ final class FuelingRecord {
 extension FuelingRecord {
     static let csvHeader = "date,odometer,pricePerFuelUnit,fuelAmount,totalCost,fillUpType,notes"
 
+    private static let isoFormatter = ISO8601DateFormatter()
+
     func toCSVRow() -> String {
-        let dateFormatter = ISO8601DateFormatter()
-        let dateString = dateFormatter.string(from: date)
+        let dateString = Self.isoFormatter.string(from: date)
         let notesEscaped = (notes ?? "").replacingOccurrences(of: "\"", with: "\"\"")
 
         return "\(dateString),\(odometer),\(pricePerFuelUnit),\(fuelAmount),\(totalCost),\(fillUpType.rawValue),\"\(notesEscaped)\""
@@ -153,9 +154,7 @@ extension FuelingRecord {
         let components = CSVService.parseCSVLine(row)
         guard components.count >= 5 else { return nil }
 
-        let dateFormatter = ISO8601DateFormatter()
-
-        guard let date = dateFormatter.date(from: components[0]),
+        guard let date = isoFormatter.date(from: components[0]),
               let odometer = Double(components[1]),
               let pricePerFuelUnit = Double(components[2]),
               let fuelAmount = Double(components[3]),

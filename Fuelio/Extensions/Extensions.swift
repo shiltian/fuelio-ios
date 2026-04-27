@@ -128,12 +128,16 @@ extension View {
 // MARK: - Double Extensions
 
 extension Double {
-    /// Format as currency using the device locale (e.g., $3.45)
-    var currencyFormatted: String {
+    private static let currencyFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.locale = Locale.current
-        return formatter.string(from: NSNumber(value: self)) ?? String(format: "$%.2f", self)
+        return formatter
+    }()
+
+    /// Format as currency using the device locale (e.g., $3.45)
+    var currencyFormatted: String {
+        Self.currencyFormatter.string(from: NSNumber(value: self)) ?? String(format: "$%.2f", self)
     }
 
     /// Format with specific decimal places

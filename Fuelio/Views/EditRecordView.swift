@@ -40,7 +40,7 @@ struct EditRecordView: View {
     private var totalCost: Double { Double(totalCostCents) / 100.0 }
 
     private var isValid: Bool {
-        guard currentOdometer != nil else { return false }
+        guard let current = currentOdometer, current > 0 else { return false }
         guard pricePerFuelUnit > 0 else { return false }
         guard fuelAmount > 0 else { return false }
         guard totalCost > 0 else { return false }

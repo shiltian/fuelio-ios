@@ -59,14 +59,25 @@ enum CSVService {
     ///   - content: CSV formatted string
     ///   - vehicle: Vehicle to attach to every record
     /// - Returns: Array of FuelingRecord
+    private static let simpleDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    private static let usDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MM/dd/yyyy"
+        return f
+    }()
+
+    private static let isoFormatter = ISO8601DateFormatter()
+
     static func importSimpleFormat(from content: String, vehicle: Vehicle) -> [FuelingRecord] {
         var records: [FuelingRecord] = []
 
         let lines = content.components(separatedBy: .newlines)
         let dataLines = lines.dropFirst().filter { !$0.isEmpty }
-
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
 
         for line in dataLines {
             let components = parseCSVLine(line)
@@ -74,17 +85,14 @@ enum CSVService {
 
             // Try to parse date in various formats
             var date: Date?
-            if let d = dateFormatter.date(from: components[0]) {
+            if let d = simpleDateFormatter.date(from: components[0]) {
                 date = d
-            } else if let d = ISO8601DateFormatter().date(from: components[0]) {
+            } else if let d = isoFormatter.date(from: components[0]) {
                 date = d
             } else {
-                // Try other common formats
-                dateFormatter.dateFormat = "MM/dd/yyyy"
-                if let d = dateFormatter.date(from: components[0]) {
+                if let d = usDateFormatter.date(from: components[0]) {
                     date = d
                 }
-                dateFormatter.dateFormat = "yyyy-MM-dd" // Reset
             }
 
             guard let parsedDate = date,
@@ -184,10 +192,10 @@ enum CSVService {
     /// Generate a sample CSV template
     /// - Returns: CSV formatted string with headers and example row
     static func generateTemplate() -> String {
-        """
-        date,odometer,pricePerFuelUnit,fuelAmount,totalCost,fillUpType,notes
-        2024-01-15,12500,3.459,10.5,36.32,full,"First fill-up of the year"
-        2024-01-22,12800,3.399,11.2,38.07,full,""
-        """
+"""
+date,odometer,pricePerFuelUnit,fuelAmount,totalCost,fillUpType,notes
+2024-01-15,12500,3.459,10.5,36.32,full,"First fill-up of the year"
+2024-01-22,12800,3.399,11.2,38.07,full,""
+"""
     }
 }
