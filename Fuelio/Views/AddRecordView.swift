@@ -101,6 +101,7 @@ struct AddRecordView: View {
             vehicle: vehicle
         )
 
+        record.modifiedAt = Date()
         modelContext.insert(record)
 
         // Force an immediate save so SwiftData processes the inverse

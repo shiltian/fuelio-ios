@@ -21,10 +21,7 @@ struct FuelioApp: App {
     }
 
     var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Vehicle.self,
-            FuelingRecord.self,
-        ])
+        let schema = Schema(versionedSchema: SchemaV2.self)
 
         // Use in-memory storage for tests to avoid file system issues.
         // Explicitly disable CloudKit — we manage iCloud sync manually via CloudSyncService
@@ -36,7 +33,11 @@ struct FuelioApp: App {
         )
 
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(
+                for: schema,
+                migrationPlan: FuelioMigrationPlan.self,
+                configurations: [modelConfiguration]
+            )
         } catch {
             // Log the full error for diagnostics before crashing
             let message = "Could not create ModelContainer: \(error.localizedDescription)\nFull error: \(error)"

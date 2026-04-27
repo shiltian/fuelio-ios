@@ -96,6 +96,7 @@ struct AddVehicleView: View {
             unitSystem: unitSystem
         )
 
+        vehicle.modifiedAt = Date()
         modelContext.insert(vehicle)
         dismiss()
     }

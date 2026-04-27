@@ -200,7 +200,9 @@ struct ImportCSVView: View {
                 let content = try String(contentsOf: url, encoding: .utf8)
                 let records = CSVService.importRecords(from: content, vehicle: vehicle)
 
+                let now = Date()
                 for record in records {
+                    record.modifiedAt = now
                     modelContext.insert(record)
                 }
                 try? modelContext.save()

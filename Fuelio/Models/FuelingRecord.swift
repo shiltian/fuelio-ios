@@ -51,6 +51,7 @@ final class FuelingRecord {
     var fillUpTypeRaw: String = FillUpType.full.rawValue  // Stored as String for SwiftData compatibility
     var notes: String?
     var createdAt: Date = Date()
+    var modifiedAt: Date?
 
     var vehicle: Vehicle
 

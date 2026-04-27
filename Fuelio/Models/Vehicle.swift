@@ -9,6 +9,7 @@ final class Vehicle {
     var model: String?
     var year: Int?
     var createdAt: Date = Date()
+    var modifiedAt: Date?
 
     /// Unit system for this vehicle: "imperial" or "metric"
     var unitSystemRaw: String = UnitSystem.imperial.rawValue

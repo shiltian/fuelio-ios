@@ -252,10 +252,12 @@ final class CloudSyncService: ObservableObject {
                 cloudVehicleMap[uuid] = ckRecord
 
                 if let localVehicle = localVehicleMap[uuid] {
-                    // Both exist: keep newer
-                    let cloudDate = ckRecord[CloudFieldKey.Vehicle.createdAt] as? Date ?? Date.distantPast
-                    if cloudDate > localVehicle.createdAt {
-                        // Cloud is newer -- update local
+                    // Both exist: keep newer (prefer modifiedAt, fall back to createdAt)
+                    let cloudDate = ckRecord[CloudFieldKey.Vehicle.modifiedAt] as? Date
+                        ?? ckRecord[CloudFieldKey.Vehicle.createdAt] as? Date
+                        ?? Date.distantPast
+                    let localDate = localVehicle.modifiedAt ?? localVehicle.createdAt
+                    if cloudDate > localDate {
                         updateVehicle(localVehicle, from: ckRecord)
                     }
                     ckRecordIDToVehicle[ckRecord.recordID] = localVehicle
@@ -284,9 +286,12 @@ final class CloudSyncService: ObservableObject {
                 cloudRecordMap[uuid] = ckRecord
 
                 if let localRecord = localRecordMap[uuid] {
-                    // Both exist: keep newer
-                    let cloudDate = ckRecord[CloudFieldKey.FuelingRecord.createdAt] as? Date ?? Date.distantPast
-                    if cloudDate > localRecord.createdAt {
+                    // Both exist: keep newer (prefer modifiedAt, fall back to createdAt)
+                    let cloudDate = ckRecord[CloudFieldKey.FuelingRecord.modifiedAt] as? Date
+                        ?? ckRecord[CloudFieldKey.FuelingRecord.createdAt] as? Date
+                        ?? Date.distantPast
+                    let localDate = localRecord.modifiedAt ?? localRecord.createdAt
+                    if cloudDate > localDate {
                         updateFuelingRecord(localRecord, from: ckRecord)
                     }
                 } else {
@@ -681,6 +686,7 @@ final class CloudSyncService: ObservableObject {
             static let year = "year"
             static let unitSystemRaw = "unitSystemRaw"
             static let createdAt = "vehicleCreatedAt"
+            static let modifiedAt = "vehicleModifiedAt"
         }
 
         enum FuelingRecord {
@@ -693,6 +699,7 @@ final class CloudSyncService: ObservableObject {
             static let fillUpTypeRaw = "fillUpTypeRaw"
             static let notes = "notes"
             static let createdAt = "fuelingCreatedAt"
+            static let modifiedAt = "fuelingModifiedAt"
             static let vehicleRef = "vehicleOwnerID"
         }
     }
@@ -709,6 +716,7 @@ final class CloudSyncService: ObservableObject {
         record[CloudFieldKey.Vehicle.year] = vehicle.year as? CKRecordValue
         record[CloudFieldKey.Vehicle.unitSystemRaw] = vehicle.unitSystemRaw
         record[CloudFieldKey.Vehicle.createdAt] = vehicle.createdAt
+        record[CloudFieldKey.Vehicle.modifiedAt] = vehicle.modifiedAt
 
         return record
     }
@@ -732,6 +740,7 @@ final class CloudSyncService: ObservableObject {
             createdAt: createdAt,
             unitSystem: UnitSystem(rawValue: unitSystemRaw) ?? .imperial
         )
+        vehicle.modifiedAt = ckRecord[CloudFieldKey.Vehicle.modifiedAt] as? Date
 
         return vehicle
     }
@@ -743,6 +752,7 @@ final class CloudSyncService: ObservableObject {
         vehicle.model = ckRecord[CloudFieldKey.Vehicle.model] as? String
         vehicle.year = ckRecord[CloudFieldKey.Vehicle.year] as? Int
         vehicle.unitSystemRaw = ckRecord[CloudFieldKey.Vehicle.unitSystemRaw] as? String ?? vehicle.unitSystemRaw
+        vehicle.modifiedAt = ckRecord[CloudFieldKey.Vehicle.modifiedAt] as? Date
     }
 
     /// Convert a FuelingRecord model to a CKRecord
@@ -759,6 +769,7 @@ final class CloudSyncService: ObservableObject {
         record[CloudFieldKey.FuelingRecord.fillUpTypeRaw] = fuelingRecord.fillUpTypeRaw
         record[CloudFieldKey.FuelingRecord.notes] = fuelingRecord.notes
         record[CloudFieldKey.FuelingRecord.createdAt] = fuelingRecord.createdAt
+        record[CloudFieldKey.FuelingRecord.modifiedAt] = fuelingRecord.modifiedAt
 
         // Store parent vehicle ID as plain string (avoids CloudKit's 750 owning-reference limit)
         record[CloudFieldKey.FuelingRecord.vehicleRef] = vehicleRecordID.recordName
@@ -778,7 +789,7 @@ final class CloudSyncService: ObservableObject {
         let notes = ckRecord[CloudFieldKey.FuelingRecord.notes] as? String
         let createdAt = ckRecord[CloudFieldKey.FuelingRecord.createdAt] as? Date ?? Date()
 
-        return FuelingRecord(
+        let record = FuelingRecord(
             id: id,
             date: date,
             odometer: odometer,
@@ -790,6 +801,8 @@ final class CloudSyncService: ObservableObject {
             createdAt: createdAt,
             vehicle: vehicle
         )
+        record.modifiedAt = ckRecord[CloudFieldKey.FuelingRecord.modifiedAt] as? Date
+        return record
     }
 
     /// Update an existing FuelingRecord from a CKRecord
@@ -801,6 +814,7 @@ final class CloudSyncService: ObservableObject {
         record.totalCost = ckRecord[CloudFieldKey.FuelingRecord.totalCost] as? Double ?? record.totalCost
         record.fillUpTypeRaw = ckRecord[CloudFieldKey.FuelingRecord.fillUpTypeRaw] as? String ?? record.fillUpTypeRaw
         record.notes = ckRecord[CloudFieldKey.FuelingRecord.notes] as? String
+        record.modifiedAt = ckRecord[CloudFieldKey.FuelingRecord.modifiedAt] as? Date
     }
 
     // MARK: - Batch Operations

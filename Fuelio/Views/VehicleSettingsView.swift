@@ -220,6 +220,7 @@ struct VehicleSettingsView: View {
         vehicle.make = trimmedMake.isEmpty ? nil : trimmedMake
         vehicle.model = trimmedModel.isEmpty ? nil : trimmedModel
         vehicle.year = Int(yearString)
+        vehicle.modifiedAt = Date()
 
         // Apply unit conversion if changed
         if unitHasChanged {
