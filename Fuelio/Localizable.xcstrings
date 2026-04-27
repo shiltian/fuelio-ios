@@ -136,6 +136,9 @@
         }
       }
     },
+    "© 2026 Shilei Tian" : {
+
+    },
     "$" : {
 
     },
@@ -428,6 +431,7 @@
       }
     },
     "Build" : {
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {

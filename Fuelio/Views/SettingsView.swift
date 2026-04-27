@@ -34,10 +34,6 @@ struct SettingsView: View {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
     }
 
-    private var buildNumber: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
-    }
-
     @ViewBuilder
     private var iCloudSyncSection: some View {
         Section {
@@ -89,15 +85,6 @@ struct SettingsView: View {
             List {
                 iCloudSyncSection
 
-                // App Info Section
-                Section {
-                    InfoRow(label: "Version", value: appVersion)
-                    InfoRow(label: "Build", value: buildNumber)
-                } header: {
-                    Text("App Information")
-                        .font(.appCaption)
-                }
-
                 // Data Statistics Section
                 Section {
                     InfoRow(label: "Vehicles", value: "\(vehicles.count)")
@@ -142,6 +129,18 @@ struct SettingsView: View {
                 } footer: {
                     Text("This will permanently delete all vehicles and fueling records. This action cannot be undone.")
                         .font(.appCaption)
+                }
+
+                Section {
+                    InfoRow(label: "Version", value: appVersion)
+                } header: {
+                    Text("App Information")
+                        .font(.appCaption)
+                } footer: {
+                    Text("\u{00A9} 2026 Shilei Tian")
+                        .font(.appCaption)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 8)
                 }
             }
             .listStyle(.insetGrouped)
