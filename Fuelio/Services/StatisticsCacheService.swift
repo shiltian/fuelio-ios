@@ -157,13 +157,19 @@ final class StatisticsCacheService {
             return
         }
 
-        // Check if this record is the most recent by date — O(n) scan avoids O(n log n) sort
+        // Check if this record is the most recent by date -- O(n) scan
         let isLatestRecord = records.allSatisfy { $0.id == record.id || $0.date <= record.date }
 
         if isLatestRecord {
-            // Incremental update — still needs sorted list for the previous record lookup
-            let sortedByDate = records.sorted { $0.date < $1.date }
-            incrementalAddLatestRecord(record, to: vehicle, sortedRecords: sortedByDate)
+            // Find the previous record by date in O(n) without sorting
+            var previousRecord: FuelingRecord?
+            for r in records {
+                guard r.id != record.id else { continue }
+                if previousRecord == nil || r.date > previousRecord!.date {
+                    previousRecord = r
+                }
+            }
+            incrementalAddLatestRecord(record, previousRecord: previousRecord, to: vehicle)
         } else {
             // Record inserted in the middle - need to recalculate from that point
             // For simplicity, just do a full recalculation
@@ -172,15 +178,12 @@ final class StatisticsCacheService {
     }
 
     /// Incremental update when adding the latest (most recent) record
-    private static func incrementalAddLatestRecord(_ record: FuelingRecord, to vehicle: Vehicle, sortedRecords: [FuelingRecord]) {
-        // Get the previous record
-        let previousIndex = sortedRecords.count - 2
-        guard previousIndex >= 0 else {
+    private static func incrementalAddLatestRecord(_ record: FuelingRecord, previousRecord: FuelingRecord?, to vehicle: Vehicle) {
+        guard let previousRecord else {
             recalculateAllStatistics(for: vehicle)
             return
         }
 
-        let previousRecord = sortedRecords[previousIndex]
         let previousOdometer = previousRecord.odometer
 
         // Cache values for the new record
@@ -234,9 +237,13 @@ final class StatisticsCacheService {
             vehicle.cachedAverageCostPerDistance = totalSpent / totalDistance
         }
 
-        // For average efficiency and price, it's easier to just recalculate
-        // (they depend on specific subsets and would require tracking additional state)
-        recalculateAverages(for: vehicle)
+        // Update average price per fuel unit incrementally
+        if let currentAvg = vehicle.cachedAveragePricePerFuelUnit {
+            let oldCount = Double(newCount - 1)
+            vehicle.cachedAveragePricePerFuelUnit = (currentAvg * oldCount + record.pricePerFuelUnit) / Double(newCount)
+        } else {
+            vehicle.cachedAveragePricePerFuelUnit = record.pricePerFuelUnit
+        }
 
         // Update price extremes
         if let currentHighest = vehicle.cachedHighestPricePerFuelUnit {
@@ -256,26 +263,6 @@ final class StatisticsCacheService {
         }
 
         vehicle.cacheLastUpdated = Date()
-    }
-
-    /// Recalculate just the averages (efficiency and price per fuel unit) from cached record values
-    private static func recalculateAverages(for vehicle: Vehicle) {
-        let records = vehicle.fuelingRecords ?? []
-        guard !records.isEmpty else { return }
-
-        // Average price per fuel unit
-        let totalPrice = records.reduce(0.0) { $0 + $1.pricePerFuelUnit }
-        vehicle.cachedAveragePricePerFuelUnit = totalPrice / Double(records.count)
-
-        // Average efficiency from full fill-ups
-        let fullFillUps = records.filter { $0.isFullFillUp && $0.cachedEfficiency != nil }
-        if !fullFillUps.isEmpty {
-            let totalEfficiencyDistance = fullFillUps.reduce(0.0) { $0 + ($1.cachedDistanceDriven ?? 0) }
-            let totalEfficiencyFuel = fullFillUps.reduce(0.0) { $0 + $1.fuelAmount }
-            if totalEfficiencyFuel > 0 {
-                vehicle.cachedAverageEfficiency = totalEfficiencyDistance / totalEfficiencyFuel
-            }
-        }
     }
 
     /// Update statistics after deleting a record
@@ -305,13 +292,17 @@ final class StatisticsCacheService {
             let descriptor = FetchDescriptor<Vehicle>()
             let vehicles = try modelContext.fetch(descriptor)
 
+            var didRebuild = false
             for vehicle in vehicles {
                 if vehicle.needsCacheRebuild {
                     recalculateAllStatistics(for: vehicle)
+                    didRebuild = true
                 }
             }
 
-            try modelContext.save()
+            if didRebuild {
+                try modelContext.save()
+            }
         } catch {
             logger.error("Failed to rebuild cache for all vehicles: \(error)")
         }

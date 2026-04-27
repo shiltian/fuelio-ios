@@ -54,10 +54,9 @@ struct FuelioApp: App {
                     handleIncomingURL(url)
                 }
                 .task {
-                    // Build/validate cache on startup (runs once)
                     if !hasInitializedCache {
                         hasInitializedCache = true
-                        initializeCache()
+                        await initializeCache()
                         initializeCloudSync()
                     }
                 }
@@ -69,10 +68,14 @@ struct FuelioApp: App {
         .modelContainer(sharedModelContainer)
     }
 
-    /// Initialize statistics cache on app startup
-    private func initializeCache() {
-        let context = sharedModelContainer.mainContext
-        StatisticsCacheService.rebuildCacheForAllVehicles(in: context)
+    /// Initialize statistics cache on app startup, off the main actor
+    @MainActor
+    private func initializeCache() async {
+        let container = sharedModelContainer
+        await Task.detached {
+            let context = ModelContext(container)
+            StatisticsCacheService.rebuildCacheForAllVehicles(in: context)
+        }.value
     }
 
     /// Initialize CloudKit sync if enabled and iCloud is available

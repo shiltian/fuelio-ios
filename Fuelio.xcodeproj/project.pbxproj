@@ -37,6 +37,7 @@
 		E1000003296E0001 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000004296E0001 /* CloudSyncService.swift */; };
 		E1000005296E0001 /* SyncStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000006296E0001 /* SyncStateManager.swift */; };
 		E1000007296E0001 /* UnitSystemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000008296E0001 /* UnitSystemTests.swift */; };
+		F0A00001297A0001 /* SchemaMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A00002297A0001 /* SchemaMigrationTests.swift */; };
 		F1000001296F0001 /* VehicleSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1000002296F0001 /* VehicleSettingsView.swift */; };
 		G1000001297A0001 /* FuelingRecordFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1000002297A0001 /* FuelingRecordFormView.swift */; };
 		G1000003297A0001 /* iCloudSyncDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1000004297A0001 /* iCloudSyncDetailView.swift */; };
@@ -90,6 +91,7 @@
 		E1000004296E0001 /* CloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncService.swift; sourceTree = "<group>"; };
 		E1000006296E0001 /* SyncStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStateManager.swift; sourceTree = "<group>"; };
 		E1000008296E0001 /* UnitSystemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitSystemTests.swift; sourceTree = "<group>"; };
+		F0A00002297A0001 /* SchemaMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchemaMigrationTests.swift; sourceTree = "<group>"; };
 		F1000002296F0001 /* VehicleSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleSettingsView.swift; sourceTree = "<group>"; };
 		G1000002297A0001 /* FuelingRecordFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelingRecordFormView.swift; sourceTree = "<group>"; };
 		G1000004297A0001 /* iCloudSyncDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iCloudSyncDetailView.swift; sourceTree = "<group>"; };
@@ -221,6 +223,7 @@
 				B100000A296B0001 /* StatisticsCacheServiceTests.swift */,
 				B100000C296B0001 /* ExtensionsTests.swift */,
 				E1000008296E0001 /* UnitSystemTests.swift */,
+				F0A00002297A0001 /* SchemaMigrationTests.swift */,
 			);
 			path = FuelioTests;
 			sourceTree = "<group>";
@@ -377,6 +380,7 @@
 				B1000009296B0001 /* StatisticsCacheServiceTests.swift in Sources */,
 				B100000B296B0001 /* ExtensionsTests.swift in Sources */,
 				E1000007296E0001 /* UnitSystemTests.swift in Sources */,
+				F0A00001297A0001 /* SchemaMigrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -524,7 +528,6 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Fuelio/Fuelio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_ASSET_PATHS = "\"Fuelio/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;
@@ -541,7 +544,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = me.tianshilei.fuelio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -562,7 +565,6 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Fuelio/Fuelio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_ASSET_PATHS = "\"Fuelio/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;
@@ -579,7 +581,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = me.tianshilei.fuelio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

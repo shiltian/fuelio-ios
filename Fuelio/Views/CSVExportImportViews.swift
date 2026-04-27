@@ -58,13 +58,14 @@ struct ExportCSVView: View {
                     .font(.appTitle)
                     .fontWeight(.bold)
 
-                Text("Export \(vehicle.sortedRecords.count) records as a CSV file")
+                Text("Export \(vehicle.fuelingRecords?.count ?? 0) records as a CSV file")
                     .font(.appBody)
                     .foregroundColor(.secondary)
 
                 Button(action: {
+                    let sorted = (vehicle.fuelingRecords ?? []).sorted { $0.date > $1.date }
                     csvDocument = CSVDocument(
-                        content: CSVService.exportRecords(vehicle.sortedRecords)
+                        content: CSVService.exportRecords(sorted)
                     )
                     showingExporter = true
                 }) {

@@ -9,7 +9,10 @@ struct iCloudSyncDetailView: View {
     @EnvironmentObject private var cloudSyncService: CloudSyncService
 
     @Query private var vehicles: [Vehicle]
-    @Query private var records: [FuelingRecord]
+
+    private var totalRecordCount: Int {
+        vehicles.reduce(0) { $0 + ($1.fuelingRecords?.count ?? 0) }
+    }
 
     @State private var cloudVehicleCount: Int?
     @State private var cloudRecordCount: Int?
@@ -24,7 +27,7 @@ struct iCloudSyncDetailView: View {
             // Local counts for comparison
             Section {
                 InfoRow(label: "Vehicles", value: "\(vehicles.count)")
-                InfoRow(label: "Fueling Records", value: "\(records.count)")
+                InfoRow(label: "Fueling Records", value: "\(totalRecordCount)")
             } header: {
                 Text("Local Data")
                     .font(.appCaption)
@@ -33,13 +36,13 @@ struct iCloudSyncDetailView: View {
             // iCloud counts
             Section {
                 cloudCountRow(label: "Vehicles", cloudCount: cloudVehicleCount, localCount: vehicles.count)
-                cloudCountRow(label: "Fueling Records", cloudCount: cloudRecordCount, localCount: records.count)
+                cloudCountRow(label: "Fueling Records", cloudCount: cloudRecordCount, localCount: totalRecordCount)
             } header: {
                 Text("iCloud Data")
                     .font(.appCaption)
             } footer: {
                 if let vc = cloudVehicleCount, let rc = cloudRecordCount,
-                   (vc != vehicles.count || rc != records.count) {
+                   (vc != vehicles.count || rc != totalRecordCount) {
                     Text("Counts differ from local data. Use \"Force Re-sync from Local\" to wipe iCloud and re-upload all local data.")
                         .font(.appCaption)
                         .foregroundColor(.orange)
@@ -104,7 +107,7 @@ struct iCloudSyncDetailView: View {
                 forceResyncFromLocal()
             }
         } message: {
-            Text("This will delete all data in iCloud and re-upload all local data (\(vehicles.count) vehicle(s), \(records.count) record(s)). This may take a moment.")
+            Text("This will delete all data in iCloud and re-upload all local data (\(vehicles.count) vehicle(s), \(totalRecordCount) record(s)). This may take a moment.")
         }
         .alert("Error", isPresented: $showingError) {
             Button("OK") { }

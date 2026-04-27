@@ -8,7 +8,10 @@ struct SettingsView: View {
     @EnvironmentObject private var cloudSyncService: CloudSyncService
 
     @Query private var vehicles: [Vehicle]
-    @Query private var records: [FuelingRecord]
+
+    private var totalRecordCount: Int {
+        vehicles.reduce(0) { $0 + ($1.fuelingRecords?.count ?? 0) }
+    }
 
     @State private var showingDeleteAllAlert = false
     @State private var showingDeleteAllConfirmation = false
@@ -98,7 +101,7 @@ struct SettingsView: View {
                 // Data Statistics Section
                 Section {
                     InfoRow(label: "Vehicles", value: "\(vehicles.count)")
-                    InfoRow(label: "Fueling Records", value: "\(records.count)")
+                    InfoRow(label: "Fueling Records", value: "\(totalRecordCount)")
                 } header: {
                     Text("Local Data")
                         .font(.appCaption)
@@ -132,7 +135,7 @@ struct SettingsView: View {
                                 .font(.appBody)
                         }
                     }
-                    .disabled(vehicles.isEmpty && records.isEmpty)
+                    .disabled(vehicles.isEmpty && totalRecordCount == 0)
                 } header: {
                     Text("Danger Zone")
                         .font(.appCaption)
@@ -193,7 +196,7 @@ struct SettingsView: View {
                     showingDeleteAllConfirmation = true
                 }
             } message: {
-                Text("This will permanently delete \(vehicles.count) vehicle(s) and \(records.count) fueling record(s).")
+                Text("This will permanently delete \(vehicles.count) vehicle(s) and \(totalRecordCount) fueling record(s).")
             }
             .alert("Are You Sure?", isPresented: $showingDeleteAllConfirmation) {
                 Button("Cancel", role: .cancel) { }
@@ -297,15 +300,16 @@ struct SettingsView: View {
     }
 
     private func deleteAllData() {
-        for record in records {
-            modelContext.delete(record)
-        }
-
-        for vehicle in vehicles {
-            modelContext.delete(vehicle)
-        }
-
         do {
+            let allRecords = try modelContext.fetch(FetchDescriptor<FuelingRecord>())
+            for record in allRecords {
+                modelContext.delete(record)
+            }
+
+            for vehicle in vehicles {
+                modelContext.delete(vehicle)
+            }
+
             try modelContext.save()
             showingDeleteSuccess = true
         } catch {

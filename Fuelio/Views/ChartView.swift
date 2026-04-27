@@ -175,6 +175,14 @@ struct ChartView: View {
     @State private var selectedChart: ChartType = .efficiency
     @State private var chartData: PrecomputedChartData?
 
+    /// Invalidation key that changes when records are added, removed, or edited.
+    private var chartInvalidationKey: String {
+        let count = records.count
+        let latestMod = records.compactMap(\.modifiedAt).max()
+        let latestDate = records.map(\.date).max()
+        return "\(count)-\(latestMod?.timeIntervalSince1970 ?? 0)-\(latestDate?.timeIntervalSince1970 ?? 0)"
+    }
+
     enum ChartType: CaseIterable {
         case efficiency
         case cost
@@ -222,7 +230,7 @@ struct ChartView: View {
         .onAppear {
             prepareChartData()
         }
-        .onChange(of: records.count) { _, _ in
+        .onChange(of: chartInvalidationKey) { _, _ in
             prepareChartData()
         }
         .onChange(of: unitSystem) { _, _ in

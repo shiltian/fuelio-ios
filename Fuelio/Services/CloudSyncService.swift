@@ -43,6 +43,7 @@ final class CloudSyncService: ObservableObject {
     /// Snapshot of local UUIDs from the last successful push, used to detect
     /// local deletions without fetching all cloud records every time.
     private var lastKnownLocalUUIDs: Set<String> = []
+    private var lastPushDate: Date = .distantPast
 
     // MARK: - Constants
 
@@ -278,6 +279,12 @@ final class CloudSyncService: ObservableObject {
             ckRecordIDToVehicle[ckRecord.recordID] = vehicle
         }
 
+        // Build a UUID-keyed lookup from ckRecordIDToVehicle for O(1) access
+        var vehicleByUUID: [UUID: Vehicle] = [:]
+        for vehicle in ckRecordIDToVehicle.values {
+            vehicleByUUID[vehicle.id] = vehicle
+        }
+
         var cloudRecordMap: [UUID: CKRecord] = [:]
 
         for ckRecord in fuelingCKRecords {
@@ -298,7 +305,7 @@ final class CloudSyncService: ObservableObject {
                     // Only in cloud: insert locally
                     if let vehicleUUIDString = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
                        let vehicleUUID = UUID(uuidString: vehicleUUIDString),
-                       let vehicle = localVehicleMap[vehicleUUID] ?? ckRecordIDToVehicle.values.first(where: { $0.id == vehicleUUID }) {
+                       let vehicle = localVehicleMap[vehicleUUID] ?? vehicleByUUID[vehicleUUID] {
                         let record = fuelingRecordFromCKRecord(ckRecord, vehicle: vehicle)
                         context.insert(record)
                     }
@@ -588,12 +595,9 @@ final class CloudSyncService: ObservableObject {
         .sink { [weak self] notification in
             guard let self = self, !self.isApplyingRemoteChanges else { return }
 
-            // Use .utility priority so the Swift runtime schedules UI-interactive
-            // work (sheet transitions, list updates) ahead of the sync task.
             Task(priority: .utility) { @MainActor [weak self] in
                 guard let self = self else { return }
-                let context = container.mainContext
-                await self.pushLocalChangesToCloud(context: context)
+                await self.pushLocalChangesToCloud(container: container)
             }
         }
     }
@@ -621,9 +625,10 @@ final class CloudSyncService: ObservableObject {
         modelContainer = nil
     }
 
-    /// Push local changes to CloudKit by comparing current local UUIDs against
-    /// the last-known snapshot. Avoids fetching all cloud records on every save.
-    private func pushLocalChangesToCloud(context: ModelContext) async {
+    /// Push local changes to CloudKit incrementally.
+    /// Only converts and uploads records whose `modifiedAt` is newer than the
+    /// last successful push. Still walks the full UUID set to detect deletions.
+    private func pushLocalChangesToCloud(container: ModelContainer) async {
         guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
         guard !isApplyingRemoteChanges else { return }
 
@@ -632,22 +637,29 @@ final class CloudSyncService: ObservableObject {
 
             try await ensureZoneExists()
 
+            let context = container.mainContext
             let vehicleDescriptor = FetchDescriptor<Vehicle>()
             let localVehicles = try context.fetch(vehicleDescriptor)
 
-            // Build current UUID set and CKRecords to save
+            let cutoff = lastPushDate
             var currentUUIDs = Set<String>()
             var recordsToSave: [CKRecord] = []
 
             for vehicle in localVehicles {
                 currentUUIDs.insert(vehicle.id.uuidString)
-                let vehicleRecord = vehicleToCKRecord(vehicle)
-                recordsToSave.append(vehicleRecord)
 
+                let vehicleModified = vehicle.modifiedAt ?? vehicle.createdAt
+                if vehicleModified > cutoff {
+                    recordsToSave.append(vehicleToCKRecord(vehicle))
+                }
+
+                let vehicleRecordID = CKRecord.ID(recordName: vehicle.id.uuidString, zoneID: zoneID)
                 for fuelingRecord in vehicle.fuelingRecords ?? [] {
                     currentUUIDs.insert(fuelingRecord.id.uuidString)
-                    let ckRecord = fuelingRecordToCKRecord(fuelingRecord, vehicleRecordID: vehicleRecord.recordID)
-                    recordsToSave.append(ckRecord)
+                    let recordModified = fuelingRecord.modifiedAt ?? fuelingRecord.createdAt
+                    if recordModified > cutoff {
+                        recordsToSave.append(fuelingRecordToCKRecord(fuelingRecord, vehicleRecordID: vehicleRecordID))
+                    }
                 }
             }
 
@@ -668,6 +680,7 @@ final class CloudSyncService: ObservableObject {
             }
 
             lastKnownLocalUUIDs = currentUUIDs
+            lastPushDate = Date()
             stateManager.syncStatus = .synced
         } catch {
             Self.logger.error("Failed to push local changes to cloud: \(error)")

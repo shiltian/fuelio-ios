@@ -27,18 +27,24 @@ struct HistoryView: View {
         }
     }
 
-    private var records: [FuelingRecord] {
-        vehicle.sortedRecords
+    private var hasRecords: Bool {
+        !(vehicle.fuelingRecords?.isEmpty ?? true)
     }
 
     private var filteredRecords: [FuelingRecord] {
-        var result = records
+        var result = vehicle.fuelingRecords ?? []
 
         if !searchText.isEmpty {
+            let query = searchText.lowercased()
             result = result.filter { record in
-                record.notes?.localizedCaseInsensitiveContains(searchText) ?? false ||
-                record.date.formatted(date: .abbreviated, time: .omitted).localizedCaseInsensitiveContains(searchText) ||
-                record.totalCost.currencyFormatted.localizedCaseInsensitiveContains(searchText)
+                if let notes = record.notes, notes.localizedCaseInsensitiveContains(query) {
+                    return true
+                }
+                let costString = String(format: "%.2f", record.totalCost)
+                if costString.contains(query) { return true }
+                let odometerString = String(format: "%.0f", record.odometer)
+                if odometerString.contains(query) { return true }
+                return false
             }
         }
 
@@ -58,7 +64,7 @@ struct HistoryView: View {
 
     var body: some View {
         Group {
-            if records.isEmpty {
+            if !hasRecords {
                 EmptyHistoryView()
             } else {
                 List {

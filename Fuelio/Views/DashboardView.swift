@@ -6,9 +6,8 @@ struct DashboardView: View {
 
     private var units: UnitSystem { vehicle.unitSystem }
 
-    // Use cached records to avoid repeated sorting
-    private var records: [FuelingRecord] {
-        vehicle.sortedRecords
+    private var recordCount: Int {
+        vehicle.fuelingRecords?.count ?? 0
     }
 
     // Use cached statistics from the vehicle model
@@ -90,27 +89,27 @@ struct DashboardView: View {
                 .padding(.horizontal)
 
                 // Last Fill-up Info - use cached values
-                if let lastRecord = records.first {
+                if let lastRecord = vehicle.lastRecord {
                     LastFillUpCard(record: lastRecord, previousOdometer: lastRecord.getPreviousOdometer(), unitSystem: units)
                         .padding(.horizontal)
                 }
 
                 // Charts Section
-                if records.count >= 2 {
+                if recordCount >= 2 {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Trends")
                             .font(.appTitle3)
                             .fontWeight(.bold)
                             .padding(.horizontal)
 
-                        ChartView(records: records, unitSystem: units)
+                        ChartView(records: vehicle.fuelingRecords ?? [], unitSystem: units)
                             .frame(height: 250)
                             .padding(.horizontal)
                     }
                 }
 
                 // Empty state
-                if records.isEmpty {
+                if recordCount == 0 {
                     EmptyRecordsView()
                         .padding(.top, 40)
                 }
