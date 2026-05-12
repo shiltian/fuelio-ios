@@ -2,6 +2,8 @@
 
 A native iOS app built with SwiftUI and SwiftData to track your vehicle's fuel consumption, costs, and efficiency.
 
+[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/us/app/fuelio/id6756544340)
+
 ## Features
 
 ### Multi-Vehicle Support
