@@ -5,6 +5,7 @@ import os
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var cloudSyncService: CloudSyncService
     @Query(sort: \Vehicle.createdAt, order: .reverse) private var vehicles: [Vehicle]
 
     // Binding from FuelioApp for incoming file URLs
@@ -95,19 +96,26 @@ struct ContentView: View {
     }
 
     private func handleCSVImport(records: [FuelingRecord], targetVehicle: Vehicle) {
-        for record in records {
-            record.vehicle = targetVehicle
-            modelContext.insert(record)
-        }
-
         do {
-            try modelContext.save()
+            try cloudSyncService.withLocalPushesSuspended {
+                let now = Date()
+                for record in records {
+                    record.vehicle = targetVehicle
+                    record.modifiedAt = now
+                    modelContext.insert(record)
+                }
 
-            // Full recalculation after bulk import
-            StatisticsCacheService.recalculateAllStatistics(for: targetVehicle)
-            try modelContext.save()
+                try modelContext.save()
+
+                // Full recalculation after bulk import
+                StatisticsCacheService.recalculateAllStatistics(for: targetVehicle)
+                try modelContext.save()
+            }
 
             importedRecordsCount = records.count
+            Task {
+                await cloudSyncService.pushPendingLocalChanges()
+            }
             // Delay showing alert to ensure sheet is fully dismissed
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 showingImportSuccess = true
@@ -189,5 +197,6 @@ struct EmptyVehicleView: View {
 #Preview {
     ContentView(importedFileURL: .constant(nil))
         .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
+        .environmentObject(CloudSyncService())
 }
 

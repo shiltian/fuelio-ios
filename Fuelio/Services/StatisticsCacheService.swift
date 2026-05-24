@@ -287,14 +287,14 @@ final class StatisticsCacheService {
     }
 
     /// Rebuild cache for all vehicles in the model context
-    static func rebuildCacheForAllVehicles(in modelContext: ModelContext) {
+    static func rebuildCacheForAllVehicles(in modelContext: ModelContext, force: Bool = false) {
         do {
             let descriptor = FetchDescriptor<Vehicle>()
             let vehicles = try modelContext.fetch(descriptor)
 
             var didRebuild = false
             for vehicle in vehicles {
-                if vehicle.needsCacheRebuild {
+                if force || vehicle.needsCacheRebuild {
                     recalculateAllStatistics(for: vehicle)
                     didRebuild = true
                 }

@@ -40,6 +40,9 @@ final class CloudSyncService: ObservableObject {
     /// Flag to prevent re-entrant push when we're applying remote changes locally
     private var isApplyingRemoteChanges = false
 
+    /// Suppresses automatic local-save pushes while a vetted bulk write is in progress.
+    private var localPushSuspensionCount = 0
+
     /// Snapshot of local UUIDs from the last successful push, used to detect
     /// local deletions without fetching all cloud records every time.
     private var lastKnownLocalUUIDs: Set<String> = []
@@ -174,16 +177,15 @@ final class CloudSyncService: ObservableObject {
         isApplyingRemoteChanges = true
         defer { isApplyingRemoteChanges = false }
 
-        // Clear all local data first
+        // Fetch cloud data before deleting local data. If iCloud fails here, the
+        // local store remains untouched.
+        let (vehicleCKRecords, fuelingCKRecords) = try await fetchAllCloudRecords()
+
         let vehicleDescriptor = FetchDescriptor<Vehicle>()
         let localVehicles = try context.fetch(vehicleDescriptor)
         for vehicle in localVehicles {
             context.delete(vehicle)
         }
-        try context.save()
-
-        // Fetch all cloud records using change token (avoids queryable field requirements)
-        let (vehicleCKRecords, fuelingCKRecords) = try await fetchAllCloudRecords()
 
         var vehicleMap: [CKRecord.ID: Vehicle] = [:]
 
@@ -213,7 +215,7 @@ final class CloudSyncService: ObservableObject {
         try context.save()
 
         // Rebuild all caches
-        StatisticsCacheService.rebuildCacheForAllVehicles(in: context)
+        StatisticsCacheService.rebuildCacheForAllVehicles(in: context, force: true)
 
         stateManager.syncStatus = .synced
     }
@@ -328,7 +330,7 @@ final class CloudSyncService: ObservableObject {
         try context.save()
 
         // Rebuild all caches
-        StatisticsCacheService.rebuildCacheForAllVehicles(in: context)
+        StatisticsCacheService.rebuildCacheForAllVehicles(in: context, force: true)
 
         stateManager.syncStatus = .synced
     }
@@ -456,24 +458,31 @@ final class CloudSyncService: ObservableObject {
         do {
             var changedRecords: [CKRecord] = []
             var deletedRecordIDs: [CKRecord.ID] = []
+            var changeToken = stateManager.serverChangeToken
+            var moreComing = true
 
-            let results = try await privateDatabase.recordZoneChanges(
-                inZoneWith: zoneID,
-                since: stateManager.serverChangeToken
-            )
+            while moreComing {
+                let results = try await privateDatabase.recordZoneChanges(
+                    inZoneWith: zoneID,
+                    since: changeToken
+                )
 
-            for (_, result) in results.modificationResultsByID {
-                if case .success(let modification) = result {
-                    changedRecords.append(modification.record)
+                for (_, result) in results.modificationResultsByID {
+                    if case .success(let modification) = result {
+                        changedRecords.append(modification.record)
+                    }
                 }
-            }
 
-            for deletion in results.deletions {
-                deletedRecordIDs.append(deletion.recordID)
+                for deletion in results.deletions {
+                    deletedRecordIDs.append(deletion.recordID)
+                }
+
+                changeToken = results.changeToken
+                moreComing = results.moreComing
             }
 
             if changedRecords.isEmpty && deletedRecordIDs.isEmpty {
-                stateManager.serverChangeToken = results.changeToken
+                stateManager.serverChangeToken = changeToken
                 stateManager.syncStatus = .synced
                 return
             }
@@ -482,7 +491,7 @@ final class CloudSyncService: ObservableObject {
             try applyRemoteChanges(changedRecords: changedRecords, deletedRecordIDs: deletedRecordIDs, context: context)
 
             // Update the change token
-            stateManager.serverChangeToken = results.changeToken
+            stateManager.serverChangeToken = changeToken
 
             stateManager.syncStatus = .synced
         } catch {
@@ -556,7 +565,7 @@ final class CloudSyncService: ObservableObject {
         try context.save()
 
         // Rebuild caches
-        StatisticsCacheService.rebuildCacheForAllVehicles(in: context)
+        StatisticsCacheService.rebuildCacheForAllVehicles(in: context, force: true)
     }
 
     // MARK: - Subscriptions
@@ -597,15 +606,45 @@ final class CloudSyncService: ObservableObject {
         saveObserver = NotificationCenter.default.publisher(
             for: Notification.Name.NSManagedObjectContextDidSave
         )
+        .map { [weak self] notification in
+            (notification, self?.shouldSuppressAutomaticPush ?? false)
+        }
         .debounce(for: .seconds(Self.saveDebounceInterval), scheduler: RunLoop.main)
-        .sink { [weak self] notification in
-            guard let self = self, !self.isApplyingRemoteChanges else { return }
+        .sink { [weak self] output in
+            let (_, wasSuppressedWhenSaved) = output
+            guard let self = self,
+                  !wasSuppressedWhenSaved,
+                  !self.shouldSuppressAutomaticPush else { return }
 
             Task(priority: .utility) { @MainActor [weak self] in
                 guard let self = self else { return }
                 await self.pushLocalChangesToCloud(container: container)
             }
         }
+    }
+
+    private var shouldSuppressAutomaticPush: Bool {
+        isApplyingRemoteChanges || localPushSuspensionCount > 0
+    }
+
+    /// Run a local bulk write without allowing intermediate saves to auto-push.
+    func withLocalPushesSuspended<T>(_ operation: () throws -> T) rethrows -> T {
+        localPushSuspensionCount += 1
+        defer { localPushSuspensionCount -= 1 }
+        return try operation()
+    }
+
+    /// Run an async local bulk write without allowing intermediate saves to auto-push.
+    func withLocalPushesSuspended<T>(_ operation: () async throws -> T) async rethrows -> T {
+        localPushSuspensionCount += 1
+        defer { localPushSuspensionCount -= 1 }
+        return try await operation()
+    }
+
+    /// Explicitly push local changes after a bulk write has completed successfully.
+    func pushPendingLocalChanges() async {
+        guard let modelContainer else { return }
+        await pushLocalChangesToCloud(container: modelContainer)
     }
 
     /// Populate lastKnownLocalUUIDs from the current database so the first push
@@ -636,7 +675,7 @@ final class CloudSyncService: ObservableObject {
     /// last successful push. Still walks the full UUID set to detect deletions.
     private func pushLocalChangesToCloud(container: ModelContainer) async {
         guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
-        guard !isApplyingRemoteChanges else { return }
+        guard !shouldSuppressAutomaticPush else { return }
 
         do {
             stateManager.syncStatus = .syncing

@@ -7,6 +7,7 @@ struct VehicleSettingsView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var cloudSyncService: CloudSyncService
 
     // Vehicle detail editing
     @State private var name: String
@@ -216,28 +217,43 @@ struct VehicleSettingsView: View {
         let trimmedMake = make.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        let now = Date()
+        let shouldPushAfterSave = unitHasChanged
+
         vehicle.name = trimmedName
         vehicle.make = trimmedMake.isEmpty ? nil : trimmedMake
         vehicle.model = trimmedModel.isEmpty ? nil : trimmedModel
         vehicle.year = Int(yearString)
-        vehicle.modifiedAt = Date()
+        vehicle.modifiedAt = now
 
-        // Apply unit conversion if changed
-        if unitHasChanged {
-            applyUnitChange()
-        }
-
+        var didSave = false
         do {
-            try modelContext.save()
+            if shouldPushAfterSave {
+                try cloudSyncService.withLocalPushesSuspended {
+                    applyUnitChange(modifiedAt: now)
+                    try modelContext.save()
+                }
+            } else {
+                try modelContext.save()
+            }
+            didSave = true
         } catch {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "VehicleSettings")
                 .error("Failed to save vehicle settings: \(error)")
         }
 
-        dismiss()
+        if didSave && shouldPushAfterSave {
+            Task {
+                await cloudSyncService.pushPendingLocalChanges()
+            }
+        }
+
+        if didSave {
+            dismiss()
+        }
     }
 
-    private func applyUnitChange() {
+    private func applyUnitChange(modifiedAt: Date) {
         let oldUnit = vehicle.unitSystem
         let newUnit = selectedUnit
 
@@ -247,6 +263,7 @@ struct VehicleSettingsView: View {
                 record.odometer = newUnit.convertDistance(from: oldUnit, value: record.odometer)
                 record.fuelAmount = newUnit.convertFuel(from: oldUnit, value: record.fuelAmount)
                 record.pricePerFuelUnit = newUnit.convertPricePerFuel(from: oldUnit, value: record.pricePerFuelUnit)
+                record.modifiedAt = modifiedAt
                 // totalCost stays the same
             }
         }
@@ -262,18 +279,23 @@ struct VehicleSettingsView: View {
         guard let records = vehicle.fuelingRecords else { return }
 
         do {
-            for record in records {
-                modelContext.delete(record)
-            }
-            try modelContext.save()
+            try cloudSyncService.withLocalPushesSuspended {
+                for record in records {
+                    modelContext.delete(record)
+                }
+                try modelContext.save()
 
-            // Invalidate cache after clearing
-            vehicle.invalidateCache()
-            vehicle.cachedRecordCount = 0
-            vehicle.cacheLastUpdated = Date()
-            try modelContext.save()
+                // Invalidate cache after clearing
+                vehicle.invalidateCache()
+                vehicle.cachedRecordCount = 0
+                vehicle.cacheLastUpdated = Date()
+                try modelContext.save()
+            }
 
             showingClearHistorySuccess = true
+            Task {
+                await cloudSyncService.pushPendingLocalChanges()
+            }
         } catch {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "VehicleSettings")
                 .error("Failed to clear fueling history: \(error)")
@@ -284,4 +306,5 @@ struct VehicleSettingsView: View {
 #Preview {
     VehicleSettingsView(vehicle: Vehicle(name: "Test Car"))
         .modelContainer(for: [Vehicle.self, FuelingRecord.self], inMemory: true)
+        .environmentObject(CloudSyncService())
 }

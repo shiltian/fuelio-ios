@@ -132,6 +132,7 @@ struct ImportCSVView: View {
     let vehicle: Vehicle
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var cloudSyncService: CloudSyncService
     @State private var showingFilePicker = false
     @State private var importedCount = 0
     @State private var showingSuccess = false
@@ -222,15 +223,18 @@ struct ImportCSVView: View {
                     }.value
                     let records = CSVService.importRecords(from: content, vehicle: vehicle)
 
-                    let now = Date()
-                    for record in records {
-                        record.modifiedAt = now
-                        modelContext.insert(record)
-                    }
-                    try modelContext.save()
+                    try cloudSyncService.withLocalPushesSuspended {
+                        let now = Date()
+                        for record in records {
+                            record.modifiedAt = now
+                            modelContext.insert(record)
+                        }
+                        try modelContext.save()
 
-                    StatisticsCacheService.recalculateAllStatistics(for: vehicle)
-                    try modelContext.save()
+                        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+                        try modelContext.save()
+                    }
+                    await cloudSyncService.pushPendingLocalChanges()
 
                     importedCount = records.count
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
