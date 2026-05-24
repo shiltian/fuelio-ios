@@ -105,6 +105,7 @@ struct ContentView: View {
 
             // Full recalculation after bulk import
             StatisticsCacheService.recalculateAllStatistics(for: targetVehicle)
+            try modelContext.save()
 
             importedRecordsCount = records.count
             // Delay showing alert to ensure sheet is fully dismissed

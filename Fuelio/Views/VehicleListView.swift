@@ -72,7 +72,7 @@ struct VehicleRowView: View {
 
     // Use cached record count for performance
     private var recordCount: Int {
-        vehicle.cachedRecordCount ?? vehicle.fuelingRecords?.count ?? 0
+        vehicle.displayRecordCount
     }
 
     var body: some View {

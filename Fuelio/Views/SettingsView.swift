@@ -10,7 +10,7 @@ struct SettingsView: View {
     @Query private var vehicles: [Vehicle]
 
     private var totalRecordCount: Int {
-        vehicles.reduce(0) { $0 + ($1.fuelingRecords?.count ?? 0) }
+        vehicles.reduce(0) { $0 + $1.displayRecordCount }
     }
 
     @State private var showingDeleteAllAlert = false

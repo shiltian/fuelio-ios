@@ -15,6 +15,7 @@ struct CSVImportView: View {
     @State private var isLoading = true
     @State private var parseError: String?
     @State private var previewLines: [String] = []
+    @State private var importSummary: ImportSummary?
 
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
@@ -86,8 +87,8 @@ struct CSVImportView: View {
                     .disabled(selectedVehicle == nil || parsedRecords.isEmpty)
                 }
             }
-            .onAppear {
-                loadAndParseCSV()
+            .task {
+                await loadAndParseCSV()
             }
             .onChange(of: selectedVehicle) { _, newValue in
                 // Re-parse with the newly selected vehicle to ensure linkage
@@ -231,20 +232,18 @@ struct CSVImportView: View {
                 .font(.appBody)
                 .fontWeight(.semibold)
 
-            if !parsedRecords.isEmpty {
+            if let summary = importSummary, summary.totalRecords > 0 {
                 VStack(alignment: .leading, spacing: 8) {
-                    SummaryRow(label: "Total Records", value: "\(parsedRecords.count)")
+                    SummaryRow(label: "Total Records", value: "\(summary.totalRecords)")
 
-                    if let firstDate = parsedRecords.map({ $0.date }).min(),
-                       let lastDate = parsedRecords.map({ $0.date }).max() {
+                    if let firstDate = summary.firstDate,
+                       let lastDate = summary.lastDate {
                         SummaryRow(label: "Date Range", value: "\(formatDate(firstDate)) - \(formatDate(lastDate))")
                     }
 
-                    let totalFuel = parsedRecords.reduce(0) { $0 + $1.fuelAmount }
-                    SummaryRow(label: "Total Fuel", value: String(format: "%.2f", totalFuel))
+                    SummaryRow(label: "Total Fuel", value: String(format: "%.2f", summary.totalFuel))
 
-                    let totalCost = parsedRecords.reduce(0) { $0 + $1.totalCost }
-                    SummaryRow(label: "Total Cost", value: String(format: "$%.2f", totalCost))
+                    SummaryRow(label: "Total Cost", value: String(format: "$%.2f", summary.totalCost))
                 }
                 .padding()
                 .background(Color(.systemGray6))
@@ -255,7 +254,7 @@ struct CSVImportView: View {
 
     // MARK: - Helper Methods
 
-    private func loadAndParseCSV() {
+    private func loadAndParseCSV() async {
         guard let url = fileURL else {
             parseError = String(localized: "No file URL provided")
             isLoading = false
@@ -263,7 +262,9 @@ struct CSVImportView: View {
         }
 
         do {
-            csvContent = try String(contentsOf: url, encoding: .utf8)
+            csvContent = try await Task.detached(priority: .userInitiated) {
+                try String(contentsOf: url, encoding: .utf8)
+            }.value
 
             // Validate the CSV
             let validation = CSVService.validateCSV(csvContent)
@@ -303,6 +304,7 @@ struct CSVImportView: View {
         }
 
         parsedRecords = records
+        importSummary = ImportSummary(records: records)
     }
 
     private static let mediumDateFormatter: DateFormatter = {
@@ -313,6 +315,22 @@ struct CSVImportView: View {
 
     private func formatDate(_ date: Date) -> String {
         Self.mediumDateFormatter.string(from: date)
+    }
+}
+
+private struct ImportSummary {
+    let totalRecords: Int
+    let firstDate: Date?
+    let lastDate: Date?
+    let totalFuel: Double
+    let totalCost: Double
+
+    init(records: [FuelingRecord]) {
+        totalRecords = records.count
+        firstDate = records.map(\.date).min()
+        lastDate = records.map(\.date).max()
+        totalFuel = records.reduce(0) { $0 + $1.fuelAmount }
+        totalCost = records.reduce(0) { $0 + $1.totalCost }
     }
 }
 

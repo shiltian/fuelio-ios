@@ -27,8 +27,11 @@ struct PrecomputedChartData {
     let showPoints: Bool  // Only show points if data count is reasonable
     let unitSystem: UnitSystem
 
-    /// Maximum number of points to display for performance
-    static let maxDisplayPoints = 100
+    /// Maximum number of individual point markers to display for performance.
+    /// Line, area, and bar series still use every underlying record.
+    static let maxPointMarkers = 100
+    /// MPG/efficiency can be noisy per fill-up; smooth only that chart for long histories.
+    static let maxEfficiencyTrendPoints = 200
 
     init(records: [FuelingRecord], unitSystem: UnitSystem) {
         self.unitSystem = unitSystem
@@ -36,16 +39,16 @@ struct PrecomputedChartData {
         // Sort once
         let sorted = records.sorted { $0.date < $1.date }
 
-        // Determine if we should show individual points (performance optimization)
-        self.showPoints = sorted.count <= Self.maxDisplayPoints
+        // Avoid visual clutter and marker overhead for larger histories.
+        self.showPoints = sorted.count <= Self.maxPointMarkers
 
-        // Pre-compute efficiency data with bucket averaging
+        // Pre-compute efficiency data, smoothing long MPG histories for readability.
         let allEfficiencyRecords = sorted.filter { $0.cachedEfficiency != nil && $0.cachedEfficiency! > 0 }
-        if allEfficiencyRecords.count > Self.maxDisplayPoints {
-            self.efficiencyData = Self.createAveragedDataPoints(
+        if allEfficiencyRecords.count > Self.maxEfficiencyTrendPoints {
+            self.efficiencyData = Self.createAveragedEfficiencyDataPoints(
                 from: allEfficiencyRecords,
-                targetCount: Self.maxDisplayPoints,
-                valueExtractor: { unitSystem.efficiencyDisplayValue(from: $0.cachedEfficiency ?? 0) }
+                targetCount: Self.maxEfficiencyTrendPoints,
+                unitSystem: unitSystem
             )
         } else {
             self.efficiencyData = allEfficiencyRecords.map {
@@ -71,16 +74,8 @@ struct PrecomputedChartData {
             self.efficiencyYRange = 0...40
         }
 
-        // Pre-compute Cost data with bucket averaging
-        if sorted.count > Self.maxDisplayPoints {
-            self.costData = Self.createAveragedDataPoints(
-                from: sorted,
-                targetCount: Self.maxDisplayPoints,
-                valueExtractor: { $0.totalCost }
-            )
-        } else {
-            self.costData = sorted.map { ChartDataPoint(id: $0.id, date: $0.date, value: $0.totalCost) }
-        }
+        // Pre-compute Cost data from every record.
+        self.costData = sorted.map { ChartDataPoint(id: $0.id, date: $0.date, value: $0.totalCost) }
 
         // Calculate cost average from ALL records
         if !sorted.isEmpty {
@@ -99,16 +94,8 @@ struct PrecomputedChartData {
             self.costYRange = 0...100
         }
 
-        // Pre-compute Price data with bucket averaging
-        if sorted.count > Self.maxDisplayPoints {
-            self.priceData = Self.createAveragedDataPoints(
-                from: sorted,
-                targetCount: Self.maxDisplayPoints,
-                valueExtractor: { $0.pricePerFuelUnit }
-            )
-        } else {
-            self.priceData = sorted.map { ChartDataPoint(id: $0.id, date: $0.date, value: $0.pricePerFuelUnit) }
-        }
+        // Pre-compute Price data from every record.
+        self.priceData = sorted.map { ChartDataPoint(id: $0.id, date: $0.date, value: $0.pricePerFuelUnit) }
 
         // Calculate price average from ALL records
         if !sorted.isEmpty {
@@ -128,59 +115,69 @@ struct PrecomputedChartData {
         }
     }
 
-    /// Create averaged data points by dividing records into buckets and averaging each bucket
-    /// This produces a smoother trend line that better represents the underlying data
-    private static func createAveragedDataPoints(
+    /// Average efficiency into date-ordered buckets for a smoother long-history trend.
+    private static func createAveragedEfficiencyDataPoints(
         from records: [FuelingRecord],
         targetCount: Int,
-        valueExtractor: (FuelingRecord) -> Double
+        unitSystem: UnitSystem
     ) -> [ChartDataPoint] {
         guard records.count > targetCount else {
-            return records.map { ChartDataPoint(id: $0.id, date: $0.date, value: valueExtractor($0)) }
+            return records.compactMap { record in
+                guard let efficiency = record.cachedEfficiency, efficiency > 0 else { return nil }
+                return ChartDataPoint(id: record.id, date: record.date, value: unitSystem.efficiencyDisplayValue(from: efficiency))
+            }
         }
 
         var dataPoints: [ChartDataPoint] = []
+        dataPoints.reserveCapacity(targetCount)
+
         let bucketSize = Double(records.count) / Double(targetCount)
 
-        for i in 0..<targetCount {
-            let startIndex = Int(Double(i) * bucketSize)
-            let endIndex = min(Int(Double(i + 1) * bucketSize), records.count)
+        for index in 0..<targetCount {
+            let startIndex = Int(Double(index) * bucketSize)
+            let endIndex = min(Int(Double(index + 1) * bucketSize), records.count)
 
             guard startIndex < endIndex else { continue }
 
-            let bucketRecords = Array(records[startIndex..<endIndex])
+            var totalEfficiency = 0.0
+            var efficiencyCount = 0
 
-            // Calculate average value for this bucket
-            let avgValue = bucketRecords.reduce(0.0) { $0 + valueExtractor($1) } / Double(bucketRecords.count)
+            for recordIndex in startIndex..<endIndex {
+                if let efficiency = records[recordIndex].cachedEfficiency, efficiency > 0 {
+                    totalEfficiency += efficiency
+                    efficiencyCount += 1
+                }
+            }
 
-            // Use the middle record's date as the representative date
-            let middleIndex = bucketRecords.count / 2
-            let representativeDate = bucketRecords[middleIndex].date
+            guard efficiencyCount > 0 else { continue }
+
+            let averageEfficiency = totalEfficiency / Double(efficiencyCount)
+            let middleIndex = startIndex + (endIndex - startIndex) / 2
 
             dataPoints.append(ChartDataPoint(
                 id: UUID(),
-                date: representativeDate,
-                value: avgValue
+                date: records[middleIndex].date,
+                value: unitSystem.efficiencyDisplayValue(from: averageEfficiency)
             ))
         }
 
         return dataPoints
     }
+
 }
 
 struct ChartView: View {
     let records: [FuelingRecord]
     let unitSystem: UnitSystem
+    let invalidationKey: String
 
     @State private var selectedChart: ChartType = .efficiency
     @State private var chartData: PrecomputedChartData?
 
-    /// Invalidation key that changes when records are added, removed, or edited.
-    private var chartInvalidationKey: String {
-        let count = records.count
-        let latestMod = records.compactMap(\.modifiedAt).max()
-        let latestDate = records.map(\.date).max()
-        return "\(count)-\(latestMod?.timeIntervalSince1970 ?? 0)-\(latestDate?.timeIntervalSince1970 ?? 0)"
+    init(records: [FuelingRecord], unitSystem: UnitSystem, invalidationKey: String? = nil) {
+        self.records = records
+        self.unitSystem = unitSystem
+        self.invalidationKey = invalidationKey ?? "\(records.count)"
     }
 
     enum ChartType: CaseIterable {
@@ -230,7 +227,7 @@ struct ChartView: View {
         .onAppear {
             prepareChartData()
         }
-        .onChange(of: chartInvalidationKey) { _, _ in
+        .onChange(of: invalidationKey) { _, _ in
             prepareChartData()
         }
         .onChange(of: unitSystem) { _, _ in

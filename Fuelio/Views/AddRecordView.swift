@@ -18,16 +18,14 @@ struct AddRecordView: View {
     @State private var totalCostCents: Int = 0
     @State private var fillUpType: FillUpType = .full
     @State private var notes = ""
+    @State private var previousOdometer: Double
 
     @FocusState private var focusedField: FuelingRecordFormView.EditableField?
 
     init(vehicle: Vehicle, onSave: ((FuelingRecord, Double) -> Void)? = nil) {
         self.vehicle = vehicle
         self.onSave = onSave
-    }
-
-    private var previousOdometer: Double {
-        vehicle.lastRecord?.odometer ?? 0
+        _previousOdometer = State(initialValue: vehicle.lastRecord?.odometer ?? 0)
     }
 
     // Parsed values for validation
@@ -111,6 +109,7 @@ struct AddRecordView: View {
         try? modelContext.save()
 
         StatisticsCacheService.updateForNewRecord(record, vehicle: vehicle)
+        try? modelContext.save()
         onSave?(record, previousOdometer)
         dismiss()
     }

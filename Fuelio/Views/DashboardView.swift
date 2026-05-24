@@ -7,7 +7,12 @@ struct DashboardView: View {
     private var units: UnitSystem { vehicle.unitSystem }
 
     private var recordCount: Int {
-        vehicle.fuelingRecords?.count ?? 0
+        vehicle.displayRecordCount
+    }
+
+    private var chartInvalidationKey: String {
+        let cacheTimestamp = vehicle.cacheLastUpdated?.timeIntervalSince1970 ?? 0
+        return "\(recordCount)-\(cacheTimestamp)"
     }
 
     // Use cached statistics from the vehicle model
@@ -102,7 +107,7 @@ struct DashboardView: View {
                             .fontWeight(.bold)
                             .padding(.horizontal)
 
-                        ChartView(records: vehicle.fuelingRecords ?? [], unitSystem: units)
+                        ChartView(records: vehicle.fuelingRecords ?? [], unitSystem: units, invalidationKey: chartInvalidationKey)
                             .frame(height: 250)
                             .padding(.horizontal)
                     }

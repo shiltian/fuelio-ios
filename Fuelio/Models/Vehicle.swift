@@ -76,6 +76,10 @@ final class Vehicle {
         (fuelingRecords ?? []).max(by: { $0.date < $1.date })
     }
 
+    var displayRecordCount: Int {
+        cachedRecordCount ?? fuelingRecords?.count ?? 0
+    }
+
     // MARK: - Cache Status
 
     /// Check if cache needs to be rebuilt (no cache or records changed)

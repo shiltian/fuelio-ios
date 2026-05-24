@@ -74,6 +74,24 @@ final class CSVServiceTests: XCTestCase {
         XCTAssertTrue(lines[2].contains("Second"))
     }
 
+    func testExportRecordSnapshotsMatchesModelExport() {
+        let date = ISO8601DateFormatter().date(from: "2024-01-15T10:30:00Z")!
+        let record = FuelingRecord(
+            date: date,
+            odometer: 12500,
+            pricePerFuelUnit: 3.459,
+            fuelAmount: 10.5,
+            totalCost: 36.32,
+            fillUpType: .full,
+            notes: "Snapshot export",
+            vehicle: testVehicle
+        )
+
+        let snapshot = CSVService.RecordSnapshot(record: record)
+
+        XCTAssertEqual(CSVService.exportRecords([snapshot]), CSVService.exportRecords([record]))
+    }
+
     // MARK: - Export All Vehicles Tests
 
     func testExportAllVehiclesEmpty() {

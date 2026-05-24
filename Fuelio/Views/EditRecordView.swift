@@ -98,10 +98,10 @@ struct EditRecordView: View {
         record.notes = notes.isEmpty ? nil : notes
         record.modifiedAt = Date()
 
-        // Force an immediate save so the change is visible in HistoryView right away.
-        try? modelContext.save()
-
         StatisticsCacheService.updateForEditedRecord(vehicle: vehicle)
+
+        // Force an immediate save so the edit and cache updates are visible right away.
+        try? modelContext.save()
         dismiss()
     }
 }

@@ -37,7 +37,7 @@ struct VehicleSettingsView: View {
     }
 
     private var recordCount: Int {
-        vehicle.fuelingRecords?.count ?? 0
+        vehicle.displayRecordCount
     }
 
     private var unitHasChanged: Bool {
@@ -261,17 +261,23 @@ struct VehicleSettingsView: View {
     private func clearFuelingHistory() {
         guard let records = vehicle.fuelingRecords else { return }
 
-        for record in records {
-            modelContext.delete(record)
+        do {
+            for record in records {
+                modelContext.delete(record)
+            }
+            try modelContext.save()
+
+            // Invalidate cache after clearing
+            vehicle.invalidateCache()
+            vehicle.cachedRecordCount = 0
+            vehicle.cacheLastUpdated = Date()
+            try modelContext.save()
+
+            showingClearHistorySuccess = true
+        } catch {
+            Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "VehicleSettings")
+                .error("Failed to clear fueling history: \(error)")
         }
-        try? modelContext.save()
-
-        // Invalidate cache after clearing
-        vehicle.invalidateCache()
-        vehicle.cachedRecordCount = 0
-        vehicle.cacheLastUpdated = Date()
-
-        showingClearHistorySuccess = true
     }
 }
 

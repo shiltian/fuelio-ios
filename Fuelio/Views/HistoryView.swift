@@ -28,7 +28,7 @@ struct HistoryView: View {
     }
 
     private var hasRecords: Bool {
-        !(vehicle.fuelingRecords?.isEmpty ?? true)
+        vehicle.displayRecordCount > 0
     }
 
     private var filteredRecords: [FuelingRecord] {
@@ -63,6 +63,8 @@ struct HistoryView: View {
     }
 
     var body: some View {
+        let records = filteredRecords
+
         Group {
             if !hasRecords {
                 EmptyHistoryView()
@@ -81,7 +83,7 @@ struct HistoryView: View {
 
                     // Records section - use cached previousOdometer
                     Section {
-                        ForEach(filteredRecords) { record in
+                        ForEach(records) { record in
                             FuelingRecordRow(record: record, previousOdometer: record.getPreviousOdometer(), unitSystem: vehicle.unitSystem)
                                 .contentShape(Rectangle())
                                 .onTapGesture {
@@ -104,7 +106,7 @@ struct HistoryView: View {
                                 }
                         }
                     } header: {
-                        Text("\(filteredRecords.count) records")
+                        Text("\(records.count) records")
                             .font(.appCaption)
                     }
                 }
@@ -137,6 +139,7 @@ struct HistoryView: View {
             recordToDelete = nil
             // Update cache after deletion
             StatisticsCacheService.updateForDeletedRecord(vehicle: vehicle)
+            try? modelContext.save()
         }
     }
 }

@@ -37,6 +37,7 @@ struct ExportCSVView: View {
     @State private var csvDocument: CSVDocument?
     @State private var showingExporter = false
     @State private var showingSuccess = false
+    @State private var isPreparingExport = false
 
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
@@ -58,26 +59,27 @@ struct ExportCSVView: View {
                     .font(.appTitle)
                     .fontWeight(.bold)
 
-                Text("Export \(vehicle.fuelingRecords?.count ?? 0) records as a CSV file")
+                Text("Export \(vehicle.displayRecordCount) records as a CSV file")
                     .font(.appBody)
                     .foregroundColor(.secondary)
 
-                Button(action: {
-                    let sorted = (vehicle.fuelingRecords ?? []).sorted { $0.date > $1.date }
-                    csvDocument = CSVDocument(
-                        content: CSVService.exportRecords(sorted)
-                    )
-                    showingExporter = true
-                }) {
-                    Label("Save to Files", systemImage: "folder")
-                        .font(.appButton)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(LinearGradient.brandHorizontal)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                Button(action: prepareExport) {
+                    if isPreparingExport {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    } else {
+                        Label("Save to Files", systemImage: "folder")
+                            .font(.appButton)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
                 }
+                .background(LinearGradient.brandHorizontal)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .disabled(isPreparingExport || vehicle.displayRecordCount == 0)
                 .padding(.horizontal, 40)
 
                 Spacer()
@@ -107,6 +109,21 @@ struct ExportCSVView: View {
             } message: {
                 Text("CSV file saved successfully.")
             }
+        }
+    }
+
+    private func prepareExport() {
+        isPreparingExport = true
+        let snapshots = (vehicle.fuelingRecords ?? []).map(CSVService.RecordSnapshot.init(record:))
+
+        Task {
+            let content = await Task.detached(priority: .userInitiated) {
+                CSVService.exportRecords(snapshots)
+            }.value
+
+            csvDocument = CSVDocument(content: content)
+            showingExporter = true
+            isPreparingExport = false
         }
     }
 }
@@ -195,28 +212,34 @@ struct ImportCSVView: View {
                 errorMessage = String(localized: "Unable to access the selected file.")
                 return
             }
-            defer { url.stopAccessingSecurityScopedResource() }
 
-            do {
-                let content = try String(contentsOf: url, encoding: .utf8)
-                let records = CSVService.importRecords(from: content, vehicle: vehicle)
+            Task {
+                defer { url.stopAccessingSecurityScopedResource() }
 
-                let now = Date()
-                for record in records {
-                    record.modifiedAt = now
-                    modelContext.insert(record)
+                do {
+                    let content = try await Task.detached(priority: .userInitiated) {
+                        try String(contentsOf: url, encoding: .utf8)
+                    }.value
+                    let records = CSVService.importRecords(from: content, vehicle: vehicle)
+
+                    let now = Date()
+                    for record in records {
+                        record.modifiedAt = now
+                        modelContext.insert(record)
+                    }
+                    try modelContext.save()
+
+                    StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+                    try modelContext.save()
+
+                    importedCount = records.count
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showingSuccess = true
+                    }
+                } catch {
+                    Self.logger.error("Failed to read CSV file: \(error)")
+                    errorMessage = String(localized: "Unable to read the selected file. Please make sure it is a valid CSV file.")
                 }
-                try? modelContext.save()
-
-                StatisticsCacheService.recalculateAllStatistics(for: vehicle)
-
-                importedCount = records.count
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    showingSuccess = true
-                }
-            } catch {
-                Self.logger.error("Failed to read CSV file: \(error)")
-                errorMessage = String(localized: "Unable to read the selected file. Please make sure it is a valid CSV file.")
             }
 
         case .failure(let error):

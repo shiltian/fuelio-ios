@@ -3,6 +3,26 @@ import Foundation
 /// Service for handling CSV import and export of fueling records
 enum CSVService {
 
+    struct RecordSnapshot: Sendable {
+        let date: Date
+        let odometer: Double
+        let pricePerFuelUnit: Double
+        let fuelAmount: Double
+        let totalCost: Double
+        let fillUpTypeRaw: String
+        let notes: String?
+
+        init(record: FuelingRecord) {
+            self.date = record.date
+            self.odometer = record.odometer
+            self.pricePerFuelUnit = record.pricePerFuelUnit
+            self.fuelAmount = record.fuelAmount
+            self.totalCost = record.totalCost
+            self.fillUpTypeRaw = record.fillUpType.rawValue
+            self.notes = record.notes
+        }
+    }
+
     // MARK: - Export
 
     /// Export fueling records to CSV format
@@ -10,6 +30,19 @@ enum CSVService {
     /// - Returns: CSV formatted string
     static func exportRecords(_ records: [FuelingRecord]) -> String {
         let rows = records.sorted(by: { $0.date < $1.date }).map { $0.toCSVRow() }
+        return ([FuelingRecord.csvHeader] + rows).joined(separator: "\n") + "\n"
+    }
+
+    /// Export value snapshots to CSV format. This is safe to run away from the
+    /// main actor because it does not touch SwiftData model objects.
+    static func exportRecords(_ records: [RecordSnapshot]) -> String {
+        let formatter = ISO8601DateFormatter()
+        let rows = records.sorted(by: { $0.date < $1.date }).map { snapshot in
+            let dateString = formatter.string(from: snapshot.date)
+            let notesEscaped = (snapshot.notes ?? "").replacingOccurrences(of: "\"", with: "\"\"")
+
+            return "\(dateString),\(snapshot.odometer),\(snapshot.pricePerFuelUnit),\(snapshot.fuelAmount),\(snapshot.totalCost),\(snapshot.fillUpTypeRaw),\"\(notesEscaped)\""
+        }
         return ([FuelingRecord.csvHeader] + rows).joined(separator: "\n") + "\n"
     }
 

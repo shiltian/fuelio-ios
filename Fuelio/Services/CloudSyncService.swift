@@ -472,6 +472,12 @@ final class CloudSyncService: ObservableObject {
                 deletedRecordIDs.append(deletion.recordID)
             }
 
+            if changedRecords.isEmpty && deletedRecordIDs.isEmpty {
+                stateManager.serverChangeToken = results.changeToken
+                stateManager.syncStatus = .synced
+                return
+            }
+
             // Apply changes locally
             try applyRemoteChanges(changedRecords: changedRecords, deletedRecordIDs: deletedRecordIDs, context: context)
 
