@@ -44,6 +44,7 @@
 		G1000005297A0001 /* CSVExportImportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = G1000006297A0001 /* CSVExportImportViews.swift */; };
 		H1000001298A0001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = H1000002298A0001 /* Localizable.xcstrings */; };
 		I1000001299A0001 /* FuelioSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = I1000002299A0001 /* FuelioSchema.swift */; };
+		J100000129AB0001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = J100000229AB0001 /* InfoPlist.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,6 +99,7 @@
 		G1000006297A0001 /* CSVExportImportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVExportImportViews.swift; sourceTree = "<group>"; };
 		H1000002298A0001 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		I1000002299A0001 /* FuelioSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelioSchema.swift; sourceTree = "<group>"; };
+		J100000329AB0001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +134,7 @@
 			children = (
 				A1000023296A0001 /* Fuelio.entitlements */,
 				A1000024296A0001 /* Info.plist */,
+				J100000229AB0001 /* InfoPlist.strings */,
 				H1000002298A0001 /* Localizable.xcstrings */,
 				A1000002296A0001 /* FuelioApp.swift */,
 				A1000004296A0001 /* ContentView.swift */,
@@ -302,6 +305,7 @@
 				en,
 				"zh-Hans",
 				es,
+				Base,
 			);
 			mainGroup = A10000F7296A0001;
 			productRefGroup = A1000000296A0002 /* Products */;
@@ -322,6 +326,7 @@
 				A1000007296A0001 /* Preview Assets.xcassets in Resources */,
 				A1000005296A0001 /* Assets.xcassets in Resources */,
 				H1000001298A0001 /* Localizable.xcstrings in Resources */,
+				J100000129AB0001 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -392,6 +397,17 @@
 			targetProxy = B100000D296B0001 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+		J100000229AB0001 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				J100000329AB0001 /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
 		A1000107296A0001 /* Debug */ = {
@@ -527,7 +543,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Fuelio/Fuelio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "\"Fuelio/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;
@@ -544,7 +560,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = me.tianshilei.fuelio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -565,7 +581,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = Fuelio/Fuelio.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "\"Fuelio/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;
@@ -582,7 +598,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = me.tianshilei.fuelio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
