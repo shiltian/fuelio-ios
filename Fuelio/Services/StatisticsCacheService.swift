@@ -237,6 +237,26 @@ final class StatisticsCacheService {
             vehicle.cachedAverageCostPerDistance = totalSpent / totalDistance
         }
 
+        // Recompute average efficiency using only valid full-to-full intervals,
+        // matching the semantics of recalculateAllStatistics. We scan the
+        // relationship for records whose cachedEfficiency was already set by
+        // prior recalculations or by this incremental update.
+        var fullFillUpDistance: Double = 0
+        var fullFillUpFuel: Double = 0
+        for r in (vehicle.fuelingRecords ?? []) {
+            if let dist = r.cachedDistanceDriven, dist > 0,
+               let _ = r.cachedEfficiency {
+                fullFillUpDistance += dist
+                fullFillUpFuel += r.fuelAmount
+            }
+        }
+        if fullFillUpFuel > 0 {
+            vehicle.cachedAverageEfficiency = fullFillUpDistance / fullFillUpFuel
+        } else if let totalDistance = vehicle.cachedTotalDistance,
+                  let totalFuel = vehicle.cachedTotalFuel, totalFuel > 0 {
+            vehicle.cachedAverageEfficiency = totalDistance / totalFuel
+        }
+
         // Update average price per fuel unit incrementally
         if let currentAvg = vehicle.cachedAveragePricePerFuelUnit {
             let oldCount = Double(newCount - 1)

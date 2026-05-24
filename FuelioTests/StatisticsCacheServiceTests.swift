@@ -229,6 +229,69 @@ final class StatisticsCacheServiceTests: XCTestCase {
         XCTAssertEqual(record2.cachedPreviousOdometer, 10000.0)
     }
 
+    func testUpdateForNewRecordLatestRecordUpdatesAverageEfficiency() {
+        let vehicle = createVehicle()
+
+        let date1 = Date(timeIntervalSince1970: 1000000)
+        let date2 = Date(timeIntervalSince1970: 2000000)
+        let date3 = Date(timeIntervalSince1970: 3000000)
+
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, fuelAmount: 10.0, vehicle: vehicle)
+        vehicle.fuelingRecords = [record1, record2]
+        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+
+        XCTAssertEqual(vehicle.cachedAverageEfficiency, 30.0) // 300 / 10
+
+        let record3 = createRecord(date: date3, odometer: 10500, fuelAmount: 10.0, vehicle: vehicle)
+        vehicle.fuelingRecords = [record1, record2, record3]
+
+        StatisticsCacheService.updateForNewRecord(record3, vehicle: vehicle)
+
+        // After incremental add: fullFillUpDistance = 300 + 200 = 500,
+        // fullFillUpFuel = 10 (record2) + 10 (record3) = 20
+        // (baseline record1's fuel is excluded — it has no valid efficiency)
+        XCTAssertNotNil(vehicle.cachedAverageEfficiency)
+        XCTAssertEqual(vehicle.cachedAverageEfficiency!, 500.0 / 20.0, accuracy: 0.001)
+    }
+
+    func testUpdateForNewRecordAfterPartialExcludesInvalidEfficiency() {
+        let vehicle = createVehicle()
+
+        let date1 = Date(timeIntervalSince1970: 1000000)
+        let date2 = Date(timeIntervalSince1970: 2000000)
+        let date3 = Date(timeIntervalSince1970: 3000000)
+
+        // record1: full (baseline), record2: partial (breaks efficiency chain)
+        let record1 = createRecord(date: date1, odometer: 10000, fuelAmount: 10.0, vehicle: vehicle)
+        let record2 = createRecord(date: date2, odometer: 10300, fuelAmount: 5.0, fillUpType: .partial, vehicle: vehicle)
+        vehicle.fuelingRecords = [record1, record2]
+        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+
+        // Partial after full → no valid efficiency intervals yet
+        XCTAssertNil(record2.cachedEfficiency)
+
+        // record3: full latest, but previous was partial → no efficiency for record3
+        let record3 = createRecord(date: date3, odometer: 10600, fuelAmount: 10.0, vehicle: vehicle)
+        vehicle.fuelingRecords = [record1, record2, record3]
+
+        StatisticsCacheService.updateForNewRecord(record3, vehicle: vehicle)
+
+        // record3 should have no efficiency (previous was partial)
+        XCTAssertNil(record3.cachedEfficiency)
+
+        // No valid full-to-full intervals exist, so cachedAverageEfficiency
+        // should use the fallback (totalDistance / totalFuel), matching full recalc
+        let expectedTotalDistance = 300.0 + 300.0  // 600
+        let expectedTotalFuel = 10.0 + 5.0 + 10.0 // 25
+        XCTAssertEqual(vehicle.cachedAverageEfficiency!, expectedTotalDistance / expectedTotalFuel, accuracy: 0.001)
+
+        // Verify incremental result matches a full recalculation
+        let incrementalAvg = vehicle.cachedAverageEfficiency!
+        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+        XCTAssertEqual(vehicle.cachedAverageEfficiency!, incrementalAvg, accuracy: 0.001)
+    }
+
     func testUpdateForNewRecordNotLatest() {
         let vehicle = createVehicle()
 
