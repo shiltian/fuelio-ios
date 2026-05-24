@@ -79,7 +79,10 @@ struct EditRecordView: View {
                 ToolbarItem(placement: .keyboard) {
                     HStack {
                         Spacer()
-                        Button("Done") { focusedField = nil }
+                        Button("Done") {
+                            focusedField = nil
+                            hideKeyboard()
+                        }
                     }
                 }
             }
