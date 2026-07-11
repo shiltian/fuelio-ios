@@ -3397,18 +3397,18 @@
         }
       }
     },
-    "Welcome to Fuelio" : {
+    "Welcome to PumpTally" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bienvenido a Fuelio"
+            "value" : "Bienvenido a PumpTally"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "欢迎使用Fuelio"
+            "value" : "欢迎使用 PumpTally"
           }
         }
       }

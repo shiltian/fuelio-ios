@@ -3,7 +3,7 @@ import SwiftData
 import os
 
 @main
-struct FuelioApp: App {
+struct PumpTallyApp: App {
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio",
         category: "App"
@@ -35,7 +35,7 @@ struct FuelioApp: App {
         do {
             return try ModelContainer(
                 for: schema,
-                migrationPlan: FuelioMigrationPlan.self,
+                migrationPlan: PumpTallyMigrationPlan.self,
                 configurations: [modelConfiguration]
             )
         } catch {

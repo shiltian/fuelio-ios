@@ -1,20 +1,20 @@
 # Privacy Policy
 
-**Fuelio - Car Fueling Tracker**
+**PumpTally: Fuel & Car Log**
 
-*Last updated: February 5, 2026*
+*Last updated: July 11, 2026*
 
 ## Overview
 
-Fuelio is designed with your privacy in mind. Your data belongs to you, and we have no interest in collecting, selling, or sharing it with anyone.
+PumpTally is designed with your privacy in mind. Your data belongs to you, and we have no interest in collecting, selling, or sharing it with anyone.
 
 ## Data Collection
 
-**Fuelio does not collect any personal data.** The app does not use analytics, tracking, advertising SDKs, or any third-party services that gather information about you or your usage.
+**PumpTally does not collect any personal data.** The app does not use analytics, tracking, advertising SDKs, or any third-party services that gather information about you or your usage.
 
 ## Data Storage
 
-All data you enter into Fuelio — including vehicle information, fueling records, and preferences — is stored locally on your device using Apple's SwiftData framework.
+All data you enter into PumpTally — including vehicle information, fueling records, and preferences — is stored locally on your device using Apple's SwiftData framework.
 
 If you choose to enable iCloud Sync, your data is also stored in your personal iCloud account via Apple's CloudKit. This data is:
 
@@ -27,7 +27,7 @@ You can disable iCloud Sync at any time from the app's Settings. You can also de
 
 ## Data Sharing
 
-Fuelio does not share your data with anyone. The app does not contain:
+PumpTally does not share your data with anyone. The app does not contain:
 
 - Advertising or ad networks
 - Analytics or crash reporting services
@@ -42,11 +42,11 @@ When you export your data as a CSV file, the file is saved to a location you cho
 
 ## Third-Party Services
 
-Fuelio does not integrate with any third-party services. The only external service used is Apple's iCloud/CloudKit, which is governed by [Apple's Privacy Policy](https://www.apple.com/privacy/).
+PumpTally does not integrate with any third-party services. The only external service used is Apple's iCloud/CloudKit, which is governed by [Apple's Privacy Policy](https://www.apple.com/privacy/).
 
 ## Children's Privacy
 
-Fuelio does not knowingly collect any information from children. The app does not require or request any personal information to function.
+PumpTally does not knowingly collect any information from children. The app does not require or request any personal information to function.
 
 ## Changes to This Policy
 

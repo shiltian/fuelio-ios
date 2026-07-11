@@ -1,8 +1,8 @@
-# Fuelio - Car Fueling Tracker
+# PumpTally: Fuel & Car Log
 
 A native iOS app built with SwiftUI and SwiftData to track your vehicle's fuel consumption, costs, and efficiency.
 
-[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/us/app/fuelio/id6756544340)
+[![Download on the App Store](https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg)](https://apps.apple.com/us/app/id6756544340)
 
 ## Features
 
@@ -48,7 +48,7 @@ A native iOS app built with SwiftUI and SwiftData to track your vehicle's fuel c
 
 ## Getting Started
 
-1. Open `Fuelio.xcodeproj` in Xcode
+1. Open `PumpTally.xcodeproj` in Xcode
 2. In the project's **Signing & Capabilities**, enable the **iCloud** capability with **CloudKit** (the container `iCloud.<your-bundle-id>` is read from the entitlements automatically)
 3. Build and run on your device or simulator
 

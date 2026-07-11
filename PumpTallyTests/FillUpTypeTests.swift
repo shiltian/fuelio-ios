@@ -1,6 +1,6 @@
 import XCTest
 import SwiftUI
-@testable import Fuelio
+@testable import PumpTally
 
 final class FillUpTypeTests: XCTestCase {
 

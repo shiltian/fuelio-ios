@@ -1,6 +1,6 @@
 import XCTest
 import SwiftData
-@testable import Fuelio
+@testable import PumpTally
 
 /// Tests that verify schema definitions, migration plan correctness, and data
 /// integrity across all supported schema versions.
@@ -117,12 +117,12 @@ final class SchemaMigrationTests: XCTestCase {
     func testSchemaV2ReferencesTopLevelRuntimeTypes() {
         let models = SchemaV2.models
         XCTAssertTrue(
-            models.contains(where: { $0 == Fuelio.Vehicle.self }),
-            "SchemaV2 must reference Fuelio.Vehicle, not a nested copy"
+            models.contains(where: { $0 == PumpTally.Vehicle.self }),
+            "SchemaV2 must reference PumpTally.Vehicle, not a nested copy"
         )
         XCTAssertTrue(
-            models.contains(where: { $0 == Fuelio.FuelingRecord.self }),
-            "SchemaV2 must reference Fuelio.FuelingRecord, not a nested copy"
+            models.contains(where: { $0 == PumpTally.FuelingRecord.self }),
+            "SchemaV2 must reference PumpTally.FuelingRecord, not a nested copy"
         )
     }
 
@@ -137,24 +137,24 @@ final class SchemaMigrationTests: XCTestCase {
     /// V1 nested types must be different from the top-level runtime types.
     func testV1NestedTypesAreDistinctFromTopLevelTypes() {
         XCTAssertFalse(
-            SchemaV1.Vehicle.self == Fuelio.Vehicle.self as any PersistentModel.Type,
-            "SchemaV1.Vehicle should be a distinct type from Fuelio.Vehicle"
+            SchemaV1.Vehicle.self == PumpTally.Vehicle.self as any PersistentModel.Type,
+            "SchemaV1.Vehicle should be a distinct type from PumpTally.Vehicle"
         )
         XCTAssertFalse(
-            SchemaV1.FuelingRecord.self == Fuelio.FuelingRecord.self as any PersistentModel.Type,
-            "SchemaV1.FuelingRecord should be a distinct type from Fuelio.FuelingRecord"
+            SchemaV1.FuelingRecord.self == PumpTally.FuelingRecord.self as any PersistentModel.Type,
+            "SchemaV1.FuelingRecord should be a distinct type from PumpTally.FuelingRecord"
         )
     }
 
     // MARK: - Migration Plan Structure Tests
 
     func testMigrationPlanContainsAllSchemaVersions() {
-        let schemas = FuelioMigrationPlan.schemas
+        let schemas = PumpTallyMigrationPlan.schemas
         XCTAssertEqual(schemas.count, 2, "Migration plan should list V1 and V2")
     }
 
     func testMigrationPlanSchemasAreOrdered() {
-        let schemas = FuelioMigrationPlan.schemas
+        let schemas = PumpTallyMigrationPlan.schemas
         XCTAssertTrue(
             schemas[0] == SchemaV1.self,
             "First schema should be V1"
@@ -166,7 +166,7 @@ final class SchemaMigrationTests: XCTestCase {
     }
 
     func testMigrationPlanHasOneStage() {
-        XCTAssertEqual(FuelioMigrationPlan.stages.count, 1)
+        XCTAssertEqual(PumpTallyMigrationPlan.stages.count, 1)
     }
 
     // MARK: - V1 Store Tests
@@ -253,7 +253,7 @@ final class SchemaMigrationTests: XCTestCase {
         let config = ModelConfiguration(schema: v2Schema, url: url, cloudKitDatabase: .none)
         let v2Container = try ModelContainer(
             for: v2Schema,
-            migrationPlan: FuelioMigrationPlan.self,
+            migrationPlan: PumpTallyMigrationPlan.self,
             configurations: [config]
         )
         let v2Context = v2Container.mainContext
@@ -311,7 +311,7 @@ final class SchemaMigrationTests: XCTestCase {
         let config = ModelConfiguration(schema: v2Schema, url: url, cloudKitDatabase: .none)
         let v2Container = try ModelContainer(
             for: v2Schema,
-            migrationPlan: FuelioMigrationPlan.self,
+            migrationPlan: PumpTallyMigrationPlan.self,
             configurations: [config]
         )
         let v2Context = v2Container.mainContext
@@ -360,7 +360,7 @@ final class SchemaMigrationTests: XCTestCase {
         let config = ModelConfiguration(schema: v2Schema, url: url, cloudKitDatabase: .none)
         let v2Container = try ModelContainer(
             for: v2Schema,
-            migrationPlan: FuelioMigrationPlan.self,
+            migrationPlan: PumpTallyMigrationPlan.self,
             configurations: [config]
         )
         let v2Context = v2Container.mainContext
@@ -395,7 +395,7 @@ final class SchemaMigrationTests: XCTestCase {
         let config = ModelConfiguration(schema: v2Schema, url: url, cloudKitDatabase: .none)
         let v2Container = try ModelContainer(
             for: v2Schema,
-            migrationPlan: FuelioMigrationPlan.self,
+            migrationPlan: PumpTallyMigrationPlan.self,
             configurations: [config]
         )
         let v2Context = v2Container.mainContext
@@ -427,7 +427,7 @@ final class SchemaMigrationTests: XCTestCase {
         let config = ModelConfiguration(schema: v2Schema, url: url, cloudKitDatabase: .none)
         let v2Container = try ModelContainer(
             for: v2Schema,
-            migrationPlan: FuelioMigrationPlan.self,
+            migrationPlan: PumpTallyMigrationPlan.self,
             configurations: [config]
         )
         let v2Context = v2Container.mainContext
@@ -481,7 +481,7 @@ final class SchemaMigrationTests: XCTestCase {
         let config = ModelConfiguration(schema: v2Schema, url: url, cloudKitDatabase: .none)
         let v2Container = try ModelContainer(
             for: v2Schema,
-            migrationPlan: FuelioMigrationPlan.self,
+            migrationPlan: PumpTallyMigrationPlan.self,
             configurations: [config]
         )
         let v2Context = v2Container.mainContext
@@ -505,7 +505,7 @@ final class SchemaMigrationTests: XCTestCase {
         let config = ModelConfiguration(schema: v2Schema, url: url, cloudKitDatabase: .none)
         let container = try ModelContainer(
             for: v2Schema,
-            migrationPlan: FuelioMigrationPlan.self,
+            migrationPlan: PumpTallyMigrationPlan.self,
             configurations: [config]
         )
         let context = container.mainContext
@@ -561,7 +561,7 @@ final class SchemaMigrationTests: XCTestCase {
         let config = ModelConfiguration(schema: v2Schema, url: url, cloudKitDatabase: .none)
         let v2Container = try ModelContainer(
             for: v2Schema,
-            migrationPlan: FuelioMigrationPlan.self,
+            migrationPlan: PumpTallyMigrationPlan.self,
             configurations: [config]
         )
         let v2Context = v2Container.mainContext

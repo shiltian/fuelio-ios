@@ -1,5 +1,5 @@
 import XCTest
-@testable import Fuelio
+@testable import PumpTally
 
 final class ExtensionsTests: XCTestCase {
     private let testVehicle = Vehicle(name: "Test Car")

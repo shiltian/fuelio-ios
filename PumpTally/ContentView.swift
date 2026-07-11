@@ -8,7 +8,7 @@ struct ContentView: View {
     @EnvironmentObject private var cloudSyncService: CloudSyncService
     @Query(sort: \Vehicle.createdAt, order: .reverse) private var vehicles: [Vehicle]
 
-    // Binding from FuelioApp for incoming file URLs
+    // Binding from PumpTallyApp for incoming file URLs
     @Binding var importedFileURL: URL?
 
     @State private var selectedVehicle: Vehicle?
@@ -157,7 +157,7 @@ struct EmptyVehicleView: View {
                 .font(.system(size: 80))
                 .foregroundStyle(LinearGradient.brandDiagonal)
 
-            Text("Welcome to Fuelio")
+            Text("Welcome to PumpTally")
                 .font(.appDisplay)
                 .fontWeight(.bold)
 

@@ -72,13 +72,13 @@ enum SchemaV1: VersionedSchema {
 enum SchemaV2: VersionedSchema {
     static var versionIdentifier = Schema.Version(2, 0, 0)
     static var models: [any PersistentModel.Type] {
-        [Fuelio.Vehicle.self, Fuelio.FuelingRecord.self]
+        [PumpTally.Vehicle.self, PumpTally.FuelingRecord.self]
     }
 }
 
 // MARK: - Migration Plan
 
-enum FuelioMigrationPlan: SchemaMigrationPlan {
+enum PumpTallyMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [SchemaV1.self, SchemaV2.self]
     }
