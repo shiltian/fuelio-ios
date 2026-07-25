@@ -5,6 +5,7 @@ import SwiftUI
 /// preview, and notes sections.
 struct FuelingRecordFormView: View {
     let unitSystem: UnitSystem
+    let metricEfficiencyFormat: MetricEfficiencyFormat
 
     @Binding var date: Date
     @Binding var odometerString: String
@@ -39,7 +40,10 @@ struct FuelingRecordFormView: View {
         guard showPreview, let current = currentOdometer, fuelAmount > 0 else { return nil }
         let distance = current - previousOdometer
         guard distance > 0 else { return nil }
-        return unitSystem.efficiencyDisplayValue(from: distance / fuelAmount)
+        return unitSystem.efficiencyDisplayValue(
+            from: distance / fuelAmount,
+            metricFormat: metricEfficiencyFormat
+        )
     }
 
     private var previewCostPerDistance: Double? {
@@ -183,10 +187,10 @@ struct FuelingRecordFormView: View {
                     HStack {
                         Image(systemName: "gauge.with.dots.needle.67percent")
                             .foregroundColor(.purple)
-                        Text("Estimated \(unitSystem.efficiencyUnit)")
+                        Text("Estimated \(unitSystem.efficiencyUnit(for: metricEfficiencyFormat))")
                             .font(.appBody)
                         Spacer()
-                        Text("\(efficiency.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit)")
+                        Text("\(efficiency.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit(for: metricEfficiencyFormat))")
                             .font(.appBody)
                             .fontWeight(.semibold)
                             .foregroundColor(.purple)

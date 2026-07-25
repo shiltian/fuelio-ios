@@ -186,7 +186,8 @@ struct VehicleDetailView: View {
                 pendingSummary = FuelingSummaryData(
                     record: record,
                     previousOdometer: prevOdometer,
-                    unitSystem: vehicle.unitSystem
+                    unitSystem: vehicle.unitSystem,
+                    metricEfficiencyFormat: .stored(for: vehicle.id)
                 )
             }
         }

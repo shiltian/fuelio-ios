@@ -79,6 +79,25 @@ final class UnitSystemTests: XCTestCase {
         XCTAssertEqual(UnitSystem.metric.efficiencyName, "Liters per 100 km")
     }
 
+    func testMetricEfficiencyFormatLabels() {
+        XCTAssertEqual(
+            UnitSystem.metric.efficiencyUnit(for: .litersPer100Kilometers),
+            "L/100km"
+        )
+        XCTAssertEqual(
+            UnitSystem.metric.efficiencyName(for: .litersPer100Kilometers),
+            "Liters per 100 km"
+        )
+        XCTAssertEqual(
+            UnitSystem.metric.efficiencyUnit(for: .kilometersPerLiter),
+            "km/L"
+        )
+        XCTAssertEqual(
+            UnitSystem.metric.efficiencyName(for: .kilometersPerLiter),
+            "Kilometers per Liter"
+        )
+    }
+
     func testMetricPricePerFuelLabel() {
         XCTAssertEqual(UnitSystem.metric.pricePerFuelLabel, "Price per Liter")
     }
@@ -97,6 +116,94 @@ final class UnitSystemTests: XCTestCase {
     func testDisplayDescription() {
         XCTAssertEqual(UnitSystem.imperial.displayDescription, "Miles, Gallons, MPG")
         XCTAssertEqual(UnitSystem.metric.displayDescription, "Kilometers, Liters, L/100km")
+        XCTAssertEqual(
+            UnitSystem.metric.displayDescription(for: .kilometersPerLiter),
+            "Kilometers, Liters, km/L"
+        )
+    }
+
+    // MARK: - Metric Efficiency Format
+
+    func testMetricEfficiencyFormatRawValues() {
+        XCTAssertEqual(
+            MetricEfficiencyFormat.litersPer100Kilometers.rawValue,
+            "litersPer100Kilometers"
+        )
+        XCTAssertEqual(
+            MetricEfficiencyFormat.kilometersPerLiter.rawValue,
+            "kilometersPerLiter"
+        )
+    }
+
+    func testMetricEfficiencyFormatAllCases() {
+        XCTAssertEqual(MetricEfficiencyFormat.allCases.count, 2)
+        XCTAssertTrue(MetricEfficiencyFormat.allCases.contains(.litersPer100Kilometers))
+        XCTAssertTrue(MetricEfficiencyFormat.allCases.contains(.kilometersPerLiter))
+    }
+
+    func testMetricEfficiencyFormatCodable() throws {
+        let encoder = JSONEncoder()
+        let decoder = JSONDecoder()
+
+        for format in MetricEfficiencyFormat.allCases {
+            let encoded = try encoder.encode(format)
+            let decoded = try decoder.decode(MetricEfficiencyFormat.self, from: encoded)
+            XCTAssertEqual(format, decoded)
+        }
+    }
+
+    func testMetricEfficiencyFormatDefaultsToLitersPer100Kilometers() {
+        XCTAssertEqual(
+            MetricEfficiencyFormat.defaultFormat,
+            .litersPer100Kilometers
+        )
+    }
+
+    func testMetricEfficiencyFormatStorageDefaultsAndRejectsInvalidValues() {
+        let suiteName = "MetricEfficiencyFormatTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let vehicleID = UUID()
+
+        XCTAssertEqual(
+            MetricEfficiencyFormat.stored(for: vehicleID, defaults: defaults),
+            .litersPer100Kilometers
+        )
+
+        defaults.set(
+            "invalid",
+            forKey: MetricEfficiencyFormat.storageKey(for: vehicleID)
+        )
+        XCTAssertEqual(
+            MetricEfficiencyFormat.stored(for: vehicleID, defaults: defaults),
+            .litersPer100Kilometers
+        )
+    }
+
+    func testMetricEfficiencyFormatStorageIsIndependentPerVehicle() {
+        let suiteName = "MetricEfficiencyFormatTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let firstVehicleID = UUID()
+        let secondVehicleID = UUID()
+
+        MetricEfficiencyFormat.kilometersPerLiter.store(
+            for: firstVehicleID,
+            defaults: defaults
+        )
+
+        XCTAssertEqual(
+            MetricEfficiencyFormat.stored(for: firstVehicleID, defaults: defaults),
+            .kilometersPerLiter
+        )
+        XCTAssertEqual(
+            MetricEfficiencyFormat.stored(for: secondVehicleID, defaults: defaults),
+            .litersPer100Kilometers
+        )
+        XCTAssertNotEqual(
+            MetricEfficiencyFormat.storageKey(for: firstVehicleID),
+            MetricEfficiencyFormat.storageKey(for: secondVehicleID)
+        )
     }
 
     // MARK: - CaseIterable
@@ -214,6 +321,33 @@ final class UnitSystemTests: XCTestCase {
         XCTAssertEqual(display, 100.0 / 30.0, accuracy: 0.001) // ~3.33 L/100km
     }
 
+    func testEfficiencyDisplayValueMetricKilometersPerLiter() {
+        let rawEfficiency = 30.0
+        let display = UnitSystem.metric.efficiencyDisplayValue(
+            from: rawEfficiency,
+            metricFormat: .kilometersPerLiter
+        )
+        XCTAssertEqual(display, 30.0)
+    }
+
+    func testEfficiencyDisplayValueImperialIgnoresMetricFormat() {
+        let rawEfficiency = 30.0
+        XCTAssertEqual(
+            UnitSystem.imperial.efficiencyDisplayValue(
+                from: rawEfficiency,
+                metricFormat: .litersPer100Kilometers
+            ),
+            30.0
+        )
+        XCTAssertEqual(
+            UnitSystem.imperial.efficiencyDisplayValue(
+                from: rawEfficiency,
+                metricFormat: .kilometersPerLiter
+            ),
+            30.0
+        )
+    }
+
     func testEfficiencyDisplayValueZero() {
         XCTAssertEqual(UnitSystem.imperial.efficiencyDisplayValue(from: 0), 0)
         XCTAssertEqual(UnitSystem.metric.efficiencyDisplayValue(from: 0), 0)
@@ -227,6 +361,13 @@ final class UnitSystemTests: XCTestCase {
         // Metric: 300 km / 10 L = 30 km/L -> display as 100/30 = 3.33 L/100km
         let metricDisplay = UnitSystem.metric.efficiencyDisplayValue(distance: 300, fuel: 10)
         XCTAssertEqual(metricDisplay, 100.0 / 30.0, accuracy: 0.001)
+
+        let metricKilometersPerLiter = UnitSystem.metric.efficiencyDisplayValue(
+            distance: 300,
+            fuel: 10,
+            metricFormat: .kilometersPerLiter
+        )
+        XCTAssertEqual(metricKilometersPerLiter, 30.0)
     }
 
     func testEfficiencyDisplayFromZeroValues() {

@@ -26,6 +26,7 @@ struct PrecomputedChartData {
 
     let showPoints: Bool  // Only show points if data count is reasonable
     let unitSystem: UnitSystem
+    let metricEfficiencyFormat: MetricEfficiencyFormat
 
     /// Maximum number of individual point markers to display for performance.
     /// Line, area, and bar series still use every underlying record.
@@ -33,8 +34,13 @@ struct PrecomputedChartData {
     /// MPG/efficiency can be noisy per fill-up; smooth only that chart for long histories.
     static let maxEfficiencyTrendPoints = 200
 
-    init(records: [FuelingRecord], unitSystem: UnitSystem) {
+    init(
+        records: [FuelingRecord],
+        unitSystem: UnitSystem,
+        metricEfficiencyFormat: MetricEfficiencyFormat = .defaultFormat
+    ) {
         self.unitSystem = unitSystem
+        self.metricEfficiencyFormat = metricEfficiencyFormat
 
         // Sort once
         let sorted = records.sorted { $0.date < $1.date }
@@ -48,24 +54,37 @@ struct PrecomputedChartData {
             self.efficiencyData = Self.createAveragedEfficiencyDataPoints(
                 from: allEfficiencyRecords,
                 targetCount: Self.maxEfficiencyTrendPoints,
-                unitSystem: unitSystem
+                unitSystem: unitSystem,
+                metricEfficiencyFormat: metricEfficiencyFormat
             )
         } else {
             self.efficiencyData = allEfficiencyRecords.map {
-                ChartDataPoint(id: $0.id, date: $0.date, value: unitSystem.efficiencyDisplayValue(from: $0.cachedEfficiency!))
+                ChartDataPoint(
+                    id: $0.id,
+                    date: $0.date,
+                    value: unitSystem.efficiencyDisplayValue(
+                        from: $0.cachedEfficiency!,
+                        metricFormat: metricEfficiencyFormat
+                    )
+                )
             }
         }
 
         // Calculate efficiency average from ALL valid records
         if !allEfficiencyRecords.isEmpty {
             let rawAvg = allEfficiencyRecords.reduce(0.0) { $0 + ($1.cachedEfficiency ?? 0) } / Double(allEfficiencyRecords.count)
-            self.efficiencyAverage = unitSystem.efficiencyDisplayValue(from: rawAvg)
+            self.efficiencyAverage = unitSystem.efficiencyDisplayValue(
+                from: rawAvg,
+                metricFormat: metricEfficiencyFormat
+            )
         } else {
             self.efficiencyAverage = 0
         }
 
         // Efficiency Y-range
-        let allEfficiencyValues = allEfficiencyRecords.compactMap { $0.cachedEfficiency }.map { unitSystem.efficiencyDisplayValue(from: $0) }
+        let allEfficiencyValues = allEfficiencyRecords.compactMap { $0.cachedEfficiency }.map {
+            unitSystem.efficiencyDisplayValue(from: $0, metricFormat: metricEfficiencyFormat)
+        }
         if let minVal = allEfficiencyValues.min(), let maxVal = allEfficiencyValues.max() {
             let minY = floor(minVal / 5) * 5
             let maxY = ceil(maxVal / 5) * 5
@@ -119,12 +138,20 @@ struct PrecomputedChartData {
     private static func createAveragedEfficiencyDataPoints(
         from records: [FuelingRecord],
         targetCount: Int,
-        unitSystem: UnitSystem
+        unitSystem: UnitSystem,
+        metricEfficiencyFormat: MetricEfficiencyFormat
     ) -> [ChartDataPoint] {
         guard records.count > targetCount else {
             return records.compactMap { record in
                 guard let efficiency = record.cachedEfficiency, efficiency > 0 else { return nil }
-                return ChartDataPoint(id: record.id, date: record.date, value: unitSystem.efficiencyDisplayValue(from: efficiency))
+                return ChartDataPoint(
+                    id: record.id,
+                    date: record.date,
+                    value: unitSystem.efficiencyDisplayValue(
+                        from: efficiency,
+                        metricFormat: metricEfficiencyFormat
+                    )
+                )
             }
         }
 
@@ -157,7 +184,10 @@ struct PrecomputedChartData {
             dataPoints.append(ChartDataPoint(
                 id: UUID(),
                 date: records[middleIndex].date,
-                value: unitSystem.efficiencyDisplayValue(from: averageEfficiency)
+                value: unitSystem.efficiencyDisplayValue(
+                    from: averageEfficiency,
+                    metricFormat: metricEfficiencyFormat
+                )
             ))
         }
 
@@ -169,14 +199,21 @@ struct PrecomputedChartData {
 struct ChartView: View {
     let records: [FuelingRecord]
     let unitSystem: UnitSystem
+    let metricEfficiencyFormat: MetricEfficiencyFormat
     let invalidationKey: String
 
     @State private var selectedChart: ChartType = .efficiency
     @State private var chartData: PrecomputedChartData?
 
-    init(records: [FuelingRecord], unitSystem: UnitSystem, invalidationKey: String? = nil) {
+    init(
+        records: [FuelingRecord],
+        unitSystem: UnitSystem,
+        metricEfficiencyFormat: MetricEfficiencyFormat = .defaultFormat,
+        invalidationKey: String? = nil
+    ) {
         self.records = records
         self.unitSystem = unitSystem
+        self.metricEfficiencyFormat = metricEfficiencyFormat
         self.invalidationKey = invalidationKey ?? "\(records.count)"
     }
 
@@ -185,9 +222,13 @@ struct ChartView: View {
         case cost
         case pricePerFuelUnit
 
-        func label(for unitSystem: UnitSystem) -> String {
+        func label(
+            for unitSystem: UnitSystem,
+            metricEfficiencyFormat: MetricEfficiencyFormat
+        ) -> String {
             switch self {
-            case .efficiency: return unitSystem.efficiencyUnit
+            case .efficiency:
+                return unitSystem.efficiencyUnit(for: metricEfficiencyFormat)
             case .cost: return String(localized: "Cost")
             case .pricePerFuelUnit: return "$\(unitSystem.pricePerFuelShort)"
             }
@@ -199,7 +240,10 @@ struct ChartView: View {
             // Chart Type Picker
             Picker("Chart Type", selection: $selectedChart) {
                 ForEach(ChartType.allCases, id: \.self) { type in
-                    Text(type.label(for: unitSystem))
+                    Text(type.label(
+                        for: unitSystem,
+                        metricEfficiencyFormat: metricEfficiencyFormat
+                    ))
                         .tag(type)
                 }
             }
@@ -210,7 +254,14 @@ struct ChartView: View {
                 if let data = chartData {
                     switch selectedChart {
                     case .efficiency:
-                        EfficiencyChart(data: data.efficiencyData, average: data.efficiencyAverage, yRange: data.efficiencyYRange, showPoints: data.showPoints, unitSystem: unitSystem)
+                        EfficiencyChart(
+                            data: data.efficiencyData,
+                            average: data.efficiencyAverage,
+                            yRange: data.efficiencyYRange,
+                            showPoints: data.showPoints,
+                            unitSystem: unitSystem,
+                            metricEfficiencyFormat: metricEfficiencyFormat
+                        )
                     case .cost:
                         CostChart(data: data.costData, average: data.costAverage, yRange: data.costYRange, showPoints: data.showPoints)
                     case .pricePerFuelUnit:
@@ -233,11 +284,18 @@ struct ChartView: View {
         .onChange(of: unitSystem) { _, _ in
             prepareChartData()
         }
+        .onChange(of: metricEfficiencyFormat) { _, _ in
+            prepareChartData()
+        }
     }
 
     private func prepareChartData() {
         // Compute data once and cache it
-        chartData = PrecomputedChartData(records: records, unitSystem: unitSystem)
+        chartData = PrecomputedChartData(
+            records: records,
+            unitSystem: unitSystem,
+            metricEfficiencyFormat: metricEfficiencyFormat
+        )
     }
 }
 
@@ -247,17 +305,18 @@ struct EfficiencyChart: View {
     let yRange: ClosedRange<Double>
     let showPoints: Bool
     let unitSystem: UnitSystem
+    let metricEfficiencyFormat: MetricEfficiencyFormat
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(unitSystem.efficiencyName)
+                Text(unitSystem.efficiencyName(for: metricEfficiencyFormat))
                     .font(.appSubheadline)
                     .foregroundColor(.secondary)
 
                 Spacer()
 
-                Text("Avg: \(average.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit)")
+                Text("Avg: \(average.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit(for: metricEfficiencyFormat))")
                     .font(.appCaption)
                     .foregroundColor(.purple)
             }
@@ -266,7 +325,7 @@ struct EfficiencyChart: View {
                 ForEach(data) { point in
                     LineMark(
                         x: .value("Date", point.date),
-                        y: .value(unitSystem.efficiencyUnit, point.value)
+                        y: .value(unitSystem.efficiencyUnit(for: metricEfficiencyFormat), point.value)
                     )
                     .foregroundStyle(Color.purple)
                     .lineStyle(StrokeStyle(lineWidth: 2.5))
@@ -274,7 +333,7 @@ struct EfficiencyChart: View {
                     AreaMark(
                         x: .value("Date", point.date),
                         yStart: .value("Min", yRange.lowerBound),
-                        yEnd: .value(unitSystem.efficiencyUnit, point.value)
+                        yEnd: .value(unitSystem.efficiencyUnit(for: metricEfficiencyFormat), point.value)
                     )
                     .foregroundStyle(LinearGradient.efficiencyChartFill)
 
@@ -282,7 +341,7 @@ struct EfficiencyChart: View {
                     if showPoints {
                         PointMark(
                             x: .value("Date", point.date),
-                            y: .value(unitSystem.efficiencyUnit, point.value)
+                            y: .value(unitSystem.efficiencyUnit(for: metricEfficiencyFormat), point.value)
                         )
                         .foregroundStyle(.purple)
                         .symbolSize(40)

@@ -7,8 +7,13 @@ struct AddRecordView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @AppStorage private var metricEfficiencyFormatRaw: String
 
     private var units: UnitSystem { vehicle.unitSystem }
+
+    private var metricEfficiencyFormat: MetricEfficiencyFormat {
+        MetricEfficiencyFormat(rawValue: metricEfficiencyFormatRaw) ?? .defaultFormat
+    }
 
     // Form fields
     @State private var date = Date()
@@ -25,6 +30,10 @@ struct AddRecordView: View {
     init(vehicle: Vehicle, onSave: ((FuelingRecord, Double) -> Void)? = nil) {
         self.vehicle = vehicle
         self.onSave = onSave
+        _metricEfficiencyFormatRaw = AppStorage(
+            wrappedValue: MetricEfficiencyFormat.defaultFormat.rawValue,
+            MetricEfficiencyFormat.storageKey(for: vehicle.id)
+        )
         _previousOdometer = State(initialValue: vehicle.lastRecord?.odometer ?? 0)
     }
 
@@ -47,6 +56,7 @@ struct AddRecordView: View {
             Form {
                 FuelingRecordFormView(
                     unitSystem: units,
+                    metricEfficiencyFormat: metricEfficiencyFormat,
                     date: $date,
                     odometerString: $odometerString,
                     pricePerFuelUnitMills: $pricePerFuelUnitMills,

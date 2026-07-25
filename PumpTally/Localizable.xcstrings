@@ -1333,6 +1333,22 @@
         }
       }
     },
+    "Fuel Economy" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Economía de combustible"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "燃油经济性"
+          }
+        }
+      }
+    },
     "Fuel Efficiency" : {
       "localizations" : {
         "es" : {
@@ -1777,6 +1793,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "公里、升、L/100km"
+          }
+        }
+      }
+    },
+    "Kilometers, Liters, km/L" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kilómetros, Litros, km/L"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "公里、升、km/L"
+          }
+        }
+      }
+    },
+    "Kilometers per Liter" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kilómetros por litro"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "公里/升"
           }
         }
       }
@@ -2929,6 +2977,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此操作无法撤消。您的所有数据将被永久删除。"
+          }
+        }
+      }
+    },
+    "This display preference is stored only for this vehicle on this device." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta preferencia de visualización se guarda solo para este vehículo en este dispositivo."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此显示偏好仅针对本设备上的这辆车保存。"
           }
         }
       }

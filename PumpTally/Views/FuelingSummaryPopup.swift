@@ -16,10 +16,16 @@ struct FuelingSummaryData: Identifiable {
     let costPerDistance: Double
     let distanceDriven: Double
     let unitSystem: UnitSystem
+    let metricEfficiencyFormat: MetricEfficiencyFormat
 
     /// Create a snapshot from a FuelingRecord at save time, capturing all
     /// computed values while the model object is guaranteed to be valid.
-    init(record: FuelingRecord, previousOdometer: Double, unitSystem: UnitSystem) {
+    init(
+        record: FuelingRecord,
+        previousOdometer: Double,
+        unitSystem: UnitSystem,
+        metricEfficiencyFormat: MetricEfficiencyFormat = .defaultFormat
+    ) {
         self.date = record.date
         self.odometer = record.odometer
         self.fuelAmount = record.fuelAmount
@@ -31,10 +37,14 @@ struct FuelingSummaryData: Identifiable {
         self.costPerDistance = record.getCostPerDistance()
         self.distanceDriven = record.getDistanceDriven()
         self.unitSystem = unitSystem
+        self.metricEfficiencyFormat = metricEfficiencyFormat
     }
 
     var efficiencyDisplay: Double {
-        unitSystem.efficiencyDisplayValue(from: efficiencyRaw)
+        unitSystem.efficiencyDisplayValue(
+            from: efficiencyRaw,
+            metricFormat: metricEfficiencyFormat
+        )
     }
 
     var hasEfficiency: Bool {
@@ -88,7 +98,7 @@ struct FuelingSummaryPopup: View {
                                     .fontWeight(.bold)
                                     .foregroundColor(.purple)
 
-                                Text(data.unitSystem.efficiencyUnit)
+                                Text(data.unitSystem.efficiencyUnit(for: data.metricEfficiencyFormat))
                                     .font(.appButton)
                                     .fontWeight(.semibold)
                                     .foregroundColor(.purple.opacity(0.7))

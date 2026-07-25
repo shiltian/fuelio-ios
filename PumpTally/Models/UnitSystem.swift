@@ -1,5 +1,76 @@
 import Foundation
 
+/// Controls how Metric fuel efficiency is presented on this device.
+///
+/// This is a local display preference, not part of the persisted vehicle or
+/// fueling-record data model.
+enum MetricEfficiencyFormat: String, Codable, CaseIterable {
+    case litersPer100Kilometers
+    case kilometersPerLiter
+
+    static let defaultFormat: MetricEfficiencyFormat = .litersPer100Kilometers
+
+    private static let storageKeyPrefix = "metricEfficiencyFormat."
+
+    static func storageKey(for vehicleID: UUID) -> String {
+        storageKeyPrefix + vehicleID.uuidString
+    }
+
+    static func stored(
+        for vehicleID: UUID,
+        defaults: UserDefaults = .standard
+    ) -> MetricEfficiencyFormat {
+        guard
+            let rawValue = defaults.string(forKey: storageKey(for: vehicleID)),
+            let format = MetricEfficiencyFormat(rawValue: rawValue)
+        else {
+            return defaultFormat
+        }
+        return format
+    }
+
+    func store(
+        for vehicleID: UUID,
+        defaults: UserDefaults = .standard
+    ) {
+        defaults.set(rawValue, forKey: Self.storageKey(for: vehicleID))
+    }
+
+    var unit: String {
+        switch self {
+        case .litersPer100Kilometers: return "L/100km"
+        case .kilometersPerLiter: return "km/L"
+        }
+    }
+
+    var name: String {
+        switch self {
+        case .litersPer100Kilometers:
+            return String(localized: "Liters per 100 km")
+        case .kilometersPerLiter:
+            return String(localized: "Kilometers per Liter")
+        }
+    }
+
+    var unitSystemDescription: String {
+        switch self {
+        case .litersPer100Kilometers:
+            return String(localized: "Kilometers, Liters, L/100km")
+        case .kilometersPerLiter:
+            return String(localized: "Kilometers, Liters, km/L")
+        }
+    }
+
+    func displayValue(from rawEfficiency: Double) -> Double {
+        switch self {
+        case .litersPer100Kilometers:
+            return 100.0 / rawEfficiency
+        case .kilometersPerLiter:
+            return rawEfficiency
+        }
+    }
+}
+
 /// Represents the measurement unit system for a vehicle
 enum UnitSystem: String, Codable, CaseIterable {
     case imperial // miles, gallons, MPG
@@ -41,17 +112,25 @@ enum UnitSystem: String, Codable, CaseIterable {
 
     /// Efficiency unit: "MPG" or "L/100km"
     var efficiencyUnit: String {
+        efficiencyUnit(for: .defaultFormat)
+    }
+
+    func efficiencyUnit(for metricFormat: MetricEfficiencyFormat) -> String {
         switch self {
         case .imperial: return "MPG"
-        case .metric: return "L/100km"
+        case .metric: return metricFormat.unit
         }
     }
 
     /// Full efficiency name: "Miles Per Gallon" or "Liters per 100 km"
     var efficiencyName: String {
+        efficiencyName(for: .defaultFormat)
+    }
+
+    func efficiencyName(for metricFormat: MetricEfficiencyFormat) -> String {
         switch self {
         case .imperial: return String(localized: "Miles Per Gallon")
-        case .metric: return String(localized: "Liters per 100 km")
+        case .metric: return metricFormat.name
         }
     }
 
@@ -105,9 +184,13 @@ enum UnitSystem: String, Codable, CaseIterable {
 
     /// Description of what the unit system uses
     var displayDescription: String {
+        displayDescription(for: .defaultFormat)
+    }
+
+    func displayDescription(for metricFormat: MetricEfficiencyFormat) -> String {
         switch self {
         case .imperial: return String(localized: "Miles, Gallons, MPG")
-        case .metric: return String(localized: "Kilometers, Liters, L/100km")
+        case .metric: return metricFormat.unitSystemDescription
         }
     }
 
@@ -133,22 +216,29 @@ enum UnitSystem: String, Codable, CaseIterable {
     ///
     /// The cache always stores `distance / fuel` regardless of unit system.
     /// - Imperial: return as-is (MPG, higher = better)
-    /// - Metric: convert to L/100km = `100.0 / (distance/fuel)` (lower = better)
-    func efficiencyDisplayValue(from rawEfficiency: Double) -> Double {
+    /// - Metric: use the selected local display format
+    func efficiencyDisplayValue(
+        from rawEfficiency: Double,
+        metricFormat: MetricEfficiencyFormat = .defaultFormat
+    ) -> Double {
         guard rawEfficiency > 0 else { return 0 }
         switch self {
         case .imperial:
             return rawEfficiency
         case .metric:
-            return 100.0 / rawEfficiency
+            return metricFormat.displayValue(from: rawEfficiency)
         }
     }
 
     /// Compute efficiency display value from distance and fuel amounts
-    func efficiencyDisplayValue(distance: Double, fuel: Double) -> Double {
+    func efficiencyDisplayValue(
+        distance: Double,
+        fuel: Double,
+        metricFormat: MetricEfficiencyFormat = .defaultFormat
+    ) -> Double {
         guard distance > 0, fuel > 0 else { return 0 }
         let rawRatio = distance / fuel
-        return efficiencyDisplayValue(from: rawRatio)
+        return efficiencyDisplayValue(from: rawRatio, metricFormat: metricFormat)
     }
 
     // MARK: - Unit Conversion

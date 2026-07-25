@@ -5,11 +5,24 @@ struct HistoryView: View {
     let vehicle: Vehicle
 
     @Environment(\.modelContext) private var modelContext
+    @AppStorage private var metricEfficiencyFormatRaw: String
     @State private var recordToEdit: FuelingRecord?
     @State private var showingDeleteAlert = false
     @State private var recordToDelete: FuelingRecord?
     @State private var searchText = ""
     @State private var sortOrder: SortOrder = .dateDescending
+
+    init(vehicle: Vehicle) {
+        self.vehicle = vehicle
+        _metricEfficiencyFormatRaw = AppStorage(
+            wrappedValue: MetricEfficiencyFormat.defaultFormat.rawValue,
+            MetricEfficiencyFormat.storageKey(for: vehicle.id)
+        )
+    }
+
+    private var metricEfficiencyFormat: MetricEfficiencyFormat {
+        MetricEfficiencyFormat(rawValue: metricEfficiencyFormatRaw) ?? .defaultFormat
+    }
 
     enum SortOrder: String, CaseIterable {
         case dateDescending = "Newest First"
@@ -84,7 +97,12 @@ struct HistoryView: View {
                     // Records section - use cached previousOdometer
                     Section {
                         ForEach(records) { record in
-                            FuelingRecordRow(record: record, previousOdometer: record.getPreviousOdometer(), unitSystem: vehicle.unitSystem)
+                            FuelingRecordRow(
+                                record: record,
+                                previousOdometer: record.getPreviousOdometer(),
+                                unitSystem: vehicle.unitSystem,
+                                metricEfficiencyFormat: metricEfficiencyFormat
+                            )
                                 .contentShape(Rectangle())
                                 .onTapGesture {
                                     recordToEdit = record
@@ -148,6 +166,7 @@ struct FuelingRecordRow: View {
     let record: FuelingRecord
     let previousOdometer: Double
     let unitSystem: UnitSystem
+    let metricEfficiencyFormat: MetricEfficiencyFormat
 
     // Use cached values for performance
     private var efficiencyRaw: Double {
@@ -155,7 +174,10 @@ struct FuelingRecordRow: View {
     }
 
     private var efficiencyDisplay: Double {
-        unitSystem.efficiencyDisplayValue(from: efficiencyRaw)
+        unitSystem.efficiencyDisplayValue(
+            from: efficiencyRaw,
+            metricFormat: metricEfficiencyFormat
+        )
     }
 
     private var distanceDriven: Double {
@@ -206,7 +228,7 @@ struct FuelingRecordRow: View {
                 if hasEfficiency {
                     DetailChip(
                         icon: "gauge",
-                        value: "\(efficiencyDisplay.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit)",
+                        value: "\(efficiencyDisplay.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit(for: metricEfficiencyFormat))",
                         color: .purple
                     )
                 }

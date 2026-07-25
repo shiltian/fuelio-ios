@@ -17,6 +17,7 @@ struct VehicleSettingsView: View {
 
     // Unit system
     @State private var selectedUnit: UnitSystem
+    @State private var metricEfficiencyFormat: MetricEfficiencyFormat
     @State private var showingUnitConversionAlert = false
 
     // CSV
@@ -35,6 +36,9 @@ struct VehicleSettingsView: View {
         _model = State(initialValue: vehicle.model ?? "")
         _yearString = State(initialValue: vehicle.year != nil ? "\(vehicle.year!)" : "")
         _selectedUnit = State(initialValue: vehicle.unitSystem)
+        _metricEfficiencyFormat = State(
+            initialValue: MetricEfficiencyFormat.stored(for: vehicle.id)
+        )
     }
 
     private var recordCount: Int {
@@ -83,7 +87,7 @@ struct VehicleSettingsView: View {
                                         .font(.appBody)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.primary)
-                                    Text(unit.displayDescription)
+                                    Text(unit.displayDescription(for: metricEfficiencyFormat))
                                         .font(.appFootnote)
                                         .foregroundColor(.secondary)
                                 }
@@ -98,10 +102,32 @@ struct VehicleSettingsView: View {
                             }
                         }
                     }
+
+                    if selectedUnit == .metric {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Fuel Economy")
+                                .font(.appBody)
+                                .fontWeight(.semibold)
+
+                            Picker("Fuel Economy", selection: $metricEfficiencyFormat) {
+                                ForEach(MetricEfficiencyFormat.allCases, id: \.self) { format in
+                                    Text(format.unit)
+                                        .tag(format)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                        }
+                        .padding(.vertical, 4)
+                    }
                 } header: {
                     Text("Unit System")
                         .font(.appCaption)
                 } footer: {
+                    if selectedUnit == .metric {
+                        Text("This display preference is stored only for this vehicle on this device.")
+                            .font(.appCaption)
+                    }
                     if unitHasChanged && recordCount > 0 {
                         Text("Changing the unit system will convert all \(recordCount) existing record(s) to \(selectedUnit.displayName). This cannot be undone.")
                             .font(.appCaption)
@@ -216,14 +242,33 @@ struct VehicleSettingsView: View {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedMake = make.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
+        let updatedMake = trimmedMake.isEmpty ? nil : trimmedMake
+        let updatedModel = trimmedModel.isEmpty ? nil : trimmedModel
+        let updatedYear = Int(yearString)
+        let persistedVehicleHasChanged =
+            trimmedName != vehicle.name ||
+            updatedMake != vehicle.make ||
+            updatedModel != vehicle.model ||
+            updatedYear != vehicle.year ||
+            unitHasChanged
+
+        // A format-only change is local display state. Do not dirty or sync the
+        // SwiftData vehicle when no persisted vehicle fields changed.
+        guard persistedVehicleHasChanged else {
+            if selectedUnit == .metric {
+                metricEfficiencyFormat.store(for: vehicle.id)
+            }
+            dismiss()
+            return
+        }
 
         let now = Date()
         let shouldPushAfterSave = unitHasChanged
 
         vehicle.name = trimmedName
-        vehicle.make = trimmedMake.isEmpty ? nil : trimmedMake
-        vehicle.model = trimmedModel.isEmpty ? nil : trimmedModel
-        vehicle.year = Int(yearString)
+        vehicle.make = updatedMake
+        vehicle.model = updatedModel
+        vehicle.year = updatedYear
         vehicle.modifiedAt = now
 
         var didSave = false
@@ -249,6 +294,9 @@ struct VehicleSettingsView: View {
         }
 
         if didSave {
+            if selectedUnit == .metric {
+                metricEfficiencyFormat.store(for: vehicle.id)
+            }
             dismiss()
         }
     }

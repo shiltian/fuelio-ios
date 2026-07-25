@@ -8,7 +8,7 @@ A native iOS app built with SwiftUI and SwiftData to track your vehicle's fuel c
 
 ### Multi-Vehicle Support
 - Track multiple vehicles, each with its own dashboard, history, and settings
-- Per-vehicle unit system: Imperial (miles / gallons / MPG) or Metric (km / liters / L per 100 km)
+- Per-vehicle unit system: Imperial (miles / gallons / MPG) or Metric (km / liters), with a device-local choice of L/100 km or km/L for each Metric vehicle
 - Automatic conversion of all existing records when switching a vehicle's unit system
 
 ### Smart Data Entry
@@ -19,7 +19,7 @@ A native iOS app built with SwiftUI and SwiftData to track your vehicle's fuel c
 
 ### Statistics Dashboard
 - Total spent, total distance, total fuel consumed
-- Average efficiency (MPG or L/100 km), average cost per distance, average fill-up cost
+- Average efficiency (MPG, L/100 km, or km/L), average cost per distance, average fill-up cost
 - Last fill-up summary card with date, fuel, cost, and efficiency
 
 ### Charts

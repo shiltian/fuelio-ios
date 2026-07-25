@@ -10,6 +10,7 @@ struct AddVehicleView: View {
     @State private var model = ""
     @State private var yearString = ""
     @State private var unitSystem: UnitSystem = .imperial
+    @State private var metricEfficiencyFormat: MetricEfficiencyFormat = .defaultFormat
 
     private var isValid: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -55,12 +56,28 @@ struct AddVehicleView: View {
                     }
                     .font(.appBody)
                     .pickerStyle(.menu)
+
+                    if unitSystem == .metric {
+                        Picker("Fuel Economy", selection: $metricEfficiencyFormat) {
+                            ForEach(MetricEfficiencyFormat.allCases, id: \.self) { format in
+                                Text(format.unit)
+                                    .tag(format)
+                            }
+                        }
+                        .font(.appBody)
+                        .pickerStyle(.segmented)
+                    }
                 } header: {
                     Text("Units")
                         .font(.appCaption)
                 } footer: {
-                    Text(unitSystem.displayDescription)
-                        .font(.appCaption)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(unitSystem.displayDescription(for: metricEfficiencyFormat))
+                        if unitSystem == .metric {
+                            Text("This display preference is stored only for this vehicle on this device.")
+                        }
+                    }
+                    .font(.appCaption)
                 }
             }
             .navigationTitle("Add Vehicle")
@@ -98,6 +115,9 @@ struct AddVehicleView: View {
 
         vehicle.modifiedAt = Date()
         modelContext.insert(vehicle)
+        if unitSystem == .metric {
+            metricEfficiencyFormat.store(for: vehicle.id)
+        }
         dismiss()
     }
 }

@@ -4,7 +4,21 @@ import SwiftData
 struct DashboardView: View {
     let vehicle: Vehicle
 
+    @AppStorage private var metricEfficiencyFormatRaw: String
+
+    init(vehicle: Vehicle) {
+        self.vehicle = vehicle
+        _metricEfficiencyFormatRaw = AppStorage(
+            wrappedValue: MetricEfficiencyFormat.defaultFormat.rawValue,
+            MetricEfficiencyFormat.storageKey(for: vehicle.id)
+        )
+    }
+
     private var units: UnitSystem { vehicle.unitSystem }
+
+    private var metricEfficiencyFormat: MetricEfficiencyFormat {
+        MetricEfficiencyFormat(rawValue: metricEfficiencyFormatRaw) ?? .defaultFormat
+    }
 
     private var recordCount: Int {
         vehicle.displayRecordCount
@@ -30,7 +44,7 @@ struct DashboardView: View {
 
     private var averageEfficiency: Double {
         let raw = vehicle.cachedAverageEfficiency ?? 0
-        return units.efficiencyDisplayValue(from: raw)
+        return units.efficiencyDisplayValue(from: raw, metricFormat: metricEfficiencyFormat)
     }
 
     private var averageCostPerDistance: Double {
@@ -71,7 +85,7 @@ struct DashboardView: View {
                     )
 
                     StatCard(
-                        title: String(localized: "Avg \(units.efficiencyUnit)"),
+                        title: String(localized: "Avg \(units.efficiencyUnit(for: metricEfficiencyFormat))"),
                         value: averageEfficiency.formatted(.number.precision(.fractionLength(1))),
                         icon: "gauge.with.dots.needle.67percent",
                         color: .purple
@@ -95,7 +109,12 @@ struct DashboardView: View {
 
                 // Last Fill-up Info - use cached values
                 if let lastRecord = vehicle.lastRecord {
-                    LastFillUpCard(record: lastRecord, previousOdometer: lastRecord.getPreviousOdometer(), unitSystem: units)
+                    LastFillUpCard(
+                        record: lastRecord,
+                        previousOdometer: lastRecord.getPreviousOdometer(),
+                        unitSystem: units,
+                        metricEfficiencyFormat: metricEfficiencyFormat
+                    )
                         .padding(.horizontal)
                 }
 
@@ -107,7 +126,12 @@ struct DashboardView: View {
                             .fontWeight(.bold)
                             .padding(.horizontal)
 
-                        ChartView(records: vehicle.fuelingRecords ?? [], unitSystem: units, invalidationKey: chartInvalidationKey)
+                        ChartView(
+                            records: vehicle.fuelingRecords ?? [],
+                            unitSystem: units,
+                            metricEfficiencyFormat: metricEfficiencyFormat,
+                            invalidationKey: chartInvalidationKey
+                        )
                             .frame(height: 250)
                             .padding(.horizontal)
                     }
@@ -167,10 +191,14 @@ struct LastFillUpCard: View {
     let record: FuelingRecord
     let previousOdometer: Double
     let unitSystem: UnitSystem
+    let metricEfficiencyFormat: MetricEfficiencyFormat
 
     // Use cached efficiency if available
     private var efficiencyValue: Double {
-        unitSystem.efficiencyDisplayValue(from: record.getEfficiency())
+        unitSystem.efficiencyDisplayValue(
+            from: record.getEfficiency(),
+            metricFormat: metricEfficiencyFormat
+        )
     }
 
     private var hasEfficiency: Bool {
@@ -221,7 +249,7 @@ struct LastFillUpCard: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     if hasEfficiency {
-                        Text("\(efficiencyValue.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit)")
+                        Text("\(efficiencyValue.formatted(.number.precision(.fractionLength(1)))) \(unitSystem.efficiencyUnit(for: metricEfficiencyFormat))")
                             .font(.appButton)
                             .fontWeight(.semibold)
                         Text("Efficiency")

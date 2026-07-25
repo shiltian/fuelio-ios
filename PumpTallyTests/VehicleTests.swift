@@ -68,6 +68,40 @@ final class VehicleTests: XCTestCase {
         XCTAssertEqual(vehicle.unitSystem, .imperial) // Fallback
     }
 
+    func testLocalEfficiencyPreferenceDoesNotMutateVehicleData() {
+        let suiteName = "VehicleEfficiencyPreferenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let vehicle = Vehicle(name: "Metric Car", unitSystem: .metric)
+        let record = FuelingRecord(
+            odometer: 12_345.6,
+            pricePerFuelUnit: 1.789,
+            fuelAmount: 42.5,
+            totalCost: 76.03,
+            vehicle: vehicle
+        )
+        vehicle.fuelingRecords = [record]
+        vehicle.cachedAverageEfficiency = 18.75
+        vehicle.cachedTotalDistance = 8_000
+        vehicle.cachedTotalFuel = 426.67
+
+        MetricEfficiencyFormat.kilometersPerLiter.store(
+            for: vehicle.id,
+            defaults: defaults
+        )
+
+        XCTAssertEqual(vehicle.unitSystemRaw, "metric")
+        XCTAssertEqual(vehicle.unitSystem, .metric)
+        XCTAssertEqual(record.odometer, 12_345.6)
+        XCTAssertEqual(record.pricePerFuelUnit, 1.789)
+        XCTAssertEqual(record.fuelAmount, 42.5)
+        XCTAssertEqual(record.totalCost, 76.03)
+        XCTAssertEqual(vehicle.cachedAverageEfficiency, 18.75)
+        XCTAssertEqual(vehicle.cachedTotalDistance, 8_000)
+        XCTAssertEqual(vehicle.cachedTotalFuel, 426.67)
+    }
+
     // MARK: - Display Name Tests
 
     func testDisplayNameWithMakeModelAndYear() {
