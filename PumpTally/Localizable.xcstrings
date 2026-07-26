@@ -2293,6 +2293,23 @@
         }
       }
     },
+    "Odometer must be greater than last recorded (%@ %@)" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El odómetro debe ser mayor que el último registrado (%1$@ %2$@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "里程表读数必须大于上次记录（%1$@ %2$@）"
+          }
+        }
+      }
+    },
     "Odometer must be greater than the previous reading (%@ %@)." : {
       "localizations" : {
         "es" : {
@@ -2305,22 +2322,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "里程表读数必须大于上一条读数（%1$@ %2$@）。"
-          }
-        }
-      }
-    },
-    "Odometer must be greater than last recorded (%@ %@)" : {
-      "localizations" : {
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "El odómetro debe ser mayor que el último registrado (%1$@ %2$@)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "里程表读数必须大于上次记录（%1$@ %2$@）"
           }
         }
       }
@@ -3000,6 +3001,22 @@
         }
       }
     },
+    "The record could not be deleted. No data was changed. Please try again." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo eliminar el registro. No se modificó ningún dato. Inténtalo de nuevo."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法删除该记录。未更改任何数据。请重试。"
+          }
+        }
+      }
+    },
     "This action cannot be undone. All fueling history for this vehicle will be permanently deleted." : {
       "localizations" : {
         "es" : {
@@ -3288,6 +3305,22 @@
         }
       }
     },
+    "Unable to Delete" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede eliminar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法删除"
+          }
+        }
+      }
+    },
     "Unable to open the selected file. Please try again." : {
       "localizations" : {
         "es" : {
@@ -3332,6 +3365,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法读取所选文件。请确保它是有效的CSV文件。"
+          }
+        }
+      }
+    },
+    "Unable to Save" : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede guardar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存"
           }
         }
       }
@@ -3604,6 +3653,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "是的，删除所有数据"
+          }
+        }
+      }
+    },
+    "Your changes could not be saved. No data was changed. Please try again." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron guardar tus cambios. No se modificó ningún dato. Inténtalo de nuevo."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存更改。未更改任何数据。请重试。"
           }
         }
       }

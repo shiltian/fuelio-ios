@@ -42,6 +42,8 @@ enum FillUpType: String, Codable, CaseIterable {
 
 @Model
 final class FuelingRecord {
+    // Keep FuelingRecordPersistenceService.RollbackSnapshot in sync when adding
+    // a stored field that record editing can mutate.
     var id: UUID = UUID()
     var date: Date = Date()
     var odometer: Double = 0
@@ -57,6 +59,7 @@ final class FuelingRecord {
 
     // MARK: - Cached Computed Values (for performance)
     // These are pre-computed and stored to avoid O(n²) lookups
+    // Keep FuelingRecordPersistenceService.RollbackSnapshot in sync when adding a cache field.
     var cachedPreviousOdometer: Double?
     var cachedDistanceDriven: Double?
     var cachedEfficiency: Double?

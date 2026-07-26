@@ -19,6 +19,7 @@ final class Vehicle {
 
     // MARK: - Cached Statistics (for performance)
     // These are pre-computed and stored to avoid recalculating on every view render
+    // Keep FuelingRecordPersistenceService.RollbackSnapshot in sync when adding a cache field.
     var cachedTotalSpent: Double?
     var cachedTotalDistance: Double?
     var cachedTotalFuel: Double?

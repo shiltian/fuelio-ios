@@ -23,6 +23,7 @@ struct AddRecordView: View {
     @State private var totalCostCents: Int = 0
     @State private var fillUpType: FillUpType = .full
     @State private var notes = ""
+    @State private var showingSaveError = false
 
     @FocusState private var focusedField: FuelingRecordFormView.EditableField?
 
@@ -103,6 +104,11 @@ struct AddRecordView: View {
                     }
                 }
             }
+            .alert("Unable to Save", isPresented: $showingSaveError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your changes could not be saved. No data was changed. Please try again.")
+            }
         }
     }
 
@@ -116,30 +122,30 @@ struct AddRecordView: View {
         let isVehicleFirstRecord = (vehicle.fuelingRecords ?? []).isEmpty
         let effectiveFillUpType: FillUpType = isVehicleFirstRecord ? .partial : fillUpType
 
-        let record = FuelingRecord(
-            date: date,
-            odometer: current,
-            pricePerFuelUnit: pricePerFuelUnit,
-            fuelAmount: fuelAmount,
-            totalCost: totalCost,
-            fillUpType: effectiveFillUpType,
-            notes: notes.isEmpty ? nil : notes,
-            vehicle: vehicle
-        )
+        do {
+            let record = try FuelingRecordPersistenceService.insert(
+                into: vehicle,
+                context: modelContext
+            ) {
+                let record = FuelingRecord(
+                    date: date,
+                    odometer: current,
+                    pricePerFuelUnit: pricePerFuelUnit,
+                    fuelAmount: fuelAmount,
+                    totalCost: totalCost,
+                    fillUpType: effectiveFillUpType,
+                    notes: notes.isEmpty ? nil : notes,
+                    vehicle: vehicle
+                )
+                record.modifiedAt = Date()
+                return record
+            }
 
-        record.modifiedAt = Date()
-        modelContext.insert(record)
-
-        // Force an immediate save so SwiftData processes the inverse
-        // relationship (vehicle.fuelingRecords) right away. Without this,
-        // the auto-save can be deferred for seconds, causing HistoryView
-        // to appear stale.
-        try? modelContext.save()
-
-        StatisticsCacheService.updateForNewRecord(record, vehicle: vehicle)
-        try? modelContext.save()
-        onSave?(record, previousOdometer)
-        dismiss()
+            onSave?(record, previousOdometer)
+            dismiss()
+        } catch {
+            showingSaveError = true
+        }
     }
 }
 

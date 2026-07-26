@@ -23,6 +23,7 @@ struct EditRecordView: View {
     @State private var totalCostCents: Int
     @State private var fillUpType: FillUpType
     @State private var notes: String
+    @State private var showingSaveError = false
 
     @FocusState private var focusedField: FuelingRecordFormView.EditableField?
 
@@ -112,6 +113,11 @@ struct EditRecordView: View {
                     }
                 }
             }
+            .alert("Unable to Save", isPresented: $showingSaveError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your changes could not be saved. No data was changed. Please try again.")
+            }
         }
     }
 
@@ -119,20 +125,25 @@ struct EditRecordView: View {
         let validation = chronologyValidation
         guard isValid(validation), let current = currentOdometer else { return }
 
-        record.date = date
-        record.odometer = current
-        record.pricePerFuelUnit = pricePerFuelUnit
-        record.fuelAmount = fuelAmount
-        record.totalCost = totalCost
-        record.fillUpType = fillUpType
-        record.notes = notes.isEmpty ? nil : notes
-        record.modifiedAt = Date()
-
-        StatisticsCacheService.updateForEditedRecord(vehicle: vehicle)
-
-        // Force an immediate save so the edit and cache updates are visible right away.
-        try? modelContext.save()
-        dismiss()
+        do {
+            try FuelingRecordPersistenceService.saveEdits(
+                to: record,
+                in: vehicle,
+                context: modelContext
+            ) {
+                record.date = date
+                record.odometer = current
+                record.pricePerFuelUnit = pricePerFuelUnit
+                record.fuelAmount = fuelAmount
+                record.totalCost = totalCost
+                record.fillUpType = fillUpType
+                record.notes = notes.isEmpty ? nil : notes
+                record.modifiedAt = Date()
+            }
+            dismiss()
+        } catch {
+            showingSaveError = true
+        }
     }
 }
 

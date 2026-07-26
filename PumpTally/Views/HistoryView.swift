@@ -90,6 +90,7 @@ struct HistoryView: View {
     @AppStorage private var metricEfficiencyFormatRaw: String
     @State private var recordToEdit: FuelingRecord?
     @State private var showingDeleteAlert = false
+    @State private var showingDeleteError = false
     @State private var recordToDelete: FuelingRecord?
     @State private var searchText = ""
     @State private var sortOrder: HistorySortOrder = .dateDescending
@@ -200,6 +201,11 @@ struct HistoryView: View {
         } message: {
             Text("Are you sure you want to delete this fueling record? This action cannot be undone.")
         }
+        .alert("Unable to Delete", isPresented: $showingDeleteError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The record could not be deleted. No data was changed. Please try again.")
+        }
     }
 
     @MainActor
@@ -230,14 +236,18 @@ struct HistoryView: View {
     }
 
     private func deleteRecord(_ record: FuelingRecord) {
-        withAnimation {
-            modelContext.delete(record)
-            // Force an immediate save so the list updates right away.
-            try? modelContext.save()
+        do {
+            try withAnimation {
+                try FuelingRecordPersistenceService.delete(
+                    record,
+                    from: vehicle,
+                    context: modelContext
+                )
+            }
             recordToDelete = nil
-            // Update cache after deletion
-            StatisticsCacheService.updateForDeletedRecord(vehicle: vehicle)
-            try? modelContext.save()
+        } catch {
+            recordToDelete = nil
+            showingDeleteError = true
         }
     }
 }
