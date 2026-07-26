@@ -46,6 +46,8 @@
 		H1000001298A0001 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = H1000002298A0001 /* Localizable.xcstrings */; };
 		I1000001299A0001 /* PumpTallySchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = I1000002299A0001 /* PumpTallySchema.swift */; };
 		J100000129AB0001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = J100000229AB0001 /* InfoPlist.strings */; };
+		K100000129AC0001 /* PrecomputedChartDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = K100000229AC0001 /* PrecomputedChartDataTests.swift */; };
+		K100000329AC0001 /* HistoryRecordsQueryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = K100000429AC0001 /* HistoryRecordsQueryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -102,6 +104,8 @@
 		H1000002298A0001 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		I1000002299A0001 /* PumpTallySchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PumpTallySchema.swift; sourceTree = "<group>"; };
 		J100000329AB0001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		K100000229AC0001 /* PrecomputedChartDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrecomputedChartDataTests.swift; sourceTree = "<group>"; };
+		K100000429AC0001 /* HistoryRecordsQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRecordsQueryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -230,6 +234,8 @@
 				E1000008296E0001 /* UnitSystemTests.swift */,
 				F0A00002297A0001 /* SchemaMigrationTests.swift */,
 				C1000002296B0001 /* CloudSyncServiceTests.swift */,
+				K100000229AC0001 /* PrecomputedChartDataTests.swift */,
+				K100000429AC0001 /* HistoryRecordsQueryTests.swift */,
 			);
 			path = PumpTallyTests;
 			sourceTree = "<group>";
@@ -389,6 +395,8 @@
 				E1000007296E0001 /* UnitSystemTests.swift in Sources */,
 				F0A00001297A0001 /* SchemaMigrationTests.swift in Sources */,
 				C1000001296B0001 /* CloudSyncServiceTests.swift in Sources */,
+				K100000129AC0001 /* PrecomputedChartDataTests.swift in Sources */,
+				K100000329AC0001 /* HistoryRecordsQueryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

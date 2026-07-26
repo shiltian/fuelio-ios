@@ -4,7 +4,7 @@ import Foundation
 ///
 /// This is a local display preference, not part of the persisted vehicle or
 /// fueling-record data model.
-enum MetricEfficiencyFormat: String, Codable, CaseIterable {
+enum MetricEfficiencyFormat: String, Codable, CaseIterable, Sendable {
     case litersPer100Kilometers
     case kilometersPerLiter
 
@@ -72,7 +72,7 @@ enum MetricEfficiencyFormat: String, Codable, CaseIterable {
 }
 
 /// Represents the measurement unit system for a vehicle
-enum UnitSystem: String, Codable, CaseIterable {
+enum UnitSystem: String, Codable, CaseIterable, Sendable {
     case imperial // miles, gallons, MPG
     case metric   // km, liters, L/100km
 

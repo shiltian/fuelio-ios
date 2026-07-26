@@ -1,6 +1,88 @@
 import SwiftUI
 import SwiftData
 
+enum HistorySortOrder: String, CaseIterable, Sendable {
+    case dateDescending = "Newest First"
+    case dateAscending = "Oldest First"
+    case costHighest = "Highest Cost"
+    case costLowest = "Lowest Cost"
+
+    var displayName: String {
+        switch self {
+        case .dateDescending: return String(localized: "Newest First")
+        case .dateAscending: return String(localized: "Oldest First")
+        case .costHighest: return String(localized: "Highest Cost")
+        case .costLowest: return String(localized: "Lowest Cost")
+        }
+    }
+}
+
+struct HistoryRecordSnapshot: Sendable {
+    let id: UUID
+    let date: Date
+    let totalCost: Double
+    let odometer: Double
+    let notes: String?
+
+    @MainActor
+    init(record: FuelingRecord) {
+        id = record.id
+        date = record.date
+        totalCost = record.totalCost
+        odometer = record.odometer
+        notes = record.notes
+    }
+
+    init(id: UUID, date: Date, totalCost: Double, odometer: Double, notes: String?) {
+        self.id = id
+        self.date = date
+        self.totalCost = totalCost
+        self.odometer = odometer
+        self.notes = notes
+    }
+}
+
+enum HistoryRecordsQuery {
+    static func recordIDs(
+        from records: [HistoryRecordSnapshot],
+        searchText: String,
+        sortOrder: HistorySortOrder
+    ) -> [UUID] {
+        let query = searchText.lowercased()
+        let filtered: [HistoryRecordSnapshot]
+
+        if query.isEmpty {
+            filtered = records
+        } else {
+            filtered = records.filter { record in
+                if let notes = record.notes, notes.localizedCaseInsensitiveContains(query) {
+                    return true
+                }
+                if String(format: "%.2f", record.totalCost).contains(query) {
+                    return true
+                }
+                return String(format: "%.0f", record.odometer).contains(query)
+            }
+        }
+
+        return filtered.sorted { lhs, rhs in
+            switch sortOrder {
+            case .dateDescending:
+                if lhs.date != rhs.date { return lhs.date > rhs.date }
+            case .dateAscending:
+                if lhs.date != rhs.date { return lhs.date < rhs.date }
+            case .costHighest:
+                if lhs.totalCost != rhs.totalCost { return lhs.totalCost > rhs.totalCost }
+                if lhs.date != rhs.date { return lhs.date > rhs.date }
+            case .costLowest:
+                if lhs.totalCost != rhs.totalCost { return lhs.totalCost < rhs.totalCost }
+                if lhs.date != rhs.date { return lhs.date < rhs.date }
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }.map(\.id)
+    }
+}
+
 struct HistoryView: View {
     let vehicle: Vehicle
 
@@ -10,7 +92,8 @@ struct HistoryView: View {
     @State private var showingDeleteAlert = false
     @State private var recordToDelete: FuelingRecord?
     @State private var searchText = ""
-    @State private var sortOrder: SortOrder = .dateDescending
+    @State private var sortOrder: HistorySortOrder = .dateDescending
+    @State private var displayedRecords: [FuelingRecord] = []
 
     init(vehicle: Vehicle) {
         self.vehicle = vehicle
@@ -24,60 +107,27 @@ struct HistoryView: View {
         MetricEfficiencyFormat(rawValue: metricEfficiencyFormatRaw) ?? .defaultFormat
     }
 
-    enum SortOrder: String, CaseIterable {
-        case dateDescending = "Newest First"
-        case dateAscending = "Oldest First"
-        case costHighest = "Highest Cost"
-        case costLowest = "Lowest Cost"
-
-        var displayName: String {
-            switch self {
-            case .dateDescending: return String(localized: "Newest First")
-            case .dateAscending: return String(localized: "Oldest First")
-            case .costHighest: return String(localized: "Highest Cost")
-            case .costLowest: return String(localized: "Lowest Cost")
-            }
-        }
-    }
-
     private var hasRecords: Bool {
         vehicle.displayRecordCount > 0
     }
 
-    private var filteredRecords: [FuelingRecord] {
-        var result = vehicle.fuelingRecords ?? []
+    private struct QueryKey: Equatable, Sendable {
+        let revision: String
+        let searchText: String
+        let sortOrder: HistorySortOrder
+    }
 
-        if !searchText.isEmpty {
-            let query = searchText.lowercased()
-            result = result.filter { record in
-                if let notes = record.notes, notes.localizedCaseInsensitiveContains(query) {
-                    return true
-                }
-                let costString = String(format: "%.2f", record.totalCost)
-                if costString.contains(query) { return true }
-                let odometerString = String(format: "%.0f", record.odometer)
-                if odometerString.contains(query) { return true }
-                return false
-            }
-        }
-
-        switch sortOrder {
-        case .dateDescending:
-            result.sort { $0.date > $1.date }
-        case .dateAscending:
-            result.sort { $0.date < $1.date }
-        case .costHighest:
-            result.sort { $0.totalCost > $1.totalCost }
-        case .costLowest:
-            result.sort { $0.totalCost < $1.totalCost }
-        }
-
-        return result
+    private var queryKey: QueryKey {
+        let recordCount = vehicle.fuelingRecords?.count ?? 0
+        let cacheTimestamp = vehicle.cacheLastUpdated?.timeIntervalSince1970 ?? 0
+        return QueryKey(
+            revision: "\(recordCount)-\(cacheTimestamp)",
+            searchText: searchText,
+            sortOrder: sortOrder
+        )
     }
 
     var body: some View {
-        let records = filteredRecords
-
         Group {
             if !hasRecords {
                 EmptyHistoryView()
@@ -86,7 +136,7 @@ struct HistoryView: View {
                     // Sort picker section
                     Section {
                         Picker("Sort By", selection: $sortOrder) {
-                            ForEach(SortOrder.allCases, id: \.self) { order in
+                            ForEach(HistorySortOrder.allCases, id: \.self) { order in
                                 Text(order.displayName)
                                     .tag(order)
                             }
@@ -96,7 +146,7 @@ struct HistoryView: View {
 
                     // Records section - use cached previousOdometer
                     Section {
-                        ForEach(records) { record in
+                        ForEach(displayedRecords) { record in
                             FuelingRecordRow(
                                 record: record,
                                 previousOdometer: record.getPreviousOdometer(),
@@ -124,13 +174,16 @@ struct HistoryView: View {
                                 }
                         }
                     } header: {
-                        Text("\(records.count) records")
+                        Text("\(displayedRecords.count) records")
                             .font(.appCaption)
                     }
                 }
                 .listStyle(.insetGrouped)
                 .searchable(text: $searchText, prompt: "Search records")
             }
+        }
+        .task(id: queryKey) {
+            await refreshDisplayedRecords(for: queryKey)
         }
         .sheet(item: $recordToEdit) { record in
             EditRecordView(record: record, vehicle: vehicle)
@@ -147,6 +200,33 @@ struct HistoryView: View {
         } message: {
             Text("Are you sure you want to delete this fueling record? This action cannot be undone.")
         }
+    }
+
+    @MainActor
+    private func refreshDisplayedRecords(for key: QueryKey) async {
+        // Debounce active searches. SwiftUI cancels this task when another
+        // character, sort order, or data revision produces a new key.
+        if !key.searchText.isEmpty {
+            do {
+                try await Task.sleep(for: .milliseconds(200))
+            } catch {
+                return
+            }
+        }
+
+        let liveRecords = vehicle.fuelingRecords ?? []
+        let recordsByID = Dictionary(uniqueKeysWithValues: liveRecords.map { ($0.id, $0) })
+        let snapshots = liveRecords.map(HistoryRecordSnapshot.init(record:))
+        let sortedIDs = await Task.detached(priority: .userInitiated) {
+            HistoryRecordsQuery.recordIDs(
+                from: snapshots,
+                searchText: key.searchText,
+                sortOrder: key.sortOrder
+            )
+        }.value
+
+        guard !Task.isCancelled, key == queryKey else { return }
+        displayedRecords = sortedIDs.compactMap { recordsByID[$0] }
     }
 
     private func deleteRecord(_ record: FuelingRecord) {
