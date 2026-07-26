@@ -144,6 +144,14 @@ extension Double {
     func formatted(decimals: Int) -> String {
         String(format: "%.\(decimals)f", self)
     }
+
+    /// A locale-independent representation suitable for editable numeric text
+    /// fields. Whole values omit a trailing ".0"; fractional values retain
+    /// their stored precision.
+    var editableDecimalString: String {
+        guard isFinite else { return String(self) }
+        return rounded(.towardZero) == self ? String(format: "%.0f", self) : String(self)
+    }
 }
 
 // MARK: - View Extensions

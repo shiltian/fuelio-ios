@@ -23,7 +23,6 @@ struct AddRecordView: View {
     @State private var totalCostCents: Int = 0
     @State private var fillUpType: FillUpType = .full
     @State private var notes = ""
-    @State private var previousOdometer: Double
 
     @FocusState private var focusedField: FuelingRecordFormView.EditableField?
 
@@ -34,7 +33,6 @@ struct AddRecordView: View {
             wrappedValue: MetricEfficiencyFormat.defaultFormat.rawValue,
             MetricEfficiencyFormat.storageKey(for: vehicle.id)
         )
-        _previousOdometer = State(initialValue: vehicle.lastRecord?.odometer ?? 0)
     }
 
     // Parsed values for validation
@@ -43,8 +41,17 @@ struct AddRecordView: View {
     private var fuelAmount: Double { Double(fuelAmountMills) / 1000.0 }
     private var totalCost: Double { Double(totalCostCents) / 100.0 }
 
-    private var isValid: Bool {
-        guard let current = currentOdometer, current > previousOdometer else { return false }
+    private var chronologyValidation: OdometerChronologyValidation? {
+        guard let current = currentOdometer else { return nil }
+        return OdometerChronologyValidator.validate(
+            date: date,
+            odometer: current,
+            records: (vehicle.fuelingRecords ?? []).map(OdometerReadingSnapshot.init(record:))
+        )
+    }
+
+    private func isValid(_ validation: OdometerChronologyValidation?) -> Bool {
+        guard validation?.isValid == true else { return false }
         guard pricePerFuelUnit > 0 else { return false }
         guard fuelAmount > 0 else { return false }
         guard totalCost > 0 else { return false }
@@ -52,6 +59,9 @@ struct AddRecordView: View {
     }
 
     var body: some View {
+        let validation = chronologyValidation
+        let previousOdometer = validation?.neighbors.predecessor?.odometer ?? 0
+
         NavigationStack {
             Form {
                 FuelingRecordFormView(
@@ -66,6 +76,7 @@ struct AddRecordView: View {
                     notes: $notes,
                     focusedField: $focusedField,
                     previousOdometer: previousOdometer,
+                    odometerValidationIssue: validation?.issue,
                     showPreview: true
                 )
             }
@@ -79,7 +90,7 @@ struct AddRecordView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { saveRecord() }
                         .fontWeight(.semibold)
-                        .disabled(!isValid)
+                        .disabled(!isValid(validation))
                 }
 
                 ToolbarItem(placement: .keyboard) {
@@ -96,10 +107,14 @@ struct AddRecordView: View {
     }
 
     private func saveRecord() {
-        guard let current = currentOdometer else { return }
+        let validation = chronologyValidation
+        guard isValid(validation), let current = currentOdometer else { return }
+        let previousOdometer = validation?.neighbors.predecessor?.odometer ?? 0
 
-        let isFirstRecord = previousOdometer == 0
-        let effectiveFillUpType: FillUpType = isFirstRecord ? .partial : fillUpType
+        // Preserve the user's selected type for a backdated record. The legacy
+        // first-record override applies only when this vehicle has no history.
+        let isVehicleFirstRecord = (vehicle.fuelingRecords ?? []).isEmpty
+        let effectiveFillUpType: FillUpType = isVehicleFirstRecord ? .partial : fillUpType
 
         let record = FuelingRecord(
             date: date,

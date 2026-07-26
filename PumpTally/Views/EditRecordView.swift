@@ -34,7 +34,9 @@ struct EditRecordView: View {
             MetricEfficiencyFormat.storageKey(for: vehicle.id)
         )
         _date = State(initialValue: record.date)
-        _odometerString = State(initialValue: String(format: "%.0f", record.odometer))
+        // Preserve the exact stored value so editing an unrelated field never
+        // rounds an existing fractional odometer reading.
+        _odometerString = State(initialValue: record.odometer.editableDecimalString)
         _pricePerFuelUnitMills = State(initialValue: Int(round(record.pricePerFuelUnit * 1000)))
         _fuelAmountMills = State(initialValue: Int(round(record.fuelAmount * 1000)))
         _totalCostCents = State(initialValue: Int(round(record.totalCost * 100)))
@@ -48,8 +50,18 @@ struct EditRecordView: View {
     private var fuelAmount: Double { Double(fuelAmountMills) / 1000.0 }
     private var totalCost: Double { Double(totalCostCents) / 100.0 }
 
-    private var isValid: Bool {
-        guard let current = currentOdometer, current > 0 else { return false }
+    private var chronologyValidation: OdometerChronologyValidation? {
+        guard let current = currentOdometer else { return nil }
+        return OdometerChronologyValidator.validate(
+            date: date,
+            odometer: current,
+            records: (vehicle.fuelingRecords ?? []).map(OdometerReadingSnapshot.init(record:)),
+            originalRecord: OdometerReadingSnapshot(record: record)
+        )
+    }
+
+    private func isValid(_ validation: OdometerChronologyValidation?) -> Bool {
+        guard validation?.isValid == true else { return false }
         guard pricePerFuelUnit > 0 else { return false }
         guard fuelAmount > 0 else { return false }
         guard totalCost > 0 else { return false }
@@ -57,6 +69,8 @@ struct EditRecordView: View {
     }
 
     var body: some View {
+        let validation = chronologyValidation
+
         NavigationStack {
             Form {
                 FuelingRecordFormView(
@@ -70,6 +84,8 @@ struct EditRecordView: View {
                     fillUpType: $fillUpType,
                     notes: $notes,
                     focusedField: $focusedField,
+                    previousOdometer: validation?.neighbors.predecessor?.odometer ?? 0,
+                    odometerValidationIssue: validation?.issue,
                     showPreview: false
                 )
             }
@@ -83,7 +99,7 @@ struct EditRecordView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { saveChanges() }
                         .fontWeight(.semibold)
-                        .disabled(!isValid)
+                        .disabled(!isValid(validation))
                 }
 
                 ToolbarItem(placement: .keyboard) {
@@ -100,7 +116,8 @@ struct EditRecordView: View {
     }
 
     private func saveChanges() {
-        guard let current = currentOdometer else { return }
+        let validation = chronologyValidation
+        guard isValid(validation), let current = currentOdometer else { return }
 
         record.date = date
         record.odometer = current

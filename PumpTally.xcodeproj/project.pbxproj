@@ -48,6 +48,8 @@
 		J100000129AB0001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = J100000229AB0001 /* InfoPlist.strings */; };
 		K100000129AC0001 /* PrecomputedChartDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = K100000229AC0001 /* PrecomputedChartDataTests.swift */; };
 		K100000329AC0001 /* HistoryRecordsQueryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = K100000429AC0001 /* HistoryRecordsQueryTests.swift */; };
+		L100000129AD0001 /* OdometerChronologyValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = L100000229AD0001 /* OdometerChronologyValidator.swift */; };
+		L100000329AD0001 /* OdometerChronologyValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L100000429AD0001 /* OdometerChronologyValidatorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -106,6 +108,8 @@
 		J100000329AB0001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		K100000229AC0001 /* PrecomputedChartDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrecomputedChartDataTests.swift; sourceTree = "<group>"; };
 		K100000429AC0001 /* HistoryRecordsQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryRecordsQueryTests.swift; sourceTree = "<group>"; };
+		L100000229AD0001 /* OdometerChronologyValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OdometerChronologyValidator.swift; sourceTree = "<group>"; };
+		L100000429AD0001 /* OdometerChronologyValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OdometerChronologyValidatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -193,6 +197,7 @@
 				A1000026296A0001 /* StatisticsCacheService.swift */,
 				E1000004296E0001 /* CloudSyncService.swift */,
 				E1000006296E0001 /* SyncStateManager.swift */,
+				L100000229AD0001 /* OdometerChronologyValidator.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -236,6 +241,7 @@
 				C1000002296B0001 /* CloudSyncServiceTests.swift */,
 				K100000229AC0001 /* PrecomputedChartDataTests.swift */,
 				K100000429AC0001 /* HistoryRecordsQueryTests.swift */,
+				L100000429AD0001 /* OdometerChronologyValidatorTests.swift */,
 			);
 			path = PumpTallyTests;
 			sourceTree = "<group>";
@@ -379,6 +385,7 @@
 				G1000003297A0001 /* iCloudSyncDetailView.swift in Sources */,
 				G1000005297A0001 /* CSVExportImportViews.swift in Sources */,
 				I1000001299A0001 /* PumpTallySchema.swift in Sources */,
+				L100000129AD0001 /* OdometerChronologyValidator.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -397,6 +404,7 @@
 				C1000001296B0001 /* CloudSyncServiceTests.swift in Sources */,
 				K100000129AC0001 /* PrecomputedChartDataTests.swift in Sources */,
 				K100000329AC0001 /* HistoryRecordsQueryTests.swift in Sources */,
+				L100000329AD0001 /* OdometerChronologyValidatorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

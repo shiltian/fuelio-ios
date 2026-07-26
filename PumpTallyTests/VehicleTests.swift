@@ -194,6 +194,31 @@ final class VehicleTests: XCTestCase {
         XCTAssertEqual(sorted[1].date, oldDate)
     }
 
+    func testSortedRecordsAndLastRecordUseOdometerForEqualTimestamps() {
+        let vehicle = Vehicle(name: "Test Car")
+        let sameDate = Date(timeIntervalSince1970: 1_000_000)
+        let lower = FuelingRecord(
+            date: sameDate,
+            odometer: 10_000,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10,
+            totalCost: 35,
+            vehicle: vehicle
+        )
+        let higher = FuelingRecord(
+            date: sameDate,
+            odometer: 10_500,
+            pricePerFuelUnit: 3.60,
+            fuelAmount: 10,
+            totalCost: 36,
+            vehicle: vehicle
+        )
+        vehicle.fuelingRecords = [lower, higher]
+
+        XCTAssertEqual(vehicle.sortedRecords.map(\.id), [higher.id, lower.id])
+        XCTAssertEqual(vehicle.lastRecord?.id, higher.id)
+    }
+
     // MARK: - Last Record Tests
 
     func testLastRecordReturnsNilWhenNoRecords() {

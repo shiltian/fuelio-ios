@@ -27,7 +27,7 @@ final class StatisticsCacheService {
         }
 
         // Sort once - O(n log n)
-        let sortedByDate = records.sorted { $0.date < $1.date }
+        let sortedByDate = records.sorted(by: chronologicallyPrecedes)
 
         // Single pass to compute all per-record cached values and aggregate statistics - O(n)
         var totalSpent: Double = 0
@@ -146,6 +146,20 @@ final class StatisticsCacheService {
 
     // MARK: - Incremental Updates
 
+    private static func chronologicallyPrecedes(
+        _ lhs: FuelingRecord,
+        _ rhs: FuelingRecord
+    ) -> Bool {
+        OdometerChronologyValidator.areInIncreasingOrder(
+            lhsDate: lhs.date,
+            lhsOdometer: lhs.odometer,
+            lhsID: lhs.id,
+            rhsDate: rhs.date,
+            rhsOdometer: rhs.odometer,
+            rhsID: rhs.id
+        )
+    }
+
     /// Update statistics after adding a new record
     /// If the record is the most recent, this is O(1). Otherwise, triggers full recalculation.
     static func updateForNewRecord(_ record: FuelingRecord, vehicle: Vehicle) {
@@ -157,15 +171,18 @@ final class StatisticsCacheService {
             return
         }
 
-        // Check if this record is the most recent by date -- O(n) scan
-        let isLatestRecord = records.allSatisfy { $0.id == record.id || $0.date <= record.date }
+        // Check if this record is the most recent by deterministic chronology.
+        let isLatestRecord = !records.contains {
+            $0.id != record.id && chronologicallyPrecedes(record, $0)
+        }
 
         if isLatestRecord {
-            // Find the previous record by date in O(n) without sorting
+            // Find the previous record in O(n) without sorting.
             var previousRecord: FuelingRecord?
             for r in records {
                 guard r.id != record.id else { continue }
-                if previousRecord == nil || r.date > previousRecord!.date {
+                guard chronologicallyPrecedes(r, record) else { continue }
+                if previousRecord == nil || chronologicallyPrecedes(previousRecord!, r) {
                     previousRecord = r
                 }
             }

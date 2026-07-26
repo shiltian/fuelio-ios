@@ -2293,6 +2293,22 @@
         }
       }
     },
+    "Odometer must be greater than the previous reading (%@ %@)." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El odómetro debe ser mayor que la lectura anterior (%1$@ %2$@)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "里程表读数必须大于上一条读数（%1$@ %2$@）。"
+          }
+        }
+      }
+    },
     "Odometer must be greater than last recorded (%@ %@)" : {
       "localizations" : {
         "es" : {
@@ -2305,6 +2321,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "里程表读数必须大于上次记录（%1$@ %2$@）"
+          }
+        }
+      }
+    },
+    "Odometer must be greater than zero." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La lectura del odómetro debe ser mayor que cero."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "里程表读数必须大于零。"
+          }
+        }
+      }
+    },
+    "Odometer must be less than the next reading (%@ %@)." : {
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El odómetro debe ser menor que la lectura siguiente (%1$@ %2$@)."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "里程表读数必须小于下一条读数（%1$@ %2$@）。"
           }
         }
       }

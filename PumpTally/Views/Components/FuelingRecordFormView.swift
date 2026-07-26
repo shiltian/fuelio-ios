@@ -20,6 +20,9 @@ struct FuelingRecordFormView: View {
     /// Previous odometer reading — zero means first record, hides distance/preview
     var previousOdometer: Double = 0
 
+    /// Chronology error produced by the shared validator, if any.
+    var odometerValidationIssue: OdometerChronologyIssue?
+
     /// Whether to show the preview section (AddRecordView uses it, EditRecordView does not)
     var showPreview: Bool = true
 
@@ -91,7 +94,10 @@ struct FuelingRecordFormView: View {
                     .frame(width: 120)
             }
 
-            if previousOdometer > 0, let current = currentOdometer, current > previousOdometer {
+            if showPreview,
+               previousOdometer > 0,
+               let current = currentOdometer,
+               current > previousOdometer {
                 HStack {
                     Text("\(unitSystem.distanceName) This Trip")
                         .font(.appBody)
@@ -107,10 +113,22 @@ struct FuelingRecordFormView: View {
             Text("Odometer")
                 .font(.appCaption)
         } footer: {
-            if previousOdometer > 0, let current = currentOdometer, current <= previousOdometer {
-                Text("Odometer must be greater than last recorded (\(previousOdometer.formatted(.number.precision(.fractionLength(0)))) \(unitSystem.distanceUnit))")
+            if let odometerValidationIssue {
+                odometerValidationMessage(for: odometerValidationIssue)
                     .foregroundColor(.red)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func odometerValidationMessage(for issue: OdometerChronologyIssue) -> some View {
+        switch issue {
+        case .invalidReading:
+            Text("Odometer must be greater than zero.")
+        case .notGreaterThanPredecessor(let predecessor):
+            Text("Odometer must be greater than the previous reading (\(predecessor.odometer.formatted(.number.precision(.fractionLength(0...2)))) \(unitSystem.distanceUnit)).")
+        case .notLessThanSuccessor(let successor):
+            Text("Odometer must be less than the next reading (\(successor.odometer.formatted(.number.precision(.fractionLength(0...2)))) \(unitSystem.distanceUnit)).")
         }
     }
 

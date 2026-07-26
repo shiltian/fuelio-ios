@@ -83,6 +83,25 @@ final class StatisticsCacheServiceTests: XCTestCase {
         XCTAssertEqual(vehicle.cachedAverageFillUpCost, 35.0) // 105 / 3
     }
 
+    func testRecalculateOrdersSameTimestampRecordsByOdometer() {
+        let vehicle = createVehicle()
+        let sameDate = Date(timeIntervalSince1970: 1_000_000)
+        let higher = createRecord(date: sameDate, odometer: 300, vehicle: vehicle)
+        let lower = createRecord(date: sameDate, odometer: 100, vehicle: vehicle)
+        let middle = createRecord(date: sameDate, odometer: 200, vehicle: vehicle)
+        vehicle.fuelingRecords = [higher, lower, middle]
+
+        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+
+        XCTAssertEqual(lower.cachedPreviousOdometer, 0)
+        XCTAssertEqual(lower.cachedDistanceDriven, 0)
+        XCTAssertEqual(middle.cachedPreviousOdometer, 100)
+        XCTAssertEqual(middle.cachedDistanceDriven, 100)
+        XCTAssertEqual(higher.cachedPreviousOdometer, 200)
+        XCTAssertEqual(higher.cachedDistanceDriven, 100)
+        XCTAssertEqual(vehicle.cachedTotalDistance, 200)
+    }
+
     func testRecalculateAllStatisticsEfficiencyCalculation() {
         let vehicle = createVehicle()
 
@@ -227,6 +246,24 @@ final class StatisticsCacheServiceTests: XCTestCase {
         XCTAssertEqual(vehicle.cachedRecordCount, 2)
         XCTAssertEqual(record2.cachedDistanceDriven, 300.0)
         XCTAssertEqual(record2.cachedPreviousOdometer, 10000.0)
+    }
+
+    func testIncrementalAddUsesOdometerOrderForSameTimestamp() {
+        let vehicle = createVehicle()
+        let firstDate = Date(timeIntervalSince1970: 1_000_000)
+        let sharedDate = Date(timeIntervalSince1970: 2_000_000)
+        let first = createRecord(date: firstDate, odometer: 100, vehicle: vehicle)
+        let lower = createRecord(date: sharedDate, odometer: 200, vehicle: vehicle)
+        vehicle.fuelingRecords = [first, lower]
+        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+
+        let higher = createRecord(date: sharedDate, odometer: 300, vehicle: vehicle)
+        vehicle.fuelingRecords = [higher, first, lower]
+        StatisticsCacheService.updateForNewRecord(higher, vehicle: vehicle)
+
+        XCTAssertEqual(higher.cachedPreviousOdometer, 200)
+        XCTAssertEqual(higher.cachedDistanceDriven, 100)
+        XCTAssertEqual(vehicle.cachedTotalDistance, 200)
     }
 
     func testUpdateForNewRecordLatestRecordUpdatesAverageEfficiency() {

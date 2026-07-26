@@ -115,6 +115,14 @@ final class ExtensionsTests: XCTestCase {
         XCTAssertEqual(formatted, "3.55")
     }
 
+    func testEditableDecimalStringOmitsTrailingZeroForWholeValue() {
+        XCTAssertEqual(45_000.0.editableDecimalString, "45000")
+    }
+
+    func testEditableDecimalStringPreservesFractionalValue() {
+        XCTAssertEqual(45_000.25.editableDecimalString, "45000.25")
+    }
+
     // MARK: - Array Extensions Tests
 
     // MARK: Total Cost
