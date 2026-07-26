@@ -140,11 +140,6 @@ extension Double {
         Self.currencyFormatter.string(from: NSNumber(value: self)) ?? String(format: "$%.2f", self)
     }
 
-    /// Format with specific decimal places
-    func formatted(decimals: Int) -> String {
-        String(format: "%.\(decimals)f", self)
-    }
-
     /// A locale-independent representation suitable for editable numeric text
     /// fields. Whole values omit a trailing ".0"; fractional values retain
     /// their stored precision.
@@ -160,24 +155,5 @@ extension View {
     /// Hide keyboard
     func hideKeyboard() {
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-}
-
-// MARK: - Array Extensions
-
-extension Array where Element == FuelingRecord {
-    /// Calculate total cost for records
-    var totalCost: Double {
-        reduce(0) { $0 + $1.totalCost }
-    }
-
-    /// Calculate total distance for records (using cached values)
-    var totalDistance: Double {
-        reduce(0) { $0 + $1.getDistanceDriven() }
-    }
-
-    /// Calculate total fuel for records
-    var totalFuel: Double {
-        reduce(0) { $0 + $1.fuelAmount }
     }
 }

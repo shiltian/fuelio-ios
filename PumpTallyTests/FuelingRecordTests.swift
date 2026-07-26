@@ -90,7 +90,6 @@ final class FuelingRecordTests: XCTestCase {
 
         XCTAssertTrue(record.isPartialFillUp)
         XCTAssertFalse(record.isFullFillUp)
-        XCTAssertFalse(record.isReset)
     }
 
     func testIsReset() {
@@ -103,7 +102,7 @@ final class FuelingRecordTests: XCTestCase {
             vehicle: testVehicle
         )
 
-        XCTAssertTrue(record.isReset)
+        XCTAssertEqual(record.fillUpType, .reset)
         XCTAssertFalse(record.isFullFillUp)
         XCTAssertFalse(record.isPartialFillUp)
     }
@@ -120,7 +119,6 @@ final class FuelingRecordTests: XCTestCase {
 
         XCTAssertTrue(record.isFullFillUp)
         XCTAssertFalse(record.isPartialFillUp)
-        XCTAssertFalse(record.isReset)
     }
 
     // MARK: - Cached Value Tests

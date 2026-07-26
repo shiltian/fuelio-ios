@@ -3,7 +3,6 @@ import SwiftData
 
 struct VehicleListView: View {
     let vehicles: [Vehicle]
-    @Binding var selectedVehicle: Vehicle?
     @Binding var showingAddVehicle: Bool
 
     @Environment(\.modelContext) private var modelContext
@@ -215,7 +214,6 @@ struct VehicleDetailView: View {
     NavigationStack {
         VehicleListView(
             vehicles: [],
-            selectedVehicle: .constant(nil),
             showingAddVehicle: .constant(false)
         )
     }

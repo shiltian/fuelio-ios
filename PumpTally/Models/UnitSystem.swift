@@ -110,11 +110,7 @@ enum UnitSystem: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    /// Efficiency unit: "MPG" or "L/100km"
-    var efficiencyUnit: String {
-        efficiencyUnit(for: .defaultFormat)
-    }
-
+    /// Efficiency unit: "MPG" or the selected metric unit
     func efficiencyUnit(for metricFormat: MetricEfficiencyFormat) -> String {
         switch self {
         case .imperial: return "MPG"
@@ -122,11 +118,7 @@ enum UnitSystem: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    /// Full efficiency name: "Miles Per Gallon" or "Liters per 100 km"
-    var efficiencyName: String {
-        efficiencyName(for: .defaultFormat)
-    }
-
+    /// Full efficiency name: "Miles Per Gallon" or the selected metric name
     func efficiencyName(for metricFormat: MetricEfficiencyFormat) -> String {
         switch self {
         case .imperial: return String(localized: "Miles Per Gallon")
@@ -183,10 +175,6 @@ enum UnitSystem: String, Codable, CaseIterable, Sendable {
     }
 
     /// Description of what the unit system uses
-    var displayDescription: String {
-        displayDescription(for: .defaultFormat)
-    }
-
     func displayDescription(for metricFormat: MetricEfficiencyFormat) -> String {
         switch self {
         case .imperial: return String(localized: "Miles, Gallons, MPG")

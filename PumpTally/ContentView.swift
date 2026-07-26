@@ -11,7 +11,6 @@ struct ContentView: View {
     // Binding from PumpTallyApp for incoming file URLs
     @Binding var importedFileURL: URL?
 
-    @State private var selectedVehicle: Vehicle?
     @State private var showingAddVehicle = false
     @State private var navigationPath = NavigationPath()
     @State private var hasPerformedInitialNavigation = false
@@ -32,7 +31,6 @@ struct ContentView: View {
                 } else {
                     VehicleListView(
                         vehicles: vehicles,
-                        selectedVehicle: $selectedVehicle,
                         showingAddVehicle: $showingAddVehicle
                     )
                 }

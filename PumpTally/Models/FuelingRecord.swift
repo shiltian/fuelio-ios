@@ -73,7 +73,6 @@ final class FuelingRecord {
 
     // Convenience computed properties for checking fill-up type
     var isPartialFillUp: Bool { fillUpType == .partial }
-    var isReset: Bool { fillUpType == .reset }
     var isFullFillUp: Bool { fillUpType == .full }
 
     init(

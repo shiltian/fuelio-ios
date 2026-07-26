@@ -38,11 +38,17 @@ final class UnitSystemTests: XCTestCase {
     }
 
     func testImperialEfficiencyUnit() {
-        XCTAssertEqual(UnitSystem.imperial.efficiencyUnit, "MPG")
+        XCTAssertEqual(
+            UnitSystem.imperial.efficiencyUnit(for: .defaultFormat),
+            "MPG"
+        )
     }
 
     func testImperialEfficiencyName() {
-        XCTAssertEqual(UnitSystem.imperial.efficiencyName, "Miles Per Gallon")
+        XCTAssertEqual(
+            UnitSystem.imperial.efficiencyName(for: .defaultFormat),
+            "Miles Per Gallon"
+        )
     }
 
     func testImperialPricePerFuelLabel() {
@@ -72,11 +78,17 @@ final class UnitSystemTests: XCTestCase {
     }
 
     func testMetricEfficiencyUnit() {
-        XCTAssertEqual(UnitSystem.metric.efficiencyUnit, "L/100km")
+        XCTAssertEqual(
+            UnitSystem.metric.efficiencyUnit(for: .defaultFormat),
+            "L/100km"
+        )
     }
 
     func testMetricEfficiencyName() {
-        XCTAssertEqual(UnitSystem.metric.efficiencyName, "Liters per 100 km")
+        XCTAssertEqual(
+            UnitSystem.metric.efficiencyName(for: .defaultFormat),
+            "Liters per 100 km"
+        )
     }
 
     func testMetricEfficiencyFormatLabels() {
@@ -114,8 +126,14 @@ final class UnitSystemTests: XCTestCase {
     }
 
     func testDisplayDescription() {
-        XCTAssertEqual(UnitSystem.imperial.displayDescription, "Miles, Gallons, MPG")
-        XCTAssertEqual(UnitSystem.metric.displayDescription, "Kilometers, Liters, L/100km")
+        XCTAssertEqual(
+            UnitSystem.imperial.displayDescription(for: .defaultFormat),
+            "Miles, Gallons, MPG"
+        )
+        XCTAssertEqual(
+            UnitSystem.metric.displayDescription(for: .defaultFormat),
+            "Kilometers, Liters, L/100km"
+        )
         XCTAssertEqual(
             UnitSystem.metric.displayDescription(for: .kilometersPerLiter),
             "Kilometers, Liters, km/L"
