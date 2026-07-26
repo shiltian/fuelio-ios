@@ -52,10 +52,13 @@ final class CloudSyncService: ObservableObject {
 
     // MARK: - Constants
 
-    private enum RecordType {
-        static let vehicle = "Vehicle"
-        static let fuelingRecord = "FuelingRecord"
-    }
+    private typealias RecordType = CloudRecordCodec.RecordType
+
+    /// Compatibility namespaces retained for the existing test and call seams.
+    typealias CloudFieldKey = CloudRecordCodec.CloudFieldKey
+    typealias ConflictWinner = SyncConflictResolver.Winner
+    typealias CloudReplacementError = CloudSnapshotValidator.ValidationError
+    typealias RemoteApplyResult = CloudReconciliationService.RemoteApplyResult
 
     private static let zoneName = "FuelioZone"
     private static let subscriptionID = "FuelioZoneChanges"
@@ -70,6 +73,14 @@ final class CloudSyncService: ObservableObject {
     private static let interBatchDelay: UInt64 = 500_000_000  // 0.5 seconds
     /// Debounce interval for local save observations (seconds).
     private static let saveDebounceInterval: TimeInterval = 1
+
+    private var recordCodec: CloudRecordCodec {
+        CloudRecordCodec(zoneID: zoneID)
+    }
+
+    private var reconciliationService: CloudReconciliationService {
+        CloudReconciliationService(codec: recordCodec)
+    }
 
     // MARK: - Initialization
 
@@ -188,58 +199,6 @@ final class CloudSyncService: ObservableObject {
 
     // MARK: - Download All Cloud Data
 
-    /// A fully decoded, value-type cloud vehicle used to validate a replacement
-    /// before any local model is deleted.
-    private struct CloudVehicleSnapshot {
-        let id: UUID
-        let name: String
-        let make: String?
-        let model: String?
-        let year: Int?
-        let createdAt: Date
-        let modifiedAt: Date?
-        let unitSystem: UnitSystem
-    }
-
-    /// A fully decoded, value-type cloud fueling record used to validate a
-    /// replacement before any local model is deleted.
-    private struct CloudFuelingRecordSnapshot {
-        let id: UUID
-        let date: Date
-        let odometer: Double
-        let pricePerFuelUnit: Double
-        let fuelAmount: Double
-        let totalCost: Double
-        let fillUpType: FillUpType
-        let notes: String?
-        let createdAt: Date
-        let modifiedAt: Date?
-        let vehicleID: UUID
-    }
-
-    enum CloudReplacementError: LocalizedError {
-        case invalidVehicleRecord(String)
-        case duplicateVehicle(UUID)
-        case invalidFuelingRecord(String)
-        case duplicateFuelingRecord(UUID)
-        case missingVehicle(recordID: UUID, vehicleID: UUID)
-
-        var errorDescription: String? {
-            switch self {
-            case .invalidVehicleRecord(let recordName):
-                return "Cloud vehicle \(recordName) is incomplete or malformed."
-            case .duplicateVehicle(let id):
-                return "Cloud data contains duplicate vehicle \(id.uuidString)."
-            case .invalidFuelingRecord(let recordName):
-                return "Cloud fueling record \(recordName) is incomplete or malformed."
-            case .duplicateFuelingRecord(let id):
-                return "Cloud data contains duplicate fueling record \(id.uuidString)."
-            case .missingVehicle(let recordID, let vehicleID):
-                return "Cloud fueling record \(recordID.uuidString) references missing vehicle \(vehicleID.uuidString)."
-            }
-        }
-    }
-
     /// Download all cloud data and replace local data.
     ///
     /// The complete cloud snapshot is decoded and validated before touching the
@@ -287,12 +246,12 @@ final class CloudSyncService: ObservableObject {
         fuelingCKRecords: [CKRecord],
         context: ModelContext
     ) throws {
-        let vehicleSnapshots = try validatedVehicleSnapshots(from: vehicleCKRecords)
-        let vehicleIDs = Set(vehicleSnapshots.map(\.id))
-        let fuelingSnapshots = try validatedFuelingRecordSnapshots(
-            from: fuelingCKRecords,
-            vehicleIDs: vehicleIDs
+        let validatedSnapshot = try CloudSnapshotValidator().validate(
+            vehicleRecords: vehicleCKRecords,
+            fuelingRecordRecords: fuelingCKRecords
         )
+        let vehicleSnapshots = validatedSnapshot.vehicles
+        let fuelingSnapshots = validatedSnapshot.fuelingRecords
 
         // Establish a clean rollback boundary before beginning the replacement.
         if context.hasChanges {
@@ -354,143 +313,6 @@ final class CloudSyncService: ObservableObject {
         }
     }
 
-    private func validatedVehicleSnapshots(from records: [CKRecord]) throws -> [CloudVehicleSnapshot] {
-        var seenIDs: Set<UUID> = []
-        var snapshots: [CloudVehicleSnapshot] = []
-        snapshots.reserveCapacity(records.count)
-
-        for record in records {
-            let recordName = record.recordID.recordName
-            guard record.recordType == RecordType.vehicle,
-                  let idString = record[CloudFieldKey.Vehicle.id] as? String,
-                  let id = UUID(uuidString: idString),
-                  let recordNameID = UUID(uuidString: recordName),
-                  id == recordNameID,
-                  let name = record[CloudFieldKey.Vehicle.name] as? String,
-                  let unitSystemRaw = record[CloudFieldKey.Vehicle.unitSystemRaw] as? String,
-                  let unitSystem = UnitSystem(rawValue: unitSystemRaw),
-                  let createdAt = record[CloudFieldKey.Vehicle.createdAt] as? Date else {
-                throw CloudReplacementError.invalidVehicleRecord(recordName)
-            }
-
-            guard seenIDs.insert(id).inserted else {
-                throw CloudReplacementError.duplicateVehicle(id)
-            }
-
-            let make = try optionalValue(
-                record[CloudFieldKey.Vehicle.make],
-                as: String.self,
-                invalidError: CloudReplacementError.invalidVehicleRecord(recordName)
-            )
-            let model = try optionalValue(
-                record[CloudFieldKey.Vehicle.model],
-                as: String.self,
-                invalidError: CloudReplacementError.invalidVehicleRecord(recordName)
-            )
-            let year = try optionalValue(
-                record[CloudFieldKey.Vehicle.year],
-                as: Int.self,
-                invalidError: CloudReplacementError.invalidVehicleRecord(recordName)
-            )
-            let modifiedAt = try optionalValue(
-                record[CloudFieldKey.Vehicle.modifiedAt],
-                as: Date.self,
-                invalidError: CloudReplacementError.invalidVehicleRecord(recordName)
-            )
-
-            snapshots.append(CloudVehicleSnapshot(
-                id: id,
-                name: name,
-                make: make,
-                model: model,
-                year: year,
-                createdAt: createdAt,
-                modifiedAt: modifiedAt,
-                unitSystem: unitSystem
-            ))
-        }
-
-        return snapshots
-    }
-
-    private func validatedFuelingRecordSnapshots(
-        from records: [CKRecord],
-        vehicleIDs: Set<UUID>
-    ) throws -> [CloudFuelingRecordSnapshot] {
-        var seenIDs: Set<UUID> = []
-        var snapshots: [CloudFuelingRecordSnapshot] = []
-        snapshots.reserveCapacity(records.count)
-
-        for record in records {
-            let recordName = record.recordID.recordName
-            guard record.recordType == RecordType.fuelingRecord,
-                  let idString = record[CloudFieldKey.FuelingRecord.id] as? String,
-                  let id = UUID(uuidString: idString),
-                  let recordNameID = UUID(uuidString: recordName),
-                  id == recordNameID,
-                  let date = record[CloudFieldKey.FuelingRecord.date] as? Date,
-                  let odometer = record[CloudFieldKey.FuelingRecord.odometer] as? Double,
-                  odometer.isFinite,
-                  let pricePerFuelUnit = record[CloudFieldKey.FuelingRecord.pricePerFuelUnit] as? Double,
-                  pricePerFuelUnit.isFinite,
-                  let fuelAmount = record[CloudFieldKey.FuelingRecord.fuelAmount] as? Double,
-                  fuelAmount.isFinite,
-                  let totalCost = record[CloudFieldKey.FuelingRecord.totalCost] as? Double,
-                  totalCost.isFinite,
-                  let fillUpTypeRaw = record[CloudFieldKey.FuelingRecord.fillUpTypeRaw] as? String,
-                  let fillUpType = FillUpType(rawValue: fillUpTypeRaw),
-                  let createdAt = record[CloudFieldKey.FuelingRecord.createdAt] as? Date,
-                  let vehicleIDString = record[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
-                  let vehicleID = UUID(uuidString: vehicleIDString) else {
-                throw CloudReplacementError.invalidFuelingRecord(recordName)
-            }
-
-            guard seenIDs.insert(id).inserted else {
-                throw CloudReplacementError.duplicateFuelingRecord(id)
-            }
-            guard vehicleIDs.contains(vehicleID) else {
-                throw CloudReplacementError.missingVehicle(recordID: id, vehicleID: vehicleID)
-            }
-
-            let notes = try optionalValue(
-                record[CloudFieldKey.FuelingRecord.notes],
-                as: String.self,
-                invalidError: CloudReplacementError.invalidFuelingRecord(recordName)
-            )
-            let modifiedAt = try optionalValue(
-                record[CloudFieldKey.FuelingRecord.modifiedAt],
-                as: Date.self,
-                invalidError: CloudReplacementError.invalidFuelingRecord(recordName)
-            )
-
-            snapshots.append(CloudFuelingRecordSnapshot(
-                id: id,
-                date: date,
-                odometer: odometer,
-                pricePerFuelUnit: pricePerFuelUnit,
-                fuelAmount: fuelAmount,
-                totalCost: totalCost,
-                fillUpType: fillUpType,
-                notes: notes,
-                createdAt: createdAt,
-                modifiedAt: modifiedAt,
-                vehicleID: vehicleID
-            ))
-        }
-
-        return snapshots
-    }
-
-    private func optionalValue<T>(
-        _ value: CKRecordValue?,
-        as type: T.Type,
-        invalidError: Error
-    ) throws -> T? {
-        guard let value else { return nil }
-        guard let typedValue = value as? T else { throw invalidError }
-        return typedValue
-    }
-
     // MARK: - Merge Cloud and Local
 
     /// Merge cloud and local data: match by UUID, keep newer for matches, insert unique from both sides
@@ -548,122 +370,14 @@ final class CloudSyncService: ObservableObject {
         fuelingCKRecords: [CKRecord],
         context: ModelContext
     ) throws -> [CKRecord] {
-        // Build local index
-        let localVehicles = try context.fetch(FetchDescriptor<Vehicle>())
-        var localVehicleMap: [UUID: Vehicle] = [:]
-        for v in localVehicles {
-            localVehicleMap[v.id] = v
-        }
-
-        let localRecords = try context.fetch(FetchDescriptor<FuelingRecord>())
-        var localRecordMap: [UUID: FuelingRecord] = [:]
-        for r in localRecords {
-            localRecordMap[r.id] = r
-        }
-
-        var cloudVehicleMap: [UUID: CKRecord] = [:]
-        var ckRecordIDToVehicle: [CKRecord.ID: Vehicle] = [:]
-        var recordsToUpload: [CKRecord] = []
-
-        for ckRecord in vehicleCKRecords {
-            guard let idString = ckRecord[CloudFieldKey.Vehicle.id] as? String,
-                  let uuid = UUID(uuidString: idString) else { continue }
-            cloudVehicleMap[uuid] = ckRecord
-
-            if let localVehicle = localVehicleMap[uuid] {
-                switch Self.resolveConflict(
-                    cloudModifiedAt: ckRecord[CloudFieldKey.Vehicle.modifiedAt] as? Date,
-                    cloudCreatedAt: ckRecord[CloudFieldKey.Vehicle.createdAt] as? Date,
-                    localModifiedAt: localVehicle.modifiedAt,
-                    localCreatedAt: localVehicle.createdAt
-                ) {
-                case .cloud:
-                    updateVehicle(localVehicle, from: ckRecord)
-                case .local:
-                    // Local is newer — push it so other devices are not left stale.
-                    recordsToUpload.append(vehicleToCKRecord(localVehicle))
-                case .tie:
-                    break
-                }
-                ckRecordIDToVehicle[ckRecord.recordID] = localVehicle
-            } else {
-                // Only in cloud: insert locally
-                let vehicle = vehicleFromCKRecord(ckRecord)
-                context.insert(vehicle)
-                ckRecordIDToVehicle[ckRecord.recordID] = vehicle
-            }
-        }
-
-        // Upload local-only vehicles to cloud
-        for (uuid, vehicle) in localVehicleMap where cloudVehicleMap[uuid] == nil {
-            let ckRecord = vehicleToCKRecord(vehicle)
-            recordsToUpload.append(ckRecord)
-            ckRecordIDToVehicle[ckRecord.recordID] = vehicle
-        }
-
-        // Build a UUID-keyed lookup from ckRecordIDToVehicle for O(1) access
-        var vehicleByUUID: [UUID: Vehicle] = [:]
-        for vehicle in ckRecordIDToVehicle.values {
-            vehicleByUUID[vehicle.id] = vehicle
-        }
-
-        var cloudRecordMap: [UUID: CKRecord] = [:]
-
-        for ckRecord in fuelingCKRecords {
-            guard let idString = ckRecord[CloudFieldKey.FuelingRecord.id] as? String,
-                  let uuid = UUID(uuidString: idString) else { continue }
-            cloudRecordMap[uuid] = ckRecord
-
-            if let localRecord = localRecordMap[uuid] {
-                switch Self.resolveConflict(
-                    cloudModifiedAt: ckRecord[CloudFieldKey.FuelingRecord.modifiedAt] as? Date,
-                    cloudCreatedAt: ckRecord[CloudFieldKey.FuelingRecord.createdAt] as? Date,
-                    localModifiedAt: localRecord.modifiedAt,
-                    localCreatedAt: localRecord.createdAt
-                ) {
-                case .cloud:
-                    updateFuelingRecord(localRecord, from: ckRecord)
-                case .local:
-                    // Local is newer — push it so other devices are not left stale.
-                    let vehicleRecordID = CKRecord.ID(recordName: localRecord.vehicle.id.uuidString, zoneID: zoneID)
-                    recordsToUpload.append(fuelingRecordToCKRecord(localRecord, vehicleRecordID: vehicleRecordID))
-                case .tie:
-                    break
-                }
-            } else {
-                // Only in cloud: insert locally
-                if let vehicleUUIDString = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
-                   let vehicleUUID = UUID(uuidString: vehicleUUIDString),
-                   let vehicle = localVehicleMap[vehicleUUID] ?? vehicleByUUID[vehicleUUID] {
-                    let record = fuelingRecordFromCKRecord(ckRecord, vehicle: vehicle)
-                    context.insert(record)
-                }
-            }
-        }
-
-        // Upload local-only fueling records to cloud
-        for (uuid, record) in localRecordMap where cloudRecordMap[uuid] == nil {
-            let vehicleRecordID = CKRecord.ID(recordName: record.vehicle.id.uuidString, zoneID: zoneID)
-            let ckRecord = fuelingRecordToCKRecord(record, vehicleRecordID: vehicleRecordID)
-            recordsToUpload.append(ckRecord)
-        }
-
-        return recordsToUpload
+        try reconciliationService.reconcileMerge(
+            vehicleCKRecords: vehicleCKRecords,
+            fuelingCKRecords: fuelingCKRecords,
+            context: context
+        )
     }
 
     // MARK: - Delete All Cloud Data
-
-    /// Delete the custom zone (deletes all records in it), then recreate it
-    func deleteAllCloudData() async throws {
-        try await operationCoordinator.runExclusive {
-            do {
-                try await performDeleteAllCloudData(markSyncedWhenFinished: true)
-            } catch {
-                stateManager.syncStatus = .error(String(localized: "Sync failed"))
-                throw error
-            }
-        }
-    }
 
     /// Atomically reserves the sync pipeline for the complete destructive
     /// delete-and-upload sequence so no automatic pull or push can observe the
@@ -671,7 +385,7 @@ final class CloudSyncService: ObservableObject {
     func replaceCloudDataWithLocal(from context: ModelContext) async throws {
         try await operationCoordinator.runExclusive {
             do {
-                try await performDeleteAllCloudData(markSyncedWhenFinished: false)
+                try await performDeleteAllCloudData()
                 try await performUploadAllLocalData(from: context)
             } catch {
                 stateManager.syncStatus = .error(String(localized: "Sync failed"))
@@ -680,7 +394,7 @@ final class CloudSyncService: ObservableObject {
         }
     }
 
-    private func performDeleteAllCloudData(markSyncedWhenFinished: Bool) async throws {
+    private func performDeleteAllCloudData() async throws {
         stateManager.syncStatus = .syncing
 
         // Deleting the zone deletes all records in it
@@ -691,9 +405,6 @@ final class CloudSyncService: ObservableObject {
 
         // Reset the change token
         stateManager.serverChangeToken = nil
-        if markSyncedWhenFinished {
-            stateManager.syncStatus = .synced
-        }
     }
 
     // MARK: - Cloud Record Counts
@@ -766,45 +477,6 @@ final class CloudSyncService: ObservableObject {
         }
 
         return (Array(vehicleRecords.values), Array(fuelingRecords.values))
-    }
-
-    // MARK: - Incremental Push
-
-    /// Push local changes to CloudKit
-    func pushChanges(
-        inserted: [any PersistentModel],
-        updated: [any PersistentModel]
-    ) async {
-        await operationCoordinator.runExclusive {
-            await performPushChanges(inserted: inserted, updated: updated)
-        }
-    }
-
-    private func performPushChanges(
-        inserted: [any PersistentModel],
-        updated: [any PersistentModel]
-    ) async {
-        guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
-        guard remoteApplicationDepth == 0 else { return }
-
-        var recordsToSave: [CKRecord] = []
-
-        for model in inserted + updated {
-            if let vehicle = model as? Vehicle {
-                recordsToSave.append(vehicleToCKRecord(vehicle))
-            } else if let record = model as? FuelingRecord {
-                let vehicleRecordID = CKRecord.ID(recordName: record.vehicle.id.uuidString, zoneID: zoneID)
-                recordsToSave.append(fuelingRecordToCKRecord(record, vehicleRecordID: vehicleRecordID))
-            }
-        }
-
-        guard !recordsToSave.isEmpty else { return }
-
-        do {
-            try await batchSave(records: recordsToSave)
-        } catch {
-            Self.logger.error("Failed to push changes to CloudKit: \(error)")
-        }
     }
 
     // MARK: - Incremental Pull
@@ -924,20 +596,6 @@ final class CloudSyncService: ObservableObject {
         return true
     }
 
-    /// Outcome of applying a fetched remote change set to the local store.
-    struct RemoteApplyResult {
-        /// Local copies that won last-writer-wins against an older cloud copy.
-        /// They must be pushed back so the cloud (and other devices) stop
-        /// serving the stale value — otherwise devices stay divergent until the
-        /// next unrelated local save happens to trigger a push.
-        var recordsToUpload: [CKRecord] = []
-
-        /// Fueling records whose parent vehicle could not be resolved (neither
-        /// present locally nor in this change set). They are intentionally left
-        /// un-applied and reported so the caller can log/diagnose them.
-        var unresolvedChildIDs: [UUID] = []
-    }
-
     /// Apply fetched remote changes to the local store.
     ///
     /// Vehicles are applied before fueling records: CloudKit does not guarantee
@@ -957,112 +615,11 @@ final class CloudSyncService: ObservableObject {
     /// than silently dropped.
     @discardableResult
     func applyRemoteChanges(changedRecords: [CKRecord], deletedRecordIDs: [CKRecord.ID], context: ModelContext) throws -> RemoteApplyResult {
-        var result = RemoteApplyResult()
-
-        // Build local indexes
-        let localVehicles = try context.fetch(FetchDescriptor<Vehicle>())
-        var vehicleMap: [UUID: Vehicle] = [:]
-        for v in localVehicles {
-            vehicleMap[v.id] = v
-        }
-
-        let localRecords = try context.fetch(FetchDescriptor<FuelingRecord>())
-        var recordMap: [UUID: FuelingRecord] = [:]
-        for r in localRecords {
-            recordMap[r.id] = r
-        }
-
-        // Pass 1 — vehicles first, so any fueling record can resolve its owner.
-        for ckRecord in changedRecords where ckRecord.recordType == RecordType.vehicle {
-            guard let idString = ckRecord[CloudFieldKey.Vehicle.id] as? String,
-                  let uuid = UUID(uuidString: idString) else { continue }
-
-            if let existing = vehicleMap[uuid] {
-                switch Self.resolveConflict(
-                    cloudModifiedAt: ckRecord[CloudFieldKey.Vehicle.modifiedAt] as? Date,
-                    cloudCreatedAt: ckRecord[CloudFieldKey.Vehicle.createdAt] as? Date,
-                    localModifiedAt: existing.modifiedAt,
-                    localCreatedAt: existing.createdAt
-                ) {
-                case .cloud:
-                    updateVehicle(existing, from: ckRecord)
-                case .local:
-                    // Local is newer: keep it and push it back so the stale
-                    // cloud copy is corrected.
-                    result.recordsToUpload.append(vehicleToCKRecord(existing))
-                case .tie:
-                    break
-                }
-            } else {
-                let vehicle = vehicleFromCKRecord(ckRecord)
-                context.insert(vehicle)
-                vehicleMap[uuid] = vehicle
-            }
-        }
-
-        // Pass 2 — fueling records, now guaranteed to see every changed vehicle.
-        for ckRecord in changedRecords where ckRecord.recordType == RecordType.fuelingRecord {
-            guard let idString = ckRecord[CloudFieldKey.FuelingRecord.id] as? String,
-                  let uuid = UUID(uuidString: idString) else { continue }
-
-            if let existing = recordMap[uuid] {
-                switch Self.resolveConflict(
-                    cloudModifiedAt: ckRecord[CloudFieldKey.FuelingRecord.modifiedAt] as? Date,
-                    cloudCreatedAt: ckRecord[CloudFieldKey.FuelingRecord.createdAt] as? Date,
-                    localModifiedAt: existing.modifiedAt,
-                    localCreatedAt: existing.createdAt
-                ) {
-                case .cloud:
-                    updateFuelingRecord(existing, from: ckRecord)
-                case .local:
-                    // Local is newer: keep it and push it back so the stale
-                    // cloud copy is corrected.
-                    let vehicleRecordID = CKRecord.ID(recordName: existing.vehicle.id.uuidString, zoneID: zoneID)
-                    result.recordsToUpload.append(fuelingRecordToCKRecord(existing, vehicleRecordID: vehicleRecordID))
-                case .tie:
-                    break
-                }
-            } else if let vehicleUUIDString = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
-                      let vehicleUUID = UUID(uuidString: vehicleUUIDString),
-                      let vehicle = vehicleMap[vehicleUUID] {
-                let record = fuelingRecordFromCKRecord(ckRecord, vehicle: vehicle)
-                context.insert(record)
-                recordMap[uuid] = record
-            } else {
-                // Parent vehicle is neither local nor in this change set. Leave
-                // the cloud copy intact and report the record so the caller holds
-                // the change token and retries, instead of skipping the record
-                // forever (see `commitPullOutcome`).
-                result.unresolvedChildIDs.append(uuid)
-            }
-        }
-
-        // Apply deletions.
-        //
-        // Policy: delete-wins. A record deleted on any device is removed here
-        // even when the local copy carries a newer edit. CloudKit deletions
-        // carry no timestamp, so genuine last-writer-wins for deletes would
-        // require persisted tombstones — a schema change we deliberately avoid
-        // in this data-critical app. Delete-wins is also the safer default for a
-        // single iCloud account's devices: an intentionally deleted fill-up
-        // should not be resurrected by a stale edit sitting on another device.
-        for recordID in deletedRecordIDs {
-            let uuidString = recordID.recordName
-            if let uuid = UUID(uuidString: uuidString) {
-                if let vehicle = vehicleMap[uuid] {
-                    context.delete(vehicle)
-                } else if let record = recordMap[uuid] {
-                    context.delete(record)
-                }
-            }
-        }
-
-        try context.save()
-
-        // Rebuild caches
-        StatisticsCacheService.rebuildCacheForAllVehicles(in: context, force: true)
-
-        return result
+        try reconciliationService.applyRemoteChanges(
+            changedRecords: changedRecords,
+            deletedRecordIDs: deletedRecordIDs,
+            context: context
+        )
     }
 
     // MARK: - Subscriptions
@@ -1254,177 +811,35 @@ final class CloudSyncService: ObservableObject {
 
     // MARK: - Conflict Resolution
 
-    /// Which copy wins when the same record exists both locally and in the cloud.
-    enum ConflictWinner: Equatable {
-        case cloud
-        case local
-        case tie
-    }
-
     /// Decide which copy of a record is newer using `modifiedAt` with a
-    /// `createdAt` fallback.
-    ///
-    /// Records created before the V1→V2 migration — and any record that has
-    /// never been edited — can have a `nil` `modifiedAt`, so we fall back to
-    /// `createdAt` instead of treating `nil` as `.distantPast`. Equal effective
-    /// timestamps return `.tie`, which every caller treats as "make no change",
-    /// keeping repeated syncs stable and never dropping data.
+    /// `createdAt` fallback. Retained as a compatibility seam for tests.
     nonisolated static func resolveConflict(
         cloudModifiedAt: Date?,
         cloudCreatedAt: Date?,
         localModifiedAt: Date?,
         localCreatedAt: Date?
     ) -> ConflictWinner {
-        let cloudDate = cloudModifiedAt ?? cloudCreatedAt ?? .distantPast
-        let localDate = localModifiedAt ?? localCreatedAt ?? .distantPast
-        if cloudDate > localDate { return .cloud }
-        if localDate > cloudDate { return .local }
-        return .tie
+        SyncConflictResolver.resolve(
+            cloudModifiedAt: cloudModifiedAt,
+            cloudCreatedAt: cloudCreatedAt,
+            localModifiedAt: localModifiedAt,
+            localCreatedAt: localCreatedAt
+        )
     }
 
     // MARK: - CKRecord Mapping
 
-    /// Wire-format field keys. Kept `internal` (not `private`) so tests can
-    /// assert the exact payload that gets uploaded, using the same source of
-    /// truth as production instead of duplicating magic strings.
-    enum CloudFieldKey {
-        enum Vehicle {
-            static let id = "vehicleID"
-            static let name = "name"
-            static let make = "make"
-            static let model = "model"
-            static let year = "year"
-            static let unitSystemRaw = "unitSystemRaw"
-            static let createdAt = "vehicleCreatedAt"
-            static let modifiedAt = "vehicleModifiedAt"
-        }
-
-        enum FuelingRecord {
-            static let id = "fuelingRecordID"
-            static let date = "date"
-            static let odometer = "odometer"
-            static let pricePerFuelUnit = "pricePerFuelUnit"
-            static let fuelAmount = "fuelAmount"
-            static let totalCost = "totalCost"
-            static let fillUpTypeRaw = "fillUpTypeRaw"
-            static let notes = "notes"
-            static let createdAt = "fuelingCreatedAt"
-            static let modifiedAt = "fuelingModifiedAt"
-            static let vehicleRef = "vehicleOwnerID"
-        }
-    }
-
-    /// Convert a Vehicle model to a CKRecord
+    /// Compatibility forwarding seam for existing tests and callers.
     func vehicleToCKRecord(_ vehicle: Vehicle) -> CKRecord {
-        let recordID = CKRecord.ID(recordName: vehicle.id.uuidString, zoneID: zoneID)
-        let record = CKRecord(recordType: RecordType.vehicle, recordID: recordID)
-
-        record[CloudFieldKey.Vehicle.id] = vehicle.id.uuidString
-        record[CloudFieldKey.Vehicle.name] = vehicle.name
-        record[CloudFieldKey.Vehicle.make] = vehicle.make
-        record[CloudFieldKey.Vehicle.model] = vehicle.model
-        record[CloudFieldKey.Vehicle.year] = vehicle.year as? CKRecordValue
-        record[CloudFieldKey.Vehicle.unitSystemRaw] = vehicle.unitSystemRaw
-        record[CloudFieldKey.Vehicle.createdAt] = vehicle.createdAt
-        record[CloudFieldKey.Vehicle.modifiedAt] = vehicle.modifiedAt
-
-        return record
+        recordCodec.vehicleToCKRecord(vehicle)
     }
 
-    /// Convert a CKRecord to a Vehicle model
-    private func vehicleFromCKRecord(_ ckRecord: CKRecord) -> Vehicle {
-        let id = UUID(uuidString: ckRecord[CloudFieldKey.Vehicle.id] as? String ?? "") ?? UUID()
-        let name = ckRecord[CloudFieldKey.Vehicle.name] as? String ?? ""
-        let make = ckRecord[CloudFieldKey.Vehicle.make] as? String
-        let model = ckRecord[CloudFieldKey.Vehicle.model] as? String
-        let year = ckRecord[CloudFieldKey.Vehicle.year] as? Int
-        let unitSystemRaw = ckRecord[CloudFieldKey.Vehicle.unitSystemRaw] as? String ?? UnitSystem.imperial.rawValue
-        let createdAt = ckRecord[CloudFieldKey.Vehicle.createdAt] as? Date ?? Date()
-
-        let vehicle = Vehicle(
-            id: id,
-            name: name,
-            make: make,
-            model: model,
-            year: year,
-            createdAt: createdAt,
-            unitSystem: UnitSystem(rawValue: unitSystemRaw) ?? .imperial
-        )
-        vehicle.modifiedAt = ckRecord[CloudFieldKey.Vehicle.modifiedAt] as? Date
-
-        return vehicle
-    }
-
-    /// Update an existing Vehicle from a CKRecord
-    private func updateVehicle(_ vehicle: Vehicle, from ckRecord: CKRecord) {
-        vehicle.name = ckRecord[CloudFieldKey.Vehicle.name] as? String ?? vehicle.name
-        vehicle.make = ckRecord[CloudFieldKey.Vehicle.make] as? String
-        vehicle.model = ckRecord[CloudFieldKey.Vehicle.model] as? String
-        vehicle.year = ckRecord[CloudFieldKey.Vehicle.year] as? Int
-        vehicle.unitSystemRaw = ckRecord[CloudFieldKey.Vehicle.unitSystemRaw] as? String ?? vehicle.unitSystemRaw
-        vehicle.modifiedAt = ckRecord[CloudFieldKey.Vehicle.modifiedAt] as? Date
-    }
-
-    /// Convert a FuelingRecord model to a CKRecord
+    /// Compatibility forwarding seam for existing tests and callers.
     func fuelingRecordToCKRecord(_ fuelingRecord: FuelingRecord, vehicleRecordID: CKRecord.ID) -> CKRecord {
-        let recordID = CKRecord.ID(recordName: fuelingRecord.id.uuidString, zoneID: zoneID)
-        let record = CKRecord(recordType: RecordType.fuelingRecord, recordID: recordID)
-
-        record[CloudFieldKey.FuelingRecord.id] = fuelingRecord.id.uuidString
-        record[CloudFieldKey.FuelingRecord.date] = fuelingRecord.date
-        record[CloudFieldKey.FuelingRecord.odometer] = fuelingRecord.odometer
-        record[CloudFieldKey.FuelingRecord.pricePerFuelUnit] = fuelingRecord.pricePerFuelUnit
-        record[CloudFieldKey.FuelingRecord.fuelAmount] = fuelingRecord.fuelAmount
-        record[CloudFieldKey.FuelingRecord.totalCost] = fuelingRecord.totalCost
-        record[CloudFieldKey.FuelingRecord.fillUpTypeRaw] = fuelingRecord.fillUpTypeRaw
-        record[CloudFieldKey.FuelingRecord.notes] = fuelingRecord.notes
-        record[CloudFieldKey.FuelingRecord.createdAt] = fuelingRecord.createdAt
-        record[CloudFieldKey.FuelingRecord.modifiedAt] = fuelingRecord.modifiedAt
-
-        // Store parent vehicle ID as plain string (avoids CloudKit's 750 owning-reference limit)
-        record[CloudFieldKey.FuelingRecord.vehicleRef] = vehicleRecordID.recordName
-
-        return record
-    }
-
-    /// Convert a CKRecord to a FuelingRecord model
-    private func fuelingRecordFromCKRecord(_ ckRecord: CKRecord, vehicle: Vehicle) -> FuelingRecord {
-        let id = UUID(uuidString: ckRecord[CloudFieldKey.FuelingRecord.id] as? String ?? "") ?? UUID()
-        let date = ckRecord[CloudFieldKey.FuelingRecord.date] as? Date ?? Date()
-        let odometer = ckRecord[CloudFieldKey.FuelingRecord.odometer] as? Double ?? 0
-        let pricePerFuelUnit = ckRecord[CloudFieldKey.FuelingRecord.pricePerFuelUnit] as? Double ?? 0
-        let fuelAmount = ckRecord[CloudFieldKey.FuelingRecord.fuelAmount] as? Double ?? 0
-        let totalCost = ckRecord[CloudFieldKey.FuelingRecord.totalCost] as? Double ?? 0
-        let fillUpTypeRaw = ckRecord[CloudFieldKey.FuelingRecord.fillUpTypeRaw] as? String ?? FillUpType.full.rawValue
-        let notes = ckRecord[CloudFieldKey.FuelingRecord.notes] as? String
-        let createdAt = ckRecord[CloudFieldKey.FuelingRecord.createdAt] as? Date ?? Date()
-
-        let record = FuelingRecord(
-            id: id,
-            date: date,
-            odometer: odometer,
-            pricePerFuelUnit: pricePerFuelUnit,
-            fuelAmount: fuelAmount,
-            totalCost: totalCost,
-            fillUpType: FillUpType(rawValue: fillUpTypeRaw) ?? .full,
-            notes: notes,
-            createdAt: createdAt,
-            vehicle: vehicle
+        recordCodec.fuelingRecordToCKRecord(
+            fuelingRecord,
+            vehicleRecordID: vehicleRecordID
         )
-        record.modifiedAt = ckRecord[CloudFieldKey.FuelingRecord.modifiedAt] as? Date
-        return record
-    }
-
-    /// Update an existing FuelingRecord from a CKRecord
-    private func updateFuelingRecord(_ record: FuelingRecord, from ckRecord: CKRecord) {
-        record.date = ckRecord[CloudFieldKey.FuelingRecord.date] as? Date ?? record.date
-        record.odometer = ckRecord[CloudFieldKey.FuelingRecord.odometer] as? Double ?? record.odometer
-        record.pricePerFuelUnit = ckRecord[CloudFieldKey.FuelingRecord.pricePerFuelUnit] as? Double ?? record.pricePerFuelUnit
-        record.fuelAmount = ckRecord[CloudFieldKey.FuelingRecord.fuelAmount] as? Double ?? record.fuelAmount
-        record.totalCost = ckRecord[CloudFieldKey.FuelingRecord.totalCost] as? Double ?? record.totalCost
-        record.fillUpTypeRaw = ckRecord[CloudFieldKey.FuelingRecord.fillUpTypeRaw] as? String ?? record.fillUpTypeRaw
-        record.notes = ckRecord[CloudFieldKey.FuelingRecord.notes] as? String
-        record.modifiedAt = ckRecord[CloudFieldKey.FuelingRecord.modifiedAt] as? Date
     }
 
     // MARK: - Batch Operations

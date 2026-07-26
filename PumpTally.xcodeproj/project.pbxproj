@@ -59,6 +59,10 @@
 		S100000129B10001 /* CSVImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = S100000229B10001 /* CSVImportService.swift */; };
 		S100000329B10001 /* CSVImportServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = S100000429B10001 /* CSVImportServiceTests.swift */; };
 		V100000129B20001 /* VehiclePersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = V100000229B20001 /* VehiclePersistenceService.swift */; };
+		W100000129B30001 /* CloudRecordCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = W100000229B30001 /* CloudRecordCodec.swift */; };
+		W100000329B30001 /* CloudSnapshotValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = W100000429B30001 /* CloudSnapshotValidator.swift */; };
+		W100000529B30001 /* SyncConflictResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = W100000629B30001 /* SyncConflictResolver.swift */; };
+		W100000729B30001 /* CloudReconciliationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = W100000829B30001 /* CloudReconciliationService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -128,6 +132,10 @@
 		S100000229B10001 /* CSVImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVImportService.swift; sourceTree = "<group>"; };
 		S100000429B10001 /* CSVImportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVImportServiceTests.swift; sourceTree = "<group>"; };
 		V100000229B20001 /* VehiclePersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehiclePersistenceService.swift; sourceTree = "<group>"; };
+		W100000229B30001 /* CloudRecordCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudRecordCodec.swift; sourceTree = "<group>"; };
+		W100000429B30001 /* CloudSnapshotValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSnapshotValidator.swift; sourceTree = "<group>"; };
+		W100000629B30001 /* SyncConflictResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncConflictResolver.swift; sourceTree = "<group>"; };
+		W100000829B30001 /* CloudReconciliationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudReconciliationService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -221,6 +229,10 @@
 				R100000229B00001 /* SyncOperationCoordinator.swift */,
 				S100000229B10001 /* CSVImportService.swift */,
 				V100000229B20001 /* VehiclePersistenceService.swift */,
+				W100000229B30001 /* CloudRecordCodec.swift */,
+				W100000429B30001 /* CloudSnapshotValidator.swift */,
+				W100000629B30001 /* SyncConflictResolver.swift */,
+				W100000829B30001 /* CloudReconciliationService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -418,6 +430,10 @@
 				R100000129B00001 /* SyncOperationCoordinator.swift in Sources */,
 				S100000129B10001 /* CSVImportService.swift in Sources */,
 				V100000129B20001 /* VehiclePersistenceService.swift in Sources */,
+				W100000129B30001 /* CloudRecordCodec.swift in Sources */,
+				W100000329B30001 /* CloudSnapshotValidator.swift in Sources */,
+				W100000529B30001 /* SyncConflictResolver.swift in Sources */,
+				W100000729B30001 /* CloudReconciliationService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
