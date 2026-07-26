@@ -7,13 +7,16 @@ final class PrecomputedChartDataTests: XCTestCase {
 
     private func snapshot(
         index: Int,
+        day: Int? = nil,
+        odometer: Double? = nil,
         efficiency: Double? = nil,
         cost: Double,
         price: Double
     ) -> ChartRecordSnapshot {
         ChartRecordSnapshot(
             id: UUID(uuidString: String(format: "00000000-0000-0000-0000-%012d", index + 1))!,
-            date: baseDate.addingTimeInterval(Double(index) * 86_400),
+            date: baseDate.addingTimeInterval(Double(day ?? index) * 86_400),
+            odometer: odometer ?? Double(index),
             cachedEfficiency: efficiency,
             totalCost: cost,
             pricePerFuelUnit: price
@@ -21,7 +24,11 @@ final class PrecomputedChartDataTests: XCTestCase {
     }
 
     func testEmptyRecordsUseDefaultValues() {
-        let data = PrecomputedChartData(records: [], unitSystem: .imperial)
+        let data = PrecomputedChartData(
+            records: [],
+            unitSystem: .imperial,
+            rawAverageEfficiency: 25
+        )
 
         XCTAssertTrue(data.efficiencyData.isEmpty)
         XCTAssertTrue(data.costData.isEmpty)
@@ -41,9 +48,13 @@ final class PrecomputedChartDataTests: XCTestCase {
             snapshot(index: 1, efficiency: 20, cost: 20, price: 3.6)
         ]
 
-        let data = PrecomputedChartData(records: records, unitSystem: .imperial)
+        let data = PrecomputedChartData(
+            records: records,
+            unitSystem: .imperial,
+            rawAverageEfficiency: 17
+        )
 
-        XCTAssertEqual(data.efficiencyAverage, 15, accuracy: 0.000_001)
+        XCTAssertEqual(data.efficiencyAverage, 17, accuracy: 0.000_001)
         XCTAssertEqual(data.costAverage, 130.0 / 3.0, accuracy: 0.000_001)
         XCTAssertEqual(data.priceAverage, 10.9 / 3.0, accuracy: 0.000_001)
         XCTAssertEqual(data.efficiencyYRange, 10...20)
@@ -64,8 +75,16 @@ final class PrecomputedChartDataTests: XCTestCase {
             ))
         }
 
-        let first = PrecomputedChartData(records: records, unitSystem: .imperial)
-        let second = PrecomputedChartData(records: records, unitSystem: .imperial)
+        let first = PrecomputedChartData(
+            records: records,
+            unitSystem: .imperial,
+            rawAverageEfficiency: 123
+        )
+        let second = PrecomputedChartData(
+            records: records,
+            unitSystem: .imperial,
+            rawAverageEfficiency: 123
+        )
 
         XCTAssertEqual(first.efficiencyData.count, PrecomputedChartData.maxTrendPoints)
         XCTAssertEqual(first.costData.count, PrecomputedChartData.maxTrendPoints)
@@ -78,6 +97,22 @@ final class PrecomputedChartDataTests: XCTestCase {
         XCTAssertEqual(first.costYRange, 0...410)
     }
 
+    func testSameTimestampUsesOdometerThenUUIDOrdering() {
+        let records = [
+            snapshot(index: 2, day: 0, odometer: 200, cost: 30, price: 3),
+            snapshot(index: 1, day: 0, odometer: 200, cost: 20, price: 3),
+            snapshot(index: 3, day: 0, odometer: 100, cost: 10, price: 3)
+        ]
+
+        let data = PrecomputedChartData(
+            records: records,
+            unitSystem: .imperial,
+            rawAverageEfficiency: 12
+        )
+
+        XCTAssertEqual(data.costData.map(\.value), [10, 20, 30])
+    }
+
     func testMetricEfficiencyFormatConversion() {
         let records = [
             snapshot(index: 0, efficiency: 10, cost: 10, price: 3),
@@ -87,17 +122,19 @@ final class PrecomputedChartDataTests: XCTestCase {
         let litersPer100 = PrecomputedChartData(
             records: records,
             unitSystem: .metric,
+            rawAverageEfficiency: 12.5,
             metricEfficiencyFormat: .litersPer100Kilometers
         )
         let kilometersPerLiter = PrecomputedChartData(
             records: records,
             unitSystem: .metric,
+            rawAverageEfficiency: 12.5,
             metricEfficiencyFormat: .kilometersPerLiter
         )
 
-        XCTAssertEqual(litersPer100.efficiencyAverage, 100.0 / 15.0, accuracy: 0.000_001)
+        XCTAssertEqual(litersPer100.efficiencyAverage, 8, accuracy: 0.000_001)
         XCTAssertEqual(litersPer100.efficiencyData.map(\.value), [10, 5])
-        XCTAssertEqual(kilometersPerLiter.efficiencyAverage, 15, accuracy: 0.000_001)
+        XCTAssertEqual(kilometersPerLiter.efficiencyAverage, 12.5, accuracy: 0.000_001)
         XCTAssertEqual(kilometersPerLiter.efficiencyData.map(\.value), [10, 20])
     }
 }

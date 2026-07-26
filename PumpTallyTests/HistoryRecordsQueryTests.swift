@@ -77,19 +77,46 @@ final class HistoryRecordsQueryTests: XCTestCase {
         )
     }
 
-    func testEqualValuesHaveStableOrdering() {
-        let largerID = snapshot(idSuffix: 2, day: 1, cost: 20, odometer: 1_000)
-        let smallerID = snapshot(idSuffix: 1, day: 1, cost: 20, odometer: 2_000)
+    func testSameTimestampReversesFullCanonicalOrder() {
+        let lowerOdometer = snapshot(idSuffix: 2, day: 1, cost: 20, odometer: 1_000)
+        let lowerID = snapshot(idSuffix: 1, day: 1, cost: 20, odometer: 2_000)
+        let higherID = snapshot(idSuffix: 3, day: 1, cost: 20, odometer: 2_000)
+        let records = [higherID, lowerID, lowerOdometer]
 
-        for sortOrder in HistorySortOrder.allCases {
-            XCTAssertEqual(
-                HistoryRecordsQuery.recordIDs(
-                    from: [largerID, smallerID],
-                    searchText: "",
-                    sortOrder: sortOrder
-                ),
-                [smallerID.id, largerID.id]
-            )
-        }
+        let ascending = [lowerOdometer.id, lowerID.id, higherID.id]
+        let descending = [higherID.id, lowerID.id, lowerOdometer.id]
+
+        XCTAssertEqual(
+            HistoryRecordsQuery.recordIDs(
+                from: records,
+                searchText: "",
+                sortOrder: .dateAscending
+            ),
+            ascending
+        )
+        XCTAssertEqual(
+            HistoryRecordsQuery.recordIDs(
+                from: records,
+                searchText: "",
+                sortOrder: .dateDescending
+            ),
+            descending
+        )
+        XCTAssertEqual(
+            HistoryRecordsQuery.recordIDs(
+                from: records,
+                searchText: "",
+                sortOrder: .costLowest
+            ),
+            ascending
+        )
+        XCTAssertEqual(
+            HistoryRecordsQuery.recordIDs(
+                from: records,
+                searchText: "",
+                sortOrder: .costHighest
+            ),
+            descending
+        )
     }
 }

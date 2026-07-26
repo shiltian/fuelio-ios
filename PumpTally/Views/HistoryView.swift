@@ -68,18 +68,31 @@ enum HistoryRecordsQuery {
         return filtered.sorted { lhs, rhs in
             switch sortOrder {
             case .dateDescending:
-                if lhs.date != rhs.date { return lhs.date > rhs.date }
+                return areInChronologicalOrder(rhs, lhs)
             case .dateAscending:
-                if lhs.date != rhs.date { return lhs.date < rhs.date }
+                return areInChronologicalOrder(lhs, rhs)
             case .costHighest:
                 if lhs.totalCost != rhs.totalCost { return lhs.totalCost > rhs.totalCost }
-                if lhs.date != rhs.date { return lhs.date > rhs.date }
+                return areInChronologicalOrder(rhs, lhs)
             case .costLowest:
                 if lhs.totalCost != rhs.totalCost { return lhs.totalCost < rhs.totalCost }
-                if lhs.date != rhs.date { return lhs.date < rhs.date }
+                return areInChronologicalOrder(lhs, rhs)
             }
-            return lhs.id.uuidString < rhs.id.uuidString
         }.map(\.id)
+    }
+
+    private static func areInChronologicalOrder(
+        _ lhs: HistoryRecordSnapshot,
+        _ rhs: HistoryRecordSnapshot
+    ) -> Bool {
+        OdometerChronologyValidator.areInIncreasingOrder(
+            lhsDate: lhs.date,
+            lhsOdometer: lhs.odometer,
+            lhsID: lhs.id,
+            rhsDate: rhs.date,
+            rhsOdometer: rhs.odometer,
+            rhsID: rhs.id
+        )
     }
 }
 

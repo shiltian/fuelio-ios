@@ -11,6 +11,7 @@ struct AddVehicleView: View {
     @State private var yearString = ""
     @State private var unitSystem: UnitSystem = .imperial
     @State private var metricEfficiencyFormat: MetricEfficiencyFormat = .defaultFormat
+    @State private var showingSaveError = false
 
     private var isValid: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -97,6 +98,11 @@ struct AddVehicleView: View {
                     .disabled(!isValid)
                 }
             }
+            .alert("Unable to Save", isPresented: $showingSaveError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your changes could not be saved. No data was changed. Please try again.")
+            }
         }
     }
 
@@ -105,20 +111,26 @@ struct AddVehicleView: View {
         let trimmedMake = make.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let vehicle = Vehicle(
-            name: trimmedName,
-            make: trimmedMake.isEmpty ? nil : trimmedMake,
-            model: trimmedModel.isEmpty ? nil : trimmedModel,
-            year: Int(yearString),
-            unitSystem: unitSystem
-        )
+        do {
+            let vehicle = try VehiclePersistenceService.insert(context: modelContext) {
+                let vehicle = Vehicle(
+                    name: trimmedName,
+                    make: trimmedMake.isEmpty ? nil : trimmedMake,
+                    model: trimmedModel.isEmpty ? nil : trimmedModel,
+                    year: Int(yearString),
+                    unitSystem: unitSystem
+                )
+                vehicle.modifiedAt = Date()
+                return vehicle
+            }
 
-        vehicle.modifiedAt = Date()
-        modelContext.insert(vehicle)
-        if unitSystem == .metric {
-            metricEfficiencyFormat.store(for: vehicle.id)
+            if unitSystem == .metric {
+                metricEfficiencyFormat.store(for: vehicle.id)
+            }
+            dismiss()
+        } catch {
+            showingSaveError = true
         }
-        dismiss()
     }
 }
 

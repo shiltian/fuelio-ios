@@ -129,6 +129,7 @@ struct DashboardView: View {
                         ChartView(
                             records: vehicle.fuelingRecords ?? [],
                             unitSystem: units,
+                            rawAverageEfficiency: vehicle.cachedAverageEfficiency ?? 0,
                             metricEfficiencyFormat: metricEfficiencyFormat,
                             invalidationKey: chartInvalidationKey
                         )

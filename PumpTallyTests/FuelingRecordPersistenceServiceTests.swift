@@ -244,3 +244,330 @@ final class FuelingRecordPersistenceServiceTests: XCTestCase {
         XCTAssertFalse(context.hasChanges)
     }
 }
+
+@MainActor
+final class VehiclePersistenceServiceTests: XCTestCase {
+
+    private enum TestError: Error {
+        case commitFailed
+    }
+
+    private func makeContext() throws -> ModelContext {
+        let schema = Schema(versionedSchema: SchemaV2.self)
+        let configuration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: true,
+            cloudKitDatabase: .none
+        )
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        return ModelContext(container)
+    }
+
+    private func makeSavedGraph(
+        in context: ModelContext
+    ) throws -> (Vehicle, FuelingRecord) {
+        let vehicle = Vehicle(
+            name: "Original",
+            make: "Old Make",
+            model: "Old Model",
+            year: 2020,
+            unitSystem: .imperial
+        )
+        vehicle.modifiedAt = Date(timeIntervalSince1970: 100)
+        context.insert(vehicle)
+
+        let record = FuelingRecord(
+            date: Date(timeIntervalSince1970: 200),
+            odometer: 1_000,
+            pricePerFuelUnit: 3.5,
+            fuelAmount: 10,
+            totalCost: 35,
+            fillUpType: .full,
+            notes: "Original note",
+            vehicle: vehicle
+        )
+        record.modifiedAt = Date(timeIntervalSince1970: 300)
+        context.insert(record)
+        context.processPendingChanges()
+
+        setSentinelCaches(on: vehicle, record: record)
+        try context.save()
+        return (vehicle, record)
+    }
+
+    private func setSentinelCaches(on vehicle: Vehicle, record: FuelingRecord) {
+        vehicle.cachedTotalSpent = 1
+        vehicle.cachedTotalDistance = 2
+        vehicle.cachedTotalFuel = 3
+        vehicle.cachedAverageEfficiency = 4
+        vehicle.cachedAverageCostPerDistance = 5
+        vehicle.cachedAverageFillUpCost = 6
+        vehicle.cachedAveragePricePerFuelUnit = 7
+        vehicle.cachedBestEfficiency = 8
+        vehicle.cachedWorstEfficiency = 9
+        vehicle.cachedHighestPricePerFuelUnit = 10
+        vehicle.cachedLowestPricePerFuelUnit = 11
+        vehicle.cachedRecordCount = 12
+        vehicle.cacheLastUpdated = Date(timeIntervalSince1970: 400)
+
+        record.cachedPreviousOdometer = 13
+        record.cachedDistanceDriven = 14
+        record.cachedEfficiency = 15
+        record.cachedCostPerDistance = 16
+    }
+
+    private func assertSentinelCaches(
+        on vehicle: Vehicle,
+        record: FuelingRecord,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(vehicle.cachedTotalSpent, 1, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedTotalDistance, 2, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedTotalFuel, 3, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedAverageEfficiency, 4, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedAverageCostPerDistance, 5, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedAverageFillUpCost, 6, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedAveragePricePerFuelUnit, 7, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedBestEfficiency, 8, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedWorstEfficiency, 9, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedHighestPricePerFuelUnit, 10, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedLowestPricePerFuelUnit, 11, file: file, line: line)
+        XCTAssertEqual(vehicle.cachedRecordCount, 12, file: file, line: line)
+        XCTAssertEqual(
+            vehicle.cacheLastUpdated,
+            Date(timeIntervalSince1970: 400),
+            file: file,
+            line: line
+        )
+
+        XCTAssertEqual(record.cachedPreviousOdometer, 13, file: file, line: line)
+        XCTAssertEqual(record.cachedDistanceDriven, 14, file: file, line: line)
+        XCTAssertEqual(record.cachedEfficiency, 15, file: file, line: line)
+        XCTAssertEqual(record.cachedCostPerDistance, 16, file: file, line: line)
+    }
+
+    func testInsertUsesOneExplicitCommit() throws {
+        let context = try makeContext()
+        var commitCount = 0
+
+        let vehicle = try VehiclePersistenceService.insert(
+            context: context,
+            commit: {
+                commitCount += 1
+                try $0.save()
+            }
+        ) {
+            Vehicle(name: "Inserted")
+        }
+
+        XCTAssertEqual(commitCount, 1)
+        XCTAssertEqual(vehicle.name, "Inserted")
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Vehicle>()), 1)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testFailedInsertLeavesNoVehicle() throws {
+        let context = try makeContext()
+
+        XCTAssertThrowsError(
+            try VehiclePersistenceService.insert(
+                context: context,
+                commit: { _ in throw TestError.commitFailed }
+            ) {
+                Vehicle(name: "Not Saved")
+            }
+        )
+
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Vehicle>()), 0)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testSaveSettingsConvertsSourceValuesAndCommitsOnce() throws {
+        let context = try makeContext()
+        let (vehicle, record) = try makeSavedGraph(in: context)
+        var commitCount = 0
+
+        try VehiclePersistenceService.saveSettings(
+            for: vehicle,
+            name: "Updated",
+            make: nil,
+            model: "New Model",
+            year: 2025,
+            unitSystem: .metric,
+            modifiedAt: Date(timeIntervalSince1970: 500),
+            context: context,
+            commit: {
+                commitCount += 1
+                try $0.save()
+            }
+        )
+
+        XCTAssertEqual(commitCount, 1)
+        XCTAssertEqual(vehicle.name, "Updated")
+        XCTAssertNil(vehicle.make)
+        XCTAssertEqual(vehicle.model, "New Model")
+        XCTAssertEqual(vehicle.year, 2025)
+        XCTAssertEqual(vehicle.unitSystem, .metric)
+        XCTAssertEqual(record.odometer, 1_000 * UnitSystem.milesToKm, accuracy: 0.000_001)
+        XCTAssertEqual(record.fuelAmount, 10 * UnitSystem.gallonsToLiters, accuracy: 0.000_001)
+        XCTAssertEqual(record.pricePerFuelUnit, 3.5 / UnitSystem.gallonsToLiters, accuracy: 0.000_001)
+        XCTAssertEqual(record.totalCost, 35)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testFailedSaveSettingsRestoresMetadataRecordsAndEveryCache() throws {
+        let context = try makeContext()
+        let (vehicle, record) = try makeSavedGraph(in: context)
+
+        XCTAssertThrowsError(
+            try VehiclePersistenceService.saveSettings(
+                for: vehicle,
+                name: "Updated",
+                make: nil,
+                model: "New Model",
+                year: 2025,
+                unitSystem: .metric,
+                modifiedAt: Date(timeIntervalSince1970: 500),
+                context: context,
+                commit: { _ in throw TestError.commitFailed }
+            )
+        )
+
+        XCTAssertEqual(vehicle.name, "Original")
+        XCTAssertEqual(vehicle.make, "Old Make")
+        XCTAssertEqual(vehicle.model, "Old Model")
+        XCTAssertEqual(vehicle.year, 2020)
+        XCTAssertEqual(vehicle.unitSystem, .imperial)
+        XCTAssertEqual(vehicle.modifiedAt, Date(timeIntervalSince1970: 100))
+
+        XCTAssertEqual(record.date, Date(timeIntervalSince1970: 200))
+        XCTAssertEqual(record.odometer, 1_000)
+        XCTAssertEqual(record.pricePerFuelUnit, 3.5)
+        XCTAssertEqual(record.fuelAmount, 10)
+        XCTAssertEqual(record.totalCost, 35)
+        XCTAssertEqual(record.fillUpType, .full)
+        XCTAssertEqual(record.notes, "Original note")
+        XCTAssertEqual(record.modifiedAt, Date(timeIntervalSince1970: 300))
+        assertSentinelCaches(on: vehicle, record: record)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testClearHistoryCommitsRecordsAndEmptyCachesTogether() throws {
+        let context = try makeContext()
+        let (vehicle, _) = try makeSavedGraph(in: context)
+        var commitCount = 0
+
+        try VehiclePersistenceService.clearFuelingHistory(
+            for: vehicle,
+            context: context,
+            commit: {
+                commitCount += 1
+                try $0.save()
+            }
+        )
+
+        XCTAssertEqual(commitCount, 1)
+        XCTAssertTrue((vehicle.fuelingRecords ?? []).isEmpty)
+        XCTAssertEqual(vehicle.cachedRecordCount, 0)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<FuelingRecord>()), 0)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testFailedClearHistoryRestoresRelationshipAndEveryCache() throws {
+        let context = try makeContext()
+        let (vehicle, record) = try makeSavedGraph(in: context)
+
+        XCTAssertThrowsError(
+            try VehiclePersistenceService.clearFuelingHistory(
+                for: vehicle,
+                context: context,
+                commit: { _ in throw TestError.commitFailed }
+            )
+        )
+
+        XCTAssertEqual(vehicle.fuelingRecords?.map(\.id), [record.id])
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<FuelingRecord>()), 1)
+        assertSentinelCaches(on: vehicle, record: record)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testFailedVehicleDeleteRestoresGraph() throws {
+        let context = try makeContext()
+        let (vehicle, record) = try makeSavedGraph(in: context)
+
+        XCTAssertThrowsError(
+            try VehiclePersistenceService.delete(
+                vehicle,
+                context: context,
+                commit: { _ in throw TestError.commitFailed }
+            )
+        )
+
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Vehicle>()), 1)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<FuelingRecord>()), 1)
+        XCTAssertEqual(vehicle.fuelingRecords?.map(\.id), [record.id])
+        assertSentinelCaches(on: vehicle, record: record)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testVehicleDeleteCommitsEntireGraph() throws {
+        let context = try makeContext()
+        let (vehicle, _) = try makeSavedGraph(in: context)
+        var commitCount = 0
+
+        try VehiclePersistenceService.delete(
+            vehicle,
+            context: context,
+            commit: {
+                commitCount += 1
+                try $0.save()
+            }
+        )
+
+        XCTAssertEqual(commitCount, 1)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Vehicle>()), 0)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<FuelingRecord>()), 0)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testFailedDeleteAllRestoresEveryGraph() throws {
+        let context = try makeContext()
+        let (vehicle, record) = try makeSavedGraph(in: context)
+
+        XCTAssertThrowsError(
+            try VehiclePersistenceService.deleteAllData(
+                context: context,
+                commit: { _ in throw TestError.commitFailed }
+            )
+        )
+
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Vehicle>()), 1)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<FuelingRecord>()), 1)
+        XCTAssertEqual(vehicle.fuelingRecords?.map(\.id), [record.id])
+        assertSentinelCaches(on: vehicle, record: record)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testDeleteAllCommitsEveryGraphOnce() throws {
+        let context = try makeContext()
+        _ = try makeSavedGraph(in: context)
+        let secondVehicle = Vehicle(name: "Second")
+        context.insert(secondVehicle)
+        try context.save()
+        var commitCount = 0
+
+        try VehiclePersistenceService.deleteAllData(
+            context: context,
+            commit: {
+                commitCount += 1
+                try $0.save()
+            }
+        )
+
+        XCTAssertEqual(commitCount, 1)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Vehicle>()), 0)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<FuelingRecord>()), 0)
+        XCTAssertFalse(context.hasChanges)
+    }
+}

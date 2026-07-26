@@ -8,6 +8,7 @@ import Charts
 struct ChartRecordSnapshot: Sendable {
     let id: UUID
     let date: Date
+    let odometer: Double
     let cachedEfficiency: Double?
     let totalCost: Double
     let pricePerFuelUnit: Double
@@ -16,6 +17,7 @@ struct ChartRecordSnapshot: Sendable {
     init(record: FuelingRecord) {
         id = record.id
         date = record.date
+        odometer = record.odometer
         cachedEfficiency = record.cachedEfficiency
         totalCost = record.totalCost
         pricePerFuelUnit = record.pricePerFuelUnit
@@ -24,12 +26,14 @@ struct ChartRecordSnapshot: Sendable {
     init(
         id: UUID,
         date: Date,
+        odometer: Double,
         cachedEfficiency: Double?,
         totalCost: Double,
         pricePerFuelUnit: Double
     ) {
         self.id = id
         self.date = date
+        self.odometer = odometer
         self.cachedEfficiency = cachedEfficiency
         self.totalCost = totalCost
         self.pricePerFuelUnit = pricePerFuelUnit
@@ -69,6 +73,7 @@ struct PrecomputedChartData: Sendable {
     init(
         records: [ChartRecordSnapshot],
         unitSystem: UnitSystem,
+        rawAverageEfficiency: Double,
         metricEfficiencyFormat: MetricEfficiencyFormat = .defaultFormat
     ) {
         self.unitSystem = unitSystem
@@ -77,7 +82,16 @@ struct PrecomputedChartData: Sendable {
         // Sort once, then gather all series and full-data summary statistics in
         // one pass. Downsampling happens only after the accurate summaries are
         // known, so averages and axis ranges retain their existing semantics.
-        let sorted = records.sorted { $0.date < $1.date }
+        let sorted = records.sorted {
+            OdometerChronologyValidator.areInIncreasingOrder(
+                lhsDate: $0.date,
+                lhsOdometer: $0.odometer,
+                lhsID: $0.id,
+                rhsDate: $1.date,
+                rhsOdometer: $1.odometer,
+                rhsID: $1.id
+            )
+        }
         self.showPoints = sorted.count <= Self.maxPointMarkers
 
         var allEfficiencyData: [ChartDataPoint] = []
@@ -87,7 +101,6 @@ struct PrecomputedChartData: Sendable {
         allCostData.reserveCapacity(sorted.count)
         allPriceData.reserveCapacity(sorted.count)
 
-        var rawEfficiencyTotal = 0.0
         var efficiencyMinimum: Double?
         var efficiencyMaximum: Double?
         var costTotal = 0.0
@@ -120,7 +133,6 @@ struct PrecomputedChartData: Sendable {
                     date: record.date,
                     value: displayEfficiency
                 ))
-                rawEfficiencyTotal += rawEfficiency
                 efficiencyMinimum = min(efficiencyMinimum ?? displayEfficiency, displayEfficiency)
                 efficiencyMaximum = max(efficiencyMaximum ?? displayEfficiency, displayEfficiency)
             }
@@ -137,7 +149,7 @@ struct PrecomputedChartData: Sendable {
             efficiencyAverage = 0
         } else {
             efficiencyAverage = unitSystem.efficiencyDisplayValue(
-                from: rawEfficiencyTotal / Double(allEfficiencyData.count),
+                from: rawAverageEfficiency,
                 metricFormat: metricEfficiencyFormat
             )
         }
@@ -217,6 +229,7 @@ struct PrecomputedChartData: Sendable {
 struct ChartView: View {
     let records: [FuelingRecord]
     let unitSystem: UnitSystem
+    let rawAverageEfficiency: Double
     let metricEfficiencyFormat: MetricEfficiencyFormat
     let invalidationKey: String
 
@@ -227,11 +240,13 @@ struct ChartView: View {
     init(
         records: [FuelingRecord],
         unitSystem: UnitSystem,
+        rawAverageEfficiency: Double,
         metricEfficiencyFormat: MetricEfficiencyFormat = .defaultFormat,
         invalidationKey: String? = nil
     ) {
         self.records = records
         self.unitSystem = unitSystem
+        self.rawAverageEfficiency = rawAverageEfficiency
         self.metricEfficiencyFormat = metricEfficiencyFormat
         self.invalidationKey = invalidationKey ?? "\(records.count)"
     }
@@ -257,6 +272,7 @@ struct ChartView: View {
     private struct PreparationKey: Equatable, Sendable {
         let invalidationKey: String
         let unitSystem: UnitSystem
+        let rawAverageEfficiency: Double
         let metricEfficiencyFormat: MetricEfficiencyFormat
     }
 
@@ -264,6 +280,7 @@ struct ChartView: View {
         PreparationKey(
             invalidationKey: invalidationKey,
             unitSystem: unitSystem,
+            rawAverageEfficiency: rawAverageEfficiency,
             metricEfficiencyFormat: metricEfficiencyFormat
         )
     }
@@ -328,6 +345,7 @@ struct ChartView: View {
             PrecomputedChartData(
                 records: snapshots,
                 unitSystem: key.unitSystem,
+                rawAverageEfficiency: key.rawAverageEfficiency,
                 metricEfficiencyFormat: key.metricEfficiencyFormat
             )
         }.value
@@ -536,6 +554,10 @@ struct PricePerFuelUnitChart: View {
 }
 
 #Preview {
-    ChartView(records: [], unitSystem: .imperial)
+    ChartView(
+        records: [],
+        unitSystem: .imperial,
+        rawAverageEfficiency: 0
+    )
         .padding()
 }

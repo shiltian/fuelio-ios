@@ -8,6 +8,7 @@ struct VehicleListView: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var showingDeleteAlert = false
+    @State private var showingDeleteError = false
     @State private var vehicleToDelete: Vehicle?
     @State private var showingSettings = false
 
@@ -57,12 +58,22 @@ struct VehicleListView: View {
         } message: {
             Text("Are you sure you want to delete this vehicle and all its fueling records? This action cannot be undone.")
         }
+        .alert("Unable to Delete", isPresented: $showingDeleteError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Your changes could not be saved. No data was changed. Please try again.")
+        }
     }
 
     private func deleteVehicle(_ vehicle: Vehicle) {
-        withAnimation {
-            modelContext.delete(vehicle)
+        do {
+            try VehiclePersistenceService.delete(vehicle, context: modelContext)
+            withAnimation {
+                vehicleToDelete = nil
+            }
+        } catch {
             vehicleToDelete = nil
+            showingDeleteError = true
         }
     }
 }

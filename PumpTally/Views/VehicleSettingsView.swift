@@ -28,6 +28,8 @@ struct VehicleSettingsView: View {
     @State private var showingClearHistoryAlert = false
     @State private var showingClearHistoryConfirmation = false
     @State private var showingClearHistorySuccess = false
+    @State private var showingSaveError = false
+    @State private var showingClearHistoryError = false
 
     init(vehicle: Vehicle) {
         self.vehicle = vehicle
@@ -225,6 +227,16 @@ struct VehicleSettingsView: View {
             } message: {
                 Text("All fueling records have been deleted.")
             }
+            .alert("Unable to Save", isPresented: $showingSaveError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your changes could not be saved. No data was changed. Please try again.")
+            }
+            .alert("Unable to Delete", isPresented: $showingClearHistoryError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your changes could not be saved. No data was changed. Please try again.")
+            }
             // CSV sheets
             .sheet(isPresented: $showingExportOptions) {
                 ExportCSVView(vehicle: vehicle)
@@ -265,26 +277,38 @@ struct VehicleSettingsView: View {
         let now = Date()
         let shouldPushAfterSave = unitHasChanged
 
-        vehicle.name = trimmedName
-        vehicle.make = updatedMake
-        vehicle.model = updatedModel
-        vehicle.year = updatedYear
-        vehicle.modifiedAt = now
-
         var didSave = false
         do {
             if shouldPushAfterSave {
                 try cloudSyncService.withLocalPushesSuspended {
-                    applyUnitChange(modifiedAt: now)
-                    try modelContext.save()
+                    try VehiclePersistenceService.saveSettings(
+                        for: vehicle,
+                        name: trimmedName,
+                        make: updatedMake,
+                        model: updatedModel,
+                        year: updatedYear,
+                        unitSystem: selectedUnit,
+                        modifiedAt: now,
+                        context: modelContext
+                    )
                 }
             } else {
-                try modelContext.save()
+                try VehiclePersistenceService.saveSettings(
+                    for: vehicle,
+                    name: trimmedName,
+                    make: updatedMake,
+                    model: updatedModel,
+                    year: updatedYear,
+                    unitSystem: selectedUnit,
+                    modifiedAt: now,
+                    context: modelContext
+                )
             }
             didSave = true
         } catch {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "VehicleSettings")
                 .error("Failed to save vehicle settings: \(error)")
+            showingSaveError = true
         }
 
         if didSave && shouldPushAfterSave {
@@ -301,43 +325,15 @@ struct VehicleSettingsView: View {
         }
     }
 
-    private func applyUnitChange(modifiedAt: Date) {
-        let oldUnit = vehicle.unitSystem
-        let newUnit = selectedUnit
-
-        // Convert all existing records
-        if let records = vehicle.fuelingRecords {
-            for record in records {
-                record.odometer = newUnit.convertDistance(from: oldUnit, value: record.odometer)
-                record.fuelAmount = newUnit.convertFuel(from: oldUnit, value: record.fuelAmount)
-                record.pricePerFuelUnit = newUnit.convertPricePerFuel(from: oldUnit, value: record.pricePerFuelUnit)
-                record.modifiedAt = modifiedAt
-                // totalCost stays the same
-            }
-        }
-
-        // Update vehicle's unit system
-        vehicle.unitSystem = newUnit
-
-        // Rebuild cache with converted values
-        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
-    }
-
     private func clearFuelingHistory() {
-        guard let records = vehicle.fuelingRecords else { return }
+        guard !(vehicle.fuelingRecords?.isEmpty ?? true) else { return }
 
         do {
             try cloudSyncService.withLocalPushesSuspended {
-                for record in records {
-                    modelContext.delete(record)
-                }
-                try modelContext.save()
-
-                // Invalidate cache after clearing
-                vehicle.invalidateCache()
-                vehicle.cachedRecordCount = 0
-                vehicle.cacheLastUpdated = Date()
-                try modelContext.save()
+                try VehiclePersistenceService.clearFuelingHistory(
+                    for: vehicle,
+                    context: modelContext
+                )
             }
 
             showingClearHistorySuccess = true
@@ -347,6 +343,7 @@ struct VehicleSettingsView: View {
         } catch {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "VehicleSettings")
                 .error("Failed to clear fueling history: \(error)")
+            showingClearHistoryError = true
         }
     }
 }

@@ -107,7 +107,9 @@ final class CSVImportServiceTests: XCTestCase {
             vehicle: vehicle
         )
 
-        let csv = CSVService.exportRecords([original])
+        let csv = CSVService.exportRecords([
+            CSVService.RecordSnapshot(record: original)
+        ])
         let imported = try CSVImportService.parse(csv)
 
         XCTAssertEqual(imported.count, 1)

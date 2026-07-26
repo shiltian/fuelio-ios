@@ -3,6 +3,13 @@ import SwiftData
 import os
 
 struct SettingsView: View {
+    private enum DeleteOutcome: Int, Identifiable {
+        case success
+        case failure
+
+        var id: Int { rawValue }
+    }
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var cloudSyncService: CloudSyncService
@@ -15,7 +22,7 @@ struct SettingsView: View {
 
     @State private var showingDeleteAllAlert = false
     @State private var showingDeleteAllConfirmation = false
-    @State private var showingDeleteSuccess = false
+    @State private var deleteOutcome: DeleteOutcome?
 
     // iCloud Sync state
     @State private var isSyncToggleOn = false
@@ -207,12 +214,23 @@ struct SettingsView: View {
             } message: {
                 Text("This action cannot be undone. All your data will be permanently deleted.")
             }
-            .alert("Data Deleted", isPresented: $showingDeleteSuccess) {
-                Button("OK") {
-                    dismiss()
+            .alert(item: $deleteOutcome) { outcome in
+                switch outcome {
+                case .success:
+                    return Alert(
+                        title: Text("Data Deleted"),
+                        message: Text("All data has been successfully deleted."),
+                        dismissButton: .default(Text("OK")) {
+                            dismiss()
+                        }
+                    )
+                case .failure:
+                    return Alert(
+                        title: Text("Unable to Delete"),
+                        message: Text("Your changes could not be saved. No data was changed. Please try again."),
+                        dismissButton: .cancel(Text("OK"))
+                    )
                 }
-            } message: {
-                Text("All data has been successfully deleted.")
             }
             .onAppear {
                 isSyncToggleOn = stateManager.iCloudSyncEnabled
@@ -312,20 +330,12 @@ struct SettingsView: View {
 
     private func deleteAllData() {
         do {
-            let allRecords = try modelContext.fetch(FetchDescriptor<FuelingRecord>())
-            for record in allRecords {
-                modelContext.delete(record)
-            }
-
-            for vehicle in vehicles {
-                modelContext.delete(vehicle)
-            }
-
-            try modelContext.save()
-            showingDeleteSuccess = true
+            try VehiclePersistenceService.deleteAllData(context: modelContext)
+            deleteOutcome = .success
         } catch {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "Settings")
                 .error("Failed to delete all data: \(error)")
+            deleteOutcome = .failure
         }
     }
 }

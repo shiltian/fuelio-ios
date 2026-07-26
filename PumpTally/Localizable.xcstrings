@@ -2989,6 +2989,7 @@
 
     },
     "The file doesn't appear to have a valid header row" : {
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {
