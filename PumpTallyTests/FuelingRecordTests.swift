@@ -202,7 +202,17 @@ final class FuelingRecordTests: XCTestCase {
     }
 
     func testGetEfficiencyCalculated() {
+        let previousRecord = FuelingRecord(
+            date: Date(timeIntervalSince1970: 1_000_000),
+            odometer: 9700,
+            pricePerFuelUnit: 3.50,
+            fuelAmount: 10.0,
+            totalCost: 35.0,
+            fillUpType: .full,
+            vehicle: testVehicle
+        )
         let record = FuelingRecord(
+            date: Date(timeIntervalSince1970: 2_000_000),
             odometer: 10000,
             pricePerFuelUnit: 3.50,
             fuelAmount: 10.0,
@@ -211,7 +221,7 @@ final class FuelingRecordTests: XCTestCase {
             vehicle: testVehicle
         )
 
-        record.cachedPreviousOdometer = 9700
+        testVehicle.fuelingRecords = [record, previousRecord]
         // Should calculate: (10000 - 9700) / 10 = 30
         XCTAssertEqual(record.getEfficiency(), 30.0)
     }

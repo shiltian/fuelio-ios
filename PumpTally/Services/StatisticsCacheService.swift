@@ -27,7 +27,9 @@ final class StatisticsCacheService {
         }
 
         // Sort once - O(n log n)
-        let sortedByDate = records.sorted(by: chronologicallyPrecedes)
+        let sortedByDate = records.sorted(
+            by: OdometerChronologyValidator.areInIncreasingOrder
+        )
 
         // Single pass to compute all per-record cached values and aggregate statistics - O(n)
         var totalSpent: Double = 0
@@ -45,8 +47,6 @@ final class StatisticsCacheService {
 
         var hasValidEfficiency = false
         var previousOdometer: Double = 0
-        var previousWasFullFillUp = false
-
         for (index, record) in sortedByDate.enumerated() {
             // Cache previous odometer for this record
             record.cachedPreviousOdometer = previousOdometer
@@ -61,12 +61,14 @@ final class StatisticsCacheService {
                 record.cachedDistanceDriven = 0
             }
 
-            // Calculate efficiency (only for full fill-ups where previous was also full)
-            // Partial: didn't fill tank completely (affects next record's efficiency baseline)
-            // Reset: missed fueling(s) before this record (can't trust distance driven for this record)
-            let efficiency: Double
-            if record.isFullFillUp && previousWasFullFillUp && distanceDriven > 0 && record.fuelAmount > 0 {
-                efficiency = distanceDriven / record.fuelAmount
+            let previousRecord = index > 0 ? sortedByDate[index - 1] : nil
+            if let efficiency = FuelEfficiencyPolicy.rawEfficiency(
+                distanceDriven: distanceDriven,
+                fuelAmount: record.fuelAmount,
+                currentFillUpType: record.fillUpType,
+                previousFillUpType: previousRecord?.fillUpType,
+                previousIsFirstRecord: index == 1
+            ) {
                 record.cachedEfficiency = efficiency
 
                 // Track best/worst efficiency
@@ -78,7 +80,6 @@ final class StatisticsCacheService {
                 fullFillUpDistance += distanceDriven
                 fullFillUpFuel += record.fuelAmount
             } else {
-                efficiency = 0
                 record.cachedEfficiency = nil
             }
 
@@ -101,7 +102,6 @@ final class StatisticsCacheService {
 
             // Update state for next iteration
             previousOdometer = record.odometer
-            previousWasFullFillUp = record.isFullFillUp || index == 0
         }
 
         // Store aggregated statistics on the vehicle
@@ -146,20 +146,6 @@ final class StatisticsCacheService {
 
     // MARK: - Incremental Updates
 
-    private static func chronologicallyPrecedes(
-        _ lhs: FuelingRecord,
-        _ rhs: FuelingRecord
-    ) -> Bool {
-        OdometerChronologyValidator.areInIncreasingOrder(
-            lhsDate: lhs.date,
-            lhsOdometer: lhs.odometer,
-            lhsID: lhs.id,
-            rhsDate: rhs.date,
-            rhsOdometer: rhs.odometer,
-            rhsID: rhs.id
-        )
-    }
-
     /// Update statistics after adding a new record
     /// If the record is the most recent, this is O(1). Otherwise, triggers full recalculation.
     static func updateForNewRecord(_ record: FuelingRecord, vehicle: Vehicle) {
@@ -173,7 +159,8 @@ final class StatisticsCacheService {
 
         // Check if this record is the most recent by deterministic chronology.
         let isLatestRecord = !records.contains {
-            $0.id != record.id && chronologicallyPrecedes(record, $0)
+            $0.id != record.id
+                && OdometerChronologyValidator.areInIncreasingOrder(record, $0)
         }
 
         if isLatestRecord {
@@ -181,12 +168,24 @@ final class StatisticsCacheService {
             var previousRecord: FuelingRecord?
             for r in records {
                 guard r.id != record.id else { continue }
-                guard chronologicallyPrecedes(r, record) else { continue }
-                if previousRecord == nil || chronologicallyPrecedes(previousRecord!, r) {
+                guard OdometerChronologyValidator.areInIncreasingOrder(r, record) else { continue }
+                if previousRecord == nil
+                    || OdometerChronologyValidator.areInIncreasingOrder(previousRecord!, r) {
                     previousRecord = r
                 }
             }
-            incrementalAddLatestRecord(record, previousRecord: previousRecord, to: vehicle)
+            let previousIsFirstRecord = previousRecord.map { previous in
+                !records.contains {
+                    $0.id != previous.id
+                        && OdometerChronologyValidator.areInIncreasingOrder($0, previous)
+                }
+            } ?? false
+            incrementalAddLatestRecord(
+                record,
+                previousRecord: previousRecord,
+                previousIsFirstRecord: previousIsFirstRecord,
+                to: vehicle
+            )
         } else {
             // Record inserted in the middle - need to recalculate from that point
             // For simplicity, just do a full recalculation
@@ -195,7 +194,12 @@ final class StatisticsCacheService {
     }
 
     /// Incremental update when adding the latest (most recent) record
-    private static func incrementalAddLatestRecord(_ record: FuelingRecord, previousRecord: FuelingRecord?, to vehicle: Vehicle) {
+    private static func incrementalAddLatestRecord(
+        _ record: FuelingRecord,
+        previousRecord: FuelingRecord?,
+        previousIsFirstRecord: Bool,
+        to vehicle: Vehicle
+    ) {
         guard let previousRecord else {
             recalculateAllStatistics(for: vehicle)
             return
@@ -209,9 +213,13 @@ final class StatisticsCacheService {
         let distanceDriven = record.odometer - previousOdometer
         record.cachedDistanceDriven = distanceDriven > 0 ? distanceDriven : 0
 
-        // Calculate efficiency if applicable (only for full fill-ups where previous was also full)
-        if record.isFullFillUp && previousRecord.isFullFillUp && distanceDriven > 0 && record.fuelAmount > 0 {
-            let efficiency = distanceDriven / record.fuelAmount
+        if let efficiency = FuelEfficiencyPolicy.rawEfficiency(
+            distanceDriven: distanceDriven,
+            fuelAmount: record.fuelAmount,
+            currentFillUpType: record.fillUpType,
+            previousFillUpType: previousRecord.fillUpType,
+            previousIsFirstRecord: previousIsFirstRecord
+        ) {
             record.cachedEfficiency = efficiency
 
             // Update best/worst efficiency

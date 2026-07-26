@@ -178,6 +178,23 @@ final class StatisticsCacheServiceTests: XCTestCase {
         XCTAssertNil(record3.cachedEfficiency)
     }
 
+    func testEfficiencyResumesAfterFullFillUpReestablishesBaseline() {
+        let vehicle = createVehicle()
+        let records = [
+            createRecord(date: Date(timeIntervalSince1970: 1), odometer: 100, vehicle: vehicle),
+            createRecord(date: Date(timeIntervalSince1970: 2), odometer: 200, fillUpType: .partial, vehicle: vehicle),
+            createRecord(date: Date(timeIntervalSince1970: 3), odometer: 300, vehicle: vehicle),
+            createRecord(date: Date(timeIntervalSince1970: 4), odometer: 500, fuelAmount: 10, vehicle: vehicle)
+        ]
+        vehicle.fuelingRecords = records
+
+        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+
+        XCTAssertNil(records[1].cachedEfficiency)
+        XCTAssertNil(records[2].cachedEfficiency)
+        XCTAssertEqual(records[3].cachedEfficiency, 20)
+    }
+
     func testRecalculateAllStatisticsWithResetFillUp() {
         let vehicle = createVehicle()
 
@@ -194,6 +211,23 @@ final class StatisticsCacheServiceTests: XCTestCase {
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
 
         XCTAssertNil(record2.cachedEfficiency)
+    }
+
+    func testResetBreaksEfficiencyUntilFullFillUpReestablishesBaseline() {
+        let vehicle = createVehicle()
+        let records = [
+            createRecord(date: Date(timeIntervalSince1970: 1), odometer: 100, vehicle: vehicle),
+            createRecord(date: Date(timeIntervalSince1970: 2), odometer: 200, fillUpType: .reset, vehicle: vehicle),
+            createRecord(date: Date(timeIntervalSince1970: 3), odometer: 300, vehicle: vehicle),
+            createRecord(date: Date(timeIntervalSince1970: 4), odometer: 500, fuelAmount: 10, vehicle: vehicle)
+        ]
+        vehicle.fuelingRecords = records
+
+        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+
+        XCTAssertNil(records[1].cachedEfficiency)
+        XCTAssertNil(records[2].cachedEfficiency)
+        XCTAssertEqual(records[3].cachedEfficiency, 20)
     }
 
     func testRecalculateAllStatisticsCostPerDistance() {
@@ -327,6 +361,36 @@ final class StatisticsCacheServiceTests: XCTestCase {
         let incrementalAvg = vehicle.cachedAverageEfficiency!
         StatisticsCacheService.recalculateAllStatistics(for: vehicle)
         XCTAssertEqual(vehicle.cachedAverageEfficiency!, incrementalAvg, accuracy: 0.001)
+    }
+
+    func testIncrementalUpdateMatchesFirstRecordBaselineCompatibilityRule() {
+        for firstType in [FillUpType.partial, .reset] {
+            let vehicle = createVehicle()
+            let first = createRecord(
+                date: Date(timeIntervalSince1970: 1),
+                odometer: 100,
+                fillUpType: firstType,
+                vehicle: vehicle
+            )
+            vehicle.fuelingRecords = [first]
+            StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+
+            let second = createRecord(
+                date: Date(timeIntervalSince1970: 2),
+                odometer: 300,
+                fuelAmount: 10,
+                vehicle: vehicle
+            )
+            vehicle.fuelingRecords = [second, first]
+            StatisticsCacheService.updateForNewRecord(second, vehicle: vehicle)
+
+            XCTAssertEqual(second.cachedEfficiency, 20)
+            let incrementalAverage = vehicle.cachedAverageEfficiency
+
+            StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+            XCTAssertEqual(second.cachedEfficiency, 20)
+            XCTAssertEqual(vehicle.cachedAverageEfficiency, incrementalAverage)
+        }
     }
 
     func testUpdateForNewRecordNotLatest() {

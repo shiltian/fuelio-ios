@@ -202,7 +202,7 @@ struct LastFillUpCard: View {
     }
 
     private var hasEfficiency: Bool {
-        previousOdometer > 0 && !record.isPartialFillUp && record.getEfficiency() > 0
+        record.getEfficiency() > 0
     }
 
     var body: some View {

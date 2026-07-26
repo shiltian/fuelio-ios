@@ -132,6 +132,20 @@ enum OdometerChronologyValidator {
     }
 
     static func areInIncreasingOrder(
+        _ lhs: FuelingRecord,
+        _ rhs: FuelingRecord
+    ) -> Bool {
+        areInIncreasingOrder(
+            lhsDate: lhs.date,
+            lhsOdometer: lhs.odometer,
+            lhsID: lhs.id,
+            rhsDate: rhs.date,
+            rhsOdometer: rhs.odometer,
+            rhsID: rhs.id
+        )
+    }
+
+    static func areInIncreasingOrder(
         lhsDate: Date,
         lhsOdometer: Double,
         lhsID: UUID,

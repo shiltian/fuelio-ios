@@ -124,9 +124,21 @@ final class FuelingRecord {
         if let cached = cachedEfficiency {
             return cached
         }
-        let distance = getDistanceDriven()
-        guard fuelAmount > 0, distance > 0, !isPartialFillUp, !isReset else { return 0 }
-        return distance / fuelAmount
+
+        let records = Array(vehicle.sortedRecords.reversed())
+        guard let index = records.firstIndex(where: { $0.id == id }),
+              index > 0 else {
+            return 0
+        }
+
+        let previousRecord = records[index - 1]
+        return FuelEfficiencyPolicy.rawEfficiency(
+            distanceDriven: odometer - previousRecord.odometer,
+            fuelAmount: fuelAmount,
+            currentFillUpType: fillUpType,
+            previousFillUpType: previousRecord.fillUpType,
+            previousIsFirstRecord: index == 1
+        ) ?? 0
     }
 
     /// Get cost per distance unit (cached or computed)

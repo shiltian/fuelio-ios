@@ -48,7 +48,7 @@ struct FuelingSummaryData: Identifiable {
     }
 
     var hasEfficiency: Bool {
-        previousOdometer > 0 && !isPartialFillUp && efficiencyRaw > 0
+        efficiencyRaw > 0
     }
 }
 

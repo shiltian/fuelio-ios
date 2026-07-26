@@ -151,6 +151,7 @@ struct HistoryView: View {
                             FuelingRecordRow(
                                 record: record,
                                 previousOdometer: record.getPreviousOdometer(),
+                                efficiencyRaw: record.cachedEfficiency ?? 0,
                                 unitSystem: vehicle.unitSystem,
                                 metricEfficiencyFormat: metricEfficiencyFormat
                             )
@@ -255,13 +256,9 @@ struct HistoryView: View {
 struct FuelingRecordRow: View {
     let record: FuelingRecord
     let previousOdometer: Double
+    let efficiencyRaw: Double
     let unitSystem: UnitSystem
     let metricEfficiencyFormat: MetricEfficiencyFormat
-
-    // Use cached values for performance
-    private var efficiencyRaw: Double {
-        record.getEfficiency()
-    }
 
     private var efficiencyDisplay: Double {
         unitSystem.efficiencyDisplayValue(
@@ -275,7 +272,7 @@ struct FuelingRecordRow: View {
     }
 
     private var hasEfficiency: Bool {
-        previousOdometer > 0 && record.isFullFillUp && efficiencyRaw > 0
+        efficiencyRaw > 0
     }
 
     var body: some View {

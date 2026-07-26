@@ -70,24 +70,14 @@ final class Vehicle {
     }
 
     var sortedRecords: [FuelingRecord] {
-        (fuelingRecords ?? []).sorted { Self.chronologicallyPrecedes($1, $0) }
+        (fuelingRecords ?? []).sorted {
+            OdometerChronologyValidator.areInIncreasingOrder($1, $0)
+        }
     }
 
     var lastRecord: FuelingRecord? {
-        (fuelingRecords ?? []).max(by: Self.chronologicallyPrecedes)
-    }
-
-    private static func chronologicallyPrecedes(
-        _ lhs: FuelingRecord,
-        _ rhs: FuelingRecord
-    ) -> Bool {
-        OdometerChronologyValidator.areInIncreasingOrder(
-            lhsDate: lhs.date,
-            lhsOdometer: lhs.odometer,
-            lhsID: lhs.id,
-            rhsDate: rhs.date,
-            rhsOdometer: rhs.odometer,
-            rhsID: rhs.id
+        (fuelingRecords ?? []).max(
+            by: OdometerChronologyValidator.areInIncreasingOrder
         )
     }
 

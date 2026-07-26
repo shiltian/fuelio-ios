@@ -52,6 +52,8 @@
 		L100000329AD0001 /* OdometerChronologyValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = L100000429AD0001 /* OdometerChronologyValidatorTests.swift */; };
 		N100000129AE0001 /* FuelingRecordPersistenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = N100000229AE0001 /* FuelingRecordPersistenceService.swift */; };
 		N100000329AE0001 /* FuelingRecordPersistenceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = N100000429AE0001 /* FuelingRecordPersistenceServiceTests.swift */; };
+		P100000129AF0001 /* FuelEfficiencyPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = P100000229AF0001 /* FuelEfficiencyPolicy.swift */; };
+		P100000329AF0001 /* FuelEfficiencyPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = P100000429AF0001 /* FuelEfficiencyPolicyTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -114,6 +116,8 @@
 		L100000429AD0001 /* OdometerChronologyValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OdometerChronologyValidatorTests.swift; sourceTree = "<group>"; };
 		N100000229AE0001 /* FuelingRecordPersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelingRecordPersistenceService.swift; sourceTree = "<group>"; };
 		N100000429AE0001 /* FuelingRecordPersistenceServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelingRecordPersistenceServiceTests.swift; sourceTree = "<group>"; };
+		P100000229AF0001 /* FuelEfficiencyPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelEfficiencyPolicy.swift; sourceTree = "<group>"; };
+		P100000429AF0001 /* FuelEfficiencyPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuelEfficiencyPolicyTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -203,6 +207,7 @@
 				E1000006296E0001 /* SyncStateManager.swift */,
 				L100000229AD0001 /* OdometerChronologyValidator.swift */,
 				N100000229AE0001 /* FuelingRecordPersistenceService.swift */,
+				P100000229AF0001 /* FuelEfficiencyPolicy.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -248,6 +253,7 @@
 				K100000429AC0001 /* HistoryRecordsQueryTests.swift */,
 				L100000429AD0001 /* OdometerChronologyValidatorTests.swift */,
 				N100000429AE0001 /* FuelingRecordPersistenceServiceTests.swift */,
+				P100000429AF0001 /* FuelEfficiencyPolicyTests.swift */,
 			);
 			path = PumpTallyTests;
 			sourceTree = "<group>";
@@ -393,6 +399,7 @@
 				I1000001299A0001 /* PumpTallySchema.swift in Sources */,
 				L100000129AD0001 /* OdometerChronologyValidator.swift in Sources */,
 				N100000129AE0001 /* FuelingRecordPersistenceService.swift in Sources */,
+				P100000129AF0001 /* FuelEfficiencyPolicy.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -413,6 +420,7 @@
 				K100000329AC0001 /* HistoryRecordsQueryTests.swift in Sources */,
 				L100000329AD0001 /* OdometerChronologyValidatorTests.swift in Sources */,
 				N100000329AE0001 /* FuelingRecordPersistenceServiceTests.swift in Sources */,
+				P100000329AF0001 /* FuelEfficiencyPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
