@@ -233,15 +233,25 @@ struct SettingsView: View {
                 return
             }
 
-            // Check if cloud has data
-            let cloudHasData = await cloudSyncService.checkCloudHasData()
+            do {
+                // "Empty" is a valid result; a CloudKit failure is not. Never
+                // choose the upload-local strategy when cloud state is unknown.
+                let cloudHasData = try await cloudSyncService.checkCloudHasData()
 
-            if cloudHasData {
-                // Show conflict resolution
-                showingConflictOptions = true
-            } else {
-                // No cloud data: upload local and start syncing
-                performInitialSync(strategy: .uploadLocal)
+                if cloudHasData {
+                    // Show conflict resolution
+                    showingConflictOptions = true
+                } else {
+                    // No cloud data: upload local and start syncing
+                    performInitialSync(strategy: .uploadLocal)
+                }
+            } catch {
+                isSyncToggleOn = false
+                stateManager.syncStatus = .error(String(localized: "Sync failed"))
+                Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "Settings")
+                    .error("Unable to determine whether iCloud contains data: \(error)")
+                iCloudErrorMessage = String(localized: "Unable to sync with iCloud. Please check your internet connection and iCloud settings, then try again.")
+                showingICloudError = true
             }
         }
     }
@@ -281,6 +291,7 @@ struct SettingsView: View {
             } catch {
                 stateManager.iCloudSyncEnabled = false
                 isSyncToggleOn = false
+                stateManager.syncStatus = .error(String(localized: "Sync failed"))
                 Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "Settings")
                     .error("iCloud sync failed: \(error)")
                 iCloudErrorMessage = String(localized: "Unable to sync with iCloud. Please check your internet connection and iCloud settings, then try again.")

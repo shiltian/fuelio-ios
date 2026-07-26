@@ -1781,18 +1781,18 @@
         }
       }
     },
-    "Kilometers, Liters, L/100km" : {
+    "Kilometers per Liter" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kilómetros, Litros, L/100km"
+            "value" : "Kilómetros por litro"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "公里、升、L/100km"
+            "value" : "公里/升"
           }
         }
       }
@@ -1813,18 +1813,18 @@
         }
       }
     },
-    "Kilometers per Liter" : {
+    "Kilometers, Liters, L/100km" : {
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kilómetros por litro"
+            "value" : "Kilómetros, Litros, L/100km"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "公里/升"
+            "value" : "公里、升、L/100km"
           }
         }
       }
@@ -2580,6 +2580,9 @@
           }
         }
       }
+    },
+    "Pull incomplete — will retry" : {
+
     },
     "Re-sync" : {
       "localizations" : {

@@ -120,22 +120,15 @@ final class CloudSyncService: ObservableObject {
     /// Check if the cloud has any data in FuelioZone.
     /// Uses recordZoneChanges (change token based) instead of CKQuery to avoid
     /// issues with non-existent record types and non-queryable fields on first use.
-    func checkCloudHasData() async -> Bool {
-        do {
-            try await ensureZoneExists()
+    func checkCloudHasData() async throws -> Bool {
+        try await ensureZoneExists()
 
-            // Fetch all changes since the beginning (nil token) — if any records
-            // come back, the cloud has data.
-            let results = try await privateDatabase.recordZoneChanges(
-                inZoneWith: zoneID,
-                since: nil
-            )
-
-            return !results.modificationResultsByID.isEmpty
-        } catch {
-            Self.logger.error("Error checking cloud data: \(error)")
-            return false
-        }
+        // Read the complete zone instead of treating an empty first page as an
+        // empty cloud. Errors intentionally propagate: callers must distinguish
+        // "empty" from "unknown because CloudKit failed" before choosing the
+        // destructive initial-sync strategy.
+        let (vehicles, fuelingRecords) = try await fetchAllCloudRecords()
+        return !vehicles.isEmpty || !fuelingRecords.isEmpty
     }
 
     // MARK: - Upload All Local Data
@@ -171,7 +164,64 @@ final class CloudSyncService: ObservableObject {
 
     // MARK: - Download All Cloud Data
 
-    /// Download all cloud data and replace local data
+    /// A fully decoded, value-type cloud vehicle used to validate a replacement
+    /// before any local model is deleted.
+    private struct CloudVehicleSnapshot {
+        let id: UUID
+        let name: String
+        let make: String?
+        let model: String?
+        let year: Int?
+        let createdAt: Date
+        let modifiedAt: Date?
+        let unitSystem: UnitSystem
+    }
+
+    /// A fully decoded, value-type cloud fueling record used to validate a
+    /// replacement before any local model is deleted.
+    private struct CloudFuelingRecordSnapshot {
+        let id: UUID
+        let date: Date
+        let odometer: Double
+        let pricePerFuelUnit: Double
+        let fuelAmount: Double
+        let totalCost: Double
+        let fillUpType: FillUpType
+        let notes: String?
+        let createdAt: Date
+        let modifiedAt: Date?
+        let vehicleID: UUID
+    }
+
+    enum CloudReplacementError: LocalizedError {
+        case invalidVehicleRecord(String)
+        case duplicateVehicle(UUID)
+        case invalidFuelingRecord(String)
+        case duplicateFuelingRecord(UUID)
+        case missingVehicle(recordID: UUID, vehicleID: UUID)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidVehicleRecord(let recordName):
+                return "Cloud vehicle \(recordName) is incomplete or malformed."
+            case .duplicateVehicle(let id):
+                return "Cloud data contains duplicate vehicle \(id.uuidString)."
+            case .invalidFuelingRecord(let recordName):
+                return "Cloud fueling record \(recordName) is incomplete or malformed."
+            case .duplicateFuelingRecord(let id):
+                return "Cloud data contains duplicate fueling record \(id.uuidString)."
+            case .missingVehicle(let recordID, let vehicleID):
+                return "Cloud fueling record \(recordID.uuidString) references missing vehicle \(vehicleID.uuidString)."
+            }
+        }
+    }
+
+    /// Download all cloud data and replace local data.
+    ///
+    /// The complete cloud snapshot is decoded and validated before touching the
+    /// local context. The replacement is then persisted by one `save()`, which
+    /// SwiftData commits as one store transaction. If that save fails, rollback
+    /// restores the context to its last successfully saved local state.
     func downloadAllCloudData(to context: ModelContext) async throws {
         stateManager.syncStatus = .syncing
         isApplyingRemoteChanges = true
@@ -181,43 +231,229 @@ final class CloudSyncService: ObservableObject {
         // local store remains untouched.
         let (vehicleCKRecords, fuelingCKRecords) = try await fetchAllCloudRecords()
 
-        let vehicleDescriptor = FetchDescriptor<Vehicle>()
-        let localVehicles = try context.fetch(vehicleDescriptor)
-        for vehicle in localVehicles {
-            context.delete(vehicle)
-        }
-
-        var vehicleMap: [CKRecord.ID: Vehicle] = [:]
-
-        for ckRecord in vehicleCKRecords {
-            let vehicle = vehicleFromCKRecord(ckRecord)
-            context.insert(vehicle)
-            vehicleMap[ckRecord.recordID] = vehicle
-        }
-
-        // Build UUID-based lookup from the CKRecord.ID-keyed map
-        var vehiclesByUUID: [UUID: Vehicle] = [:]
-        for (ckRecordID, vehicle) in vehicleMap {
-            if let uuid = UUID(uuidString: ckRecordID.recordName) {
-                vehiclesByUUID[uuid] = vehicle
-            }
-        }
-
-        for ckRecord in fuelingCKRecords {
-            if let vehicleUUIDString = ckRecord[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
-               let vehicleUUID = UUID(uuidString: vehicleUUIDString),
-               let vehicle = vehiclesByUUID[vehicleUUID] {
-                let record = fuelingRecordFromCKRecord(ckRecord, vehicle: vehicle)
-                context.insert(record)
-            }
-        }
-
-        try context.save()
+        try replaceLocalData(
+            vehicleCKRecords: vehicleCKRecords,
+            fuelingCKRecords: fuelingCKRecords,
+            context: context
+        )
 
         // Rebuild all caches
         StatisticsCacheService.rebuildCacheForAllVehicles(in: context, force: true)
 
         stateManager.syncStatus = .synced
+    }
+
+    /// Network-free replacement seam used by `downloadAllCloudData` and tests.
+    ///
+    /// Validation happens before the first context mutation. Any pending local
+    /// edits are saved first so rollback cannot discard unrelated user changes.
+    func replaceLocalData(
+        vehicleCKRecords: [CKRecord],
+        fuelingCKRecords: [CKRecord],
+        context: ModelContext
+    ) throws {
+        let vehicleSnapshots = try validatedVehicleSnapshots(from: vehicleCKRecords)
+        let vehicleIDs = Set(vehicleSnapshots.map(\.id))
+        let fuelingSnapshots = try validatedFuelingRecordSnapshots(
+            from: fuelingCKRecords,
+            vehicleIDs: vehicleIDs
+        )
+
+        // Establish a clean rollback boundary before beginning the replacement.
+        if context.hasChanges {
+            try context.save()
+        }
+
+        do {
+            let localVehicles = try context.fetch(FetchDescriptor<Vehicle>())
+            for vehicle in localVehicles {
+                context.delete(vehicle)
+            }
+
+            var vehiclesByID: [UUID: Vehicle] = [:]
+            vehiclesByID.reserveCapacity(vehicleSnapshots.count)
+
+            for snapshot in vehicleSnapshots {
+                let vehicle = Vehicle(
+                    id: snapshot.id,
+                    name: snapshot.name,
+                    make: snapshot.make,
+                    model: snapshot.model,
+                    year: snapshot.year,
+                    createdAt: snapshot.createdAt,
+                    unitSystem: snapshot.unitSystem
+                )
+                vehicle.modifiedAt = snapshot.modifiedAt
+                context.insert(vehicle)
+                vehiclesByID[snapshot.id] = vehicle
+            }
+
+            for snapshot in fuelingSnapshots {
+                guard let vehicle = vehiclesByID[snapshot.vehicleID] else {
+                    throw CloudReplacementError.missingVehicle(
+                        recordID: snapshot.id,
+                        vehicleID: snapshot.vehicleID
+                    )
+                }
+
+                let record = FuelingRecord(
+                    id: snapshot.id,
+                    date: snapshot.date,
+                    odometer: snapshot.odometer,
+                    pricePerFuelUnit: snapshot.pricePerFuelUnit,
+                    fuelAmount: snapshot.fuelAmount,
+                    totalCost: snapshot.totalCost,
+                    fillUpType: snapshot.fillUpType,
+                    notes: snapshot.notes,
+                    createdAt: snapshot.createdAt,
+                    vehicle: vehicle
+                )
+                record.modifiedAt = snapshot.modifiedAt
+                context.insert(record)
+            }
+
+            try context.save()
+        } catch {
+            context.rollback()
+            throw error
+        }
+    }
+
+    private func validatedVehicleSnapshots(from records: [CKRecord]) throws -> [CloudVehicleSnapshot] {
+        var seenIDs: Set<UUID> = []
+        var snapshots: [CloudVehicleSnapshot] = []
+        snapshots.reserveCapacity(records.count)
+
+        for record in records {
+            let recordName = record.recordID.recordName
+            guard record.recordType == RecordType.vehicle,
+                  let idString = record[CloudFieldKey.Vehicle.id] as? String,
+                  let id = UUID(uuidString: idString),
+                  let recordNameID = UUID(uuidString: recordName),
+                  id == recordNameID,
+                  let name = record[CloudFieldKey.Vehicle.name] as? String,
+                  let unitSystemRaw = record[CloudFieldKey.Vehicle.unitSystemRaw] as? String,
+                  let unitSystem = UnitSystem(rawValue: unitSystemRaw),
+                  let createdAt = record[CloudFieldKey.Vehicle.createdAt] as? Date else {
+                throw CloudReplacementError.invalidVehicleRecord(recordName)
+            }
+
+            guard seenIDs.insert(id).inserted else {
+                throw CloudReplacementError.duplicateVehicle(id)
+            }
+
+            let make = try optionalValue(
+                record[CloudFieldKey.Vehicle.make],
+                as: String.self,
+                invalidError: CloudReplacementError.invalidVehicleRecord(recordName)
+            )
+            let model = try optionalValue(
+                record[CloudFieldKey.Vehicle.model],
+                as: String.self,
+                invalidError: CloudReplacementError.invalidVehicleRecord(recordName)
+            )
+            let year = try optionalValue(
+                record[CloudFieldKey.Vehicle.year],
+                as: Int.self,
+                invalidError: CloudReplacementError.invalidVehicleRecord(recordName)
+            )
+            let modifiedAt = try optionalValue(
+                record[CloudFieldKey.Vehicle.modifiedAt],
+                as: Date.self,
+                invalidError: CloudReplacementError.invalidVehicleRecord(recordName)
+            )
+
+            snapshots.append(CloudVehicleSnapshot(
+                id: id,
+                name: name,
+                make: make,
+                model: model,
+                year: year,
+                createdAt: createdAt,
+                modifiedAt: modifiedAt,
+                unitSystem: unitSystem
+            ))
+        }
+
+        return snapshots
+    }
+
+    private func validatedFuelingRecordSnapshots(
+        from records: [CKRecord],
+        vehicleIDs: Set<UUID>
+    ) throws -> [CloudFuelingRecordSnapshot] {
+        var seenIDs: Set<UUID> = []
+        var snapshots: [CloudFuelingRecordSnapshot] = []
+        snapshots.reserveCapacity(records.count)
+
+        for record in records {
+            let recordName = record.recordID.recordName
+            guard record.recordType == RecordType.fuelingRecord,
+                  let idString = record[CloudFieldKey.FuelingRecord.id] as? String,
+                  let id = UUID(uuidString: idString),
+                  let recordNameID = UUID(uuidString: recordName),
+                  id == recordNameID,
+                  let date = record[CloudFieldKey.FuelingRecord.date] as? Date,
+                  let odometer = record[CloudFieldKey.FuelingRecord.odometer] as? Double,
+                  odometer.isFinite,
+                  let pricePerFuelUnit = record[CloudFieldKey.FuelingRecord.pricePerFuelUnit] as? Double,
+                  pricePerFuelUnit.isFinite,
+                  let fuelAmount = record[CloudFieldKey.FuelingRecord.fuelAmount] as? Double,
+                  fuelAmount.isFinite,
+                  let totalCost = record[CloudFieldKey.FuelingRecord.totalCost] as? Double,
+                  totalCost.isFinite,
+                  let fillUpTypeRaw = record[CloudFieldKey.FuelingRecord.fillUpTypeRaw] as? String,
+                  let fillUpType = FillUpType(rawValue: fillUpTypeRaw),
+                  let createdAt = record[CloudFieldKey.FuelingRecord.createdAt] as? Date,
+                  let vehicleIDString = record[CloudFieldKey.FuelingRecord.vehicleRef] as? String,
+                  let vehicleID = UUID(uuidString: vehicleIDString) else {
+                throw CloudReplacementError.invalidFuelingRecord(recordName)
+            }
+
+            guard seenIDs.insert(id).inserted else {
+                throw CloudReplacementError.duplicateFuelingRecord(id)
+            }
+            guard vehicleIDs.contains(vehicleID) else {
+                throw CloudReplacementError.missingVehicle(recordID: id, vehicleID: vehicleID)
+            }
+
+            let notes = try optionalValue(
+                record[CloudFieldKey.FuelingRecord.notes],
+                as: String.self,
+                invalidError: CloudReplacementError.invalidFuelingRecord(recordName)
+            )
+            let modifiedAt = try optionalValue(
+                record[CloudFieldKey.FuelingRecord.modifiedAt],
+                as: Date.self,
+                invalidError: CloudReplacementError.invalidFuelingRecord(recordName)
+            )
+
+            snapshots.append(CloudFuelingRecordSnapshot(
+                id: id,
+                date: date,
+                odometer: odometer,
+                pricePerFuelUnit: pricePerFuelUnit,
+                fuelAmount: fuelAmount,
+                totalCost: totalCost,
+                fillUpType: fillUpType,
+                notes: notes,
+                createdAt: createdAt,
+                modifiedAt: modifiedAt,
+                vehicleID: vehicleID
+            ))
+        }
+
+        return snapshots
+    }
+
+    private func optionalValue<T>(
+        _ value: CKRecordValue?,
+        as type: T.Type,
+        invalidError: Error
+    ) throws -> T? {
+        guard let value else { return nil }
+        guard let typedValue = value as? T else { throw invalidError }
+        return typedValue
     }
 
     // MARK: - Merge Cloud and Local
@@ -411,7 +647,6 @@ final class CloudSyncService: ObservableObject {
         // Keeping the latest version (last write wins).
         var vehicleRecords: [CKRecord.ID: CKRecord] = [:]
         var fuelingRecords: [CKRecord.ID: CKRecord] = [:]
-        var deletedIDs: Set<CKRecord.ID> = []
         var changeToken: CKServerChangeToken? = nil
         var moreComing = true
 
@@ -422,9 +657,9 @@ final class CloudSyncService: ObservableObject {
             )
 
             for (recordID, result) in results.modificationResultsByID {
-                if case .success(let modification) = result {
+                switch result {
+                case .success(let modification):
                     let record = modification.record
-                    deletedIDs.remove(recordID)
                     switch record.recordType {
                     case RecordType.vehicle:
                         vehicleRecords[recordID] = record
@@ -433,13 +668,19 @@ final class CloudSyncService: ObservableObject {
                     default:
                         break
                     }
+                case .failure(let error):
+                    // A successful page can still contain failed individual
+                    // records. Returning the rest would create a partial
+                    // snapshot and could make replacement delete valid local
+                    // data that merely failed to download.
+                    Self.logger.error("Full-zone fetch failed for \(recordID.recordName): \(error.localizedDescription)")
+                    throw error
                 }
             }
 
             // Track deletions so we don't count deleted records
             for deletion in results.deletions {
                 let recordID = deletion.recordID
-                deletedIDs.insert(recordID)
                 vehicleRecords.removeValue(forKey: recordID)
                 fuelingRecords.removeValue(forKey: recordID)
             }

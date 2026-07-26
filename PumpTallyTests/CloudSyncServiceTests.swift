@@ -69,6 +69,75 @@ final class CloudSyncServiceTests: XCTestCase {
         return r
     }
 
+    // MARK: - Transactional cloud replacement
+
+    func testReplaceLocalData_validSnapshotReplacesEverything() throws {
+        let service = makeService()
+        let context = try makeContext()
+
+        let oldVehicle = makeVehicle(name: "Local Only", createdAt: t1, modifiedAt: t1)
+        context.insert(oldVehicle)
+        context.insert(makeRecord(odometer: 100, createdAt: t1, modifiedAt: t1, vehicle: oldVehicle))
+        try context.save()
+
+        let cloudVehicle = makeVehicle(name: "Cloud Car", createdAt: t2, modifiedAt: t3)
+        let cloudRecord = makeRecord(odometer: 500, createdAt: t2, modifiedAt: t3, vehicle: cloudVehicle)
+        let cloudVehicleCK = service.vehicleToCKRecord(cloudVehicle)
+        let cloudRecordCK = service.fuelingRecordToCKRecord(
+            cloudRecord,
+            vehicleRecordID: cloudVehicleCK.recordID
+        )
+
+        try service.replaceLocalData(
+            vehicleCKRecords: [cloudVehicleCK],
+            fuelingCKRecords: [cloudRecordCK],
+            context: context
+        )
+
+        let vehicles = try context.fetch(FetchDescriptor<Vehicle>())
+        let records = try context.fetch(FetchDescriptor<FuelingRecord>())
+        XCTAssertEqual(vehicles.map(\.id), [cloudVehicle.id])
+        XCTAssertEqual(vehicles.first?.name, "Cloud Car")
+        XCTAssertEqual(records.map(\.id), [cloudRecord.id])
+        XCTAssertEqual(records.first?.odometer, 500)
+        XCTAssertEqual(records.first?.vehicle.id, cloudVehicle.id)
+    }
+
+    func testReplaceLocalData_invalidSnapshotPreservesLocalStore() throws {
+        let service = makeService()
+        let context = try makeContext()
+
+        let localVehicle = makeVehicle(name: "Irreplaceable Local", createdAt: t1, modifiedAt: t2)
+        context.insert(localVehicle)
+        let localRecord = makeRecord(odometer: 321, createdAt: t1, modifiedAt: t2, vehicle: localVehicle)
+        context.insert(localRecord)
+        try context.save()
+
+        // Structurally valid record, but its parent is absent from the proposed
+        // cloud snapshot. Validation must fail before deleting local models.
+        let absentVehicle = makeVehicle(name: "Missing Parent", createdAt: t1, modifiedAt: t1)
+        let orphan = makeRecord(odometer: 999, createdAt: t1, modifiedAt: t1, vehicle: absentVehicle)
+        let orphanCK = service.fuelingRecordToCKRecord(
+            orphan,
+            vehicleRecordID: service.vehicleToCKRecord(absentVehicle).recordID
+        )
+
+        XCTAssertThrowsError(
+            try service.replaceLocalData(
+                vehicleCKRecords: [],
+                fuelingCKRecords: [orphanCK],
+                context: context
+            )
+        )
+
+        let vehicles = try context.fetch(FetchDescriptor<Vehicle>())
+        let records = try context.fetch(FetchDescriptor<FuelingRecord>())
+        XCTAssertEqual(vehicles.map(\.id), [localVehicle.id])
+        XCTAssertEqual(vehicles.first?.name, "Irreplaceable Local")
+        XCTAssertEqual(records.map(\.id), [localRecord.id])
+        XCTAssertEqual(records.first?.odometer, 321)
+    }
+
     // MARK: - resolveConflict (pure decision, incl. nil-modifiedAt legacy data)
 
     func testResolveConflict_cloudModifiedNewer_cloudWins() {
