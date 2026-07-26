@@ -181,9 +181,19 @@ enum CSVService {
         var result: [String] = []
         var current = ""
         var insideQuotes = false
+        let characters = Array(line)
+        var index = 0
 
-        for char in line {
+        while index < characters.count {
+            let char = characters[index]
             if char == "\"" {
+                if insideQuotes,
+                   index + 1 < characters.count,
+                   characters[index + 1] == "\"" {
+                    current.append("\"")
+                    index += 2
+                    continue
+                }
                 insideQuotes.toggle()
             } else if char == "," && !insideQuotes {
                 result.append(current.trimmingCharacters(in: .whitespaces))
@@ -191,6 +201,7 @@ enum CSVService {
             } else {
                 current.append(char)
             }
+            index += 1
         }
         result.append(current.trimmingCharacters(in: .whitespaces))
 

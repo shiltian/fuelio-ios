@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// Represents the type of fill-up for a fueling record
-enum FillUpType: String, Codable, CaseIterable {
+enum FillUpType: String, Codable, CaseIterable, Sendable {
     case full = "full"        // Normal full tank fill-up
     case partial = "partial"  // Didn't fill the tank completely (affects NEXT record's MPG)
     case reset = "reset"      // Missed recording previous fill-up(s) (invalidates THIS record's MPG)

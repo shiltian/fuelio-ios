@@ -255,6 +255,7 @@
       }
     },
     "An unknown error occurred" : {
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -1125,6 +1126,9 @@
         }
       }
     },
+    "expected between 5 and 7 columns" : {
+
+    },
     "Export %lld records as a CSV file" : {
       "localizations" : {
         "es" : {
@@ -1253,6 +1257,9 @@
         }
       }
     },
+    "fill-up type must be full, partial, or reset" : {
+
+    },
     "Filled the tank completely" : {
       "localizations" : {
         "es" : {
@@ -1316,6 +1323,9 @@
           }
         }
       }
+    },
+    "fuel amount" : {
+
     },
     "Fuel Details" : {
       "localizations" : {
@@ -1670,6 +1680,7 @@
       }
     },
     "Import Error" : {
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -1684,6 +1695,9 @@
           }
         }
       }
+    },
+    "Import Failed" : {
+
     },
     "Import Fueling Data" : {
       "localizations" : {
@@ -2277,6 +2291,9 @@
         }
       }
     },
+    "odometer" : {
+
+    },
     "Odometer" : {
       "localizations" : {
         "es" : {
@@ -2550,6 +2567,9 @@
         }
       }
     },
+    "price per fuel unit" : {
+
+    },
     "Price per Gallon" : {
       "localizations" : {
         "es" : {
@@ -2631,6 +2651,9 @@
       }
     },
     "Pull incomplete — will retry" : {
+
+    },
+    "quoted text is not closed" : {
 
     },
     "Re-sync" : {
@@ -2953,6 +2976,18 @@
         }
       }
     },
+    "The CSV columns are missing or in an unsupported order." : {
+
+    },
+    "The CSV header must contain date, odometer, price, fuel amount, and total cost columns." : {
+
+    },
+    "the date is invalid" : {
+
+    },
+    "The file contains no importable records" : {
+
+    },
     "The file doesn't appear to have a valid header row" : {
       "localizations" : {
         "es" : {
@@ -3000,6 +3035,15 @@
           }
         }
       }
+    },
+    "the reading must be a positive finite number" : {
+
+    },
+    "the reading must be greater than %@" : {
+
+    },
+    "the reading must be less than %@" : {
+
     },
     "The record could not be deleted. No data was changed. Please try again." : {
       "localizations" : {
@@ -3193,6 +3237,9 @@
         }
       }
     },
+    "total cost" : {
+
+    },
     "Total Cost" : {
       "localizations" : {
         "es" : {
@@ -3321,6 +3368,9 @@
         }
       }
     },
+    "Unable to import the selected records." : {
+
+    },
     "Unable to open the selected file. Please try again." : {
       "localizations" : {
         "es" : {
@@ -3385,7 +3435,11 @@
         }
       }
     },
+    "Unable to save the imported records. No data was changed. Please try again." : {
+
+    },
     "Unable to save the imported records. Please try again." : {
+      "extractionState" : "stale",
       "localizations" : {
         "es" : {
           "stringUnit" : {

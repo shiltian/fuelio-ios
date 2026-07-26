@@ -437,6 +437,6 @@ final class CSVServiceTests: XCTestCase {
         let importedRecords = CSVService.importRecords(from: csv, vehicle: testVehicle)
 
         XCTAssertEqual(importedRecords.count, 1)
-        XCTAssertNotNil(importedRecords[0].notes)
+        XCTAssertEqual(importedRecords[0].notes, originalRecord.notes)
     }
 }

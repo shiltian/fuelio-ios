@@ -133,6 +133,71 @@ final class FuelingRecordPersistenceServiceTests: XCTestCase {
         XCTAssertFalse(context.hasChanges)
     }
 
+    func testBatchInsertCommitsEveryRecordAndCachesOnce() throws {
+        let context = try makeContext()
+        let vehicle = try makeSavedVehicle(in: context)
+        var commitCount = 0
+
+        let records = try FuelingRecordPersistenceService.insertBatch(
+            into: vehicle,
+            context: context,
+            commit: {
+                commitCount += 1
+                try $0.save()
+            }
+        ) {
+            [100.0, 200.0, 300.0].map { odometer in
+                FuelingRecord(
+                    odometer: odometer,
+                    pricePerFuelUnit: 3,
+                    fuelAmount: 10,
+                    totalCost: 30,
+                    vehicle: vehicle
+                )
+            }
+        }
+
+        XCTAssertEqual(commitCount, 1)
+        XCTAssertEqual(records.count, 3)
+        XCTAssertEqual(vehicle.fuelingRecords?.count, 3)
+        XCTAssertEqual(vehicle.cachedRecordCount, 3)
+        XCTAssertEqual(vehicle.cachedTotalDistance, 200)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<FuelingRecord>()), 3)
+        XCTAssertFalse(context.hasChanges)
+    }
+
+    func testFailedBatchInsertRollsBackEveryRecordAndCache() throws {
+        let context = try makeContext()
+        let vehicle = try makeSavedVehicle(in: context)
+        _ = try insertRecord(odometer: 50, into: vehicle, context: context)
+        let originalRecordCount = vehicle.cachedRecordCount
+        let originalDistance = vehicle.cachedTotalDistance
+
+        XCTAssertThrowsError(
+            try FuelingRecordPersistenceService.insertBatch(
+                into: vehicle,
+                context: context,
+                commit: { _ in throw TestError.commitFailed }
+            ) {
+                [100.0, 200.0, 300.0].map { odometer in
+                    FuelingRecord(
+                        odometer: odometer,
+                        pricePerFuelUnit: 3,
+                        fuelAmount: 10,
+                        totalCost: 30,
+                        vehicle: vehicle
+                    )
+                }
+            }
+        )
+
+        XCTAssertEqual(vehicle.fuelingRecords?.map(\.odometer), [50])
+        XCTAssertEqual(vehicle.cachedRecordCount, originalRecordCount)
+        XCTAssertEqual(vehicle.cachedTotalDistance, originalDistance)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<FuelingRecord>()), 1)
+        XCTAssertFalse(context.hasChanges)
+    }
+
     func testFailedEditRollsBackRecordAndCaches() throws {
         let context = try makeContext()
         let vehicle = try makeSavedVehicle(in: context)

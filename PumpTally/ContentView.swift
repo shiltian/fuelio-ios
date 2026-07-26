@@ -18,8 +18,6 @@ struct ContentView: View {
 
     // CSV Import state
     @State private var showingCSVImport = false
-    @State private var csvImportError: String?
-    @State private var showingImportError = false
     @State private var importedRecordsCount = 0
     @State private var showingImportSuccess = false
 
@@ -82,12 +80,6 @@ struct ContentView: View {
                 }
             }
         }
-        // Alerts attached to NavigationStack to ensure they show regardless of navigation state
-        .alert("Import Error", isPresented: $showingImportError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(csvImportError ?? String(localized: "An unknown error occurred"))
-        }
         .alert("Import Successful", isPresented: $showingImportSuccess) {
             Button("OK", role: .cancel) { }
         } message: {
@@ -95,21 +87,17 @@ struct ContentView: View {
         }
     }
 
-    private func handleCSVImport(records: [FuelingRecord], targetVehicle: Vehicle) {
+    private func handleCSVImport(
+        records: [CSVImportRecordSnapshot],
+        targetVehicle: Vehicle
+    ) throws {
         do {
             try cloudSyncService.withLocalPushesSuspended {
-                let now = Date()
-                for record in records {
-                    record.vehicle = targetVehicle
-                    record.modifiedAt = now
-                    modelContext.insert(record)
-                }
-
-                try modelContext.save()
-
-                // Full recalculation after bulk import
-                StatisticsCacheService.recalculateAllStatistics(for: targetVehicle)
-                try modelContext.save()
+                _ = try CSVImportService.importRecords(
+                    records,
+                    into: targetVehicle,
+                    context: modelContext
+                )
             }
 
             importedRecordsCount = records.count
@@ -123,8 +111,10 @@ struct ContentView: View {
         } catch {
             Logger(subsystem: Bundle.main.bundleIdentifier ?? "me.tianshilei.fuelio", category: "CSVImport")
                 .error("Failed to save imported records: \(error)")
-            csvImportError = String(localized: "Unable to save the imported records. Please try again.")
-            showingImportError = true
+            if let importError = error as? CSVImportError {
+                throw importError
+            }
+            throw CSVImportError.persistenceFailed
         }
     }
 

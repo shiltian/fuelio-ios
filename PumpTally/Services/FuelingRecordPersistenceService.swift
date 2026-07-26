@@ -74,6 +74,54 @@ enum FuelingRecordPersistenceService {
         }
     }
 
+    static func insertBatch(
+        into vehicle: Vehicle,
+        context: ModelContext,
+        commit: Commit = { try $0.save() },
+        makeRecords: () -> [FuelingRecord]
+    ) throws -> [FuelingRecord] {
+        let rollbackSnapshot = RollbackSnapshot(vehicle: vehicle)
+        var insertedRecords: [FuelingRecord] = []
+        var didMutate = false
+
+        do {
+            return try perform(
+                in: context,
+                commit: commit,
+                mutation: {
+                    didMutate = true
+                    insertedRecords = makeRecords()
+                    for record in insertedRecords {
+                        context.insert(record)
+                    }
+                    return insertedRecords
+                },
+                afterPendingChanges: { records in
+                    let insertedIDs = Set(records.map(\.id))
+                    let relatedIDs = Set((vehicle.fuelingRecords ?? []).map(\.id))
+                    guard insertedIDs.isSubset(of: relatedIDs) else {
+                        throw FuelingRecordPersistenceError.insertedRelationshipUnavailable
+                    }
+                    StatisticsCacheService.recalculateAllStatistics(for: vehicle)
+                }
+            )
+        } catch {
+            logger.error("Failed to insert fueling record batch: \(error.localizedDescription, privacy: .public)")
+            if didMutate {
+                let insertedIDs = Set(insertedRecords.map(\.id))
+                restoreAfterFailedMutation(
+                    in: context,
+                    snapshot: rollbackSnapshot
+                ) {
+                    vehicle.fuelingRecords?.removeAll {
+                        insertedIDs.contains($0.id)
+                    }
+                }
+            }
+            throw error
+        }
+    }
+
     static func saveEdits(
         to record: FuelingRecord,
         in vehicle: Vehicle,

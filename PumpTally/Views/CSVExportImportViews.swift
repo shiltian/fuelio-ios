@@ -217,32 +217,43 @@ struct ImportCSVView: View {
             Task {
                 defer { url.stopAccessingSecurityScopedResource() }
 
+                let snapshots: [CSVImportRecordSnapshot]
                 do {
-                    let content = try await Task.detached(priority: .userInitiated) {
-                        try String(contentsOf: url, encoding: .utf8)
+                    snapshots = try await Task.detached(priority: .userInitiated) {
+                        let content = try String(contentsOf: url, encoding: .utf8)
+                        return try CSVImportService.parse(content)
                     }.value
-                    let records = CSVService.importRecords(from: content, vehicle: vehicle)
+                } catch {
+                    Self.logger.error("Failed to parse CSV file: \(error)")
+                    if let importError = error as? CSVImportError {
+                        errorMessage = importError.localizedDescription
+                    } else {
+                        errorMessage = String(localized: "Unable to read the selected file. Please make sure it is a valid CSV file.")
+                    }
+                    return
+                }
 
+                do {
                     try cloudSyncService.withLocalPushesSuspended {
-                        let now = Date()
-                        for record in records {
-                            record.modifiedAt = now
-                            modelContext.insert(record)
-                        }
-                        try modelContext.save()
-
-                        StatisticsCacheService.recalculateAllStatistics(for: vehicle)
-                        try modelContext.save()
+                        _ = try CSVImportService.importRecords(
+                            snapshots,
+                            into: vehicle,
+                            context: modelContext
+                        )
                     }
                     await cloudSyncService.pushPendingLocalChanges()
 
-                    importedCount = records.count
+                    importedCount = snapshots.count
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         showingSuccess = true
                     }
                 } catch {
-                    Self.logger.error("Failed to read CSV file: \(error)")
-                    errorMessage = String(localized: "Unable to read the selected file. Please make sure it is a valid CSV file.")
+                    Self.logger.error("Failed to import CSV records: \(error)")
+                    if let importError = error as? CSVImportError {
+                        errorMessage = importError.localizedDescription
+                    } else {
+                        errorMessage = CSVImportError.persistenceFailed.localizedDescription
+                    }
                 }
             }
 

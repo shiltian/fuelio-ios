@@ -7,13 +7,15 @@ struct CSVImportView: View {
 
     let fileURL: URL?
     let vehicles: [Vehicle]
-    let onImport: ([FuelingRecord], Vehicle) -> Void
+    let onImport: ([CSVImportRecordSnapshot], Vehicle) throws -> Void
 
     @State private var csvContent: String = ""
-    @State private var parsedRecords: [FuelingRecord] = []
+    @State private var parsedRecords: [CSVImportRecordSnapshot] = []
     @State private var selectedVehicle: Vehicle?
     @State private var isLoading = true
     @State private var parseError: String?
+    @State private var importError: String?
+    @State private var showingImportError = false
     @State private var previewLines: [String] = []
     @State private var importSummary: ImportSummary?
 
@@ -80,8 +82,13 @@ struct CSVImportView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Import") {
                         if let vehicle = selectedVehicle {
-                            onImport(parsedRecords, vehicle)
-                            dismiss()
+                            do {
+                                try onImport(parsedRecords, vehicle)
+                                dismiss()
+                            } catch {
+                                importError = error.localizedDescription
+                                showingImportError = true
+                            }
                         }
                     }
                     .disabled(selectedVehicle == nil || parsedRecords.isEmpty)
@@ -90,9 +97,10 @@ struct CSVImportView: View {
             .task {
                 await loadAndParseCSV()
             }
-            .onChange(of: selectedVehicle) { _, newValue in
-                // Re-parse with the newly selected vehicle to ensure linkage
-                reparseIfPossible(selectedVehicle: newValue)
+            .alert("Import Failed", isPresented: $showingImportError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(importError ?? String(localized: "Unable to import the selected records."))
             }
         }
     }
@@ -262,17 +270,12 @@ struct CSVImportView: View {
         }
 
         do {
-            csvContent = try await Task.detached(priority: .userInitiated) {
-                try String(contentsOf: url, encoding: .utf8)
+            let parsed = try await Task.detached(priority: .userInitiated) {
+                let content = try String(contentsOf: url, encoding: .utf8)
+                let records = try CSVImportService.parse(content)
+                return (content: content, records: records)
             }.value
-
-            // Validate the CSV
-            let validation = CSVService.validateCSV(csvContent)
-            if !validation.isValid {
-                parseError = validation.error
-                isLoading = false
-                return
-            }
+            csvContent = parsed.content
 
             // Store preview lines
             previewLines = csvContent.components(separatedBy: .newlines).filter { !$0.isEmpty }
@@ -282,29 +285,18 @@ struct CSVImportView: View {
                 selectedVehicle = vehicles.first
             }
 
-            reparseIfPossible(selectedVehicle: selectedVehicle)
+            parsedRecords = parsed.records
+            importSummary = ImportSummary(records: parsedRecords)
 
+            isLoading = false
+        } catch let error as CSVImportError {
+            parseError = error.localizedDescription
             isLoading = false
         } catch {
             Self.logger.error("Failed to read CSV file: \(error)")
             parseError = String(localized: "Unable to read the selected file. Please make sure it is a valid CSV file.")
             isLoading = false
         }
-    }
-
-    private func reparseIfPossible(selectedVehicle: Vehicle?) {
-        guard let vehicle = selectedVehicle else { return }
-
-        // Try parsing with the simple format first
-        var records = CSVService.importSimpleFormat(from: csvContent, vehicle: vehicle)
-
-        // If that didn't work, try the standard format
-        if records.isEmpty {
-            records = CSVService.importRecords(from: csvContent, vehicle: vehicle)
-        }
-
-        parsedRecords = records
-        importSummary = ImportSummary(records: records)
     }
 
     private static let mediumDateFormatter: DateFormatter = {
@@ -325,7 +317,7 @@ private struct ImportSummary {
     let totalFuel: Double
     let totalCost: Double
 
-    init(records: [FuelingRecord]) {
+    init(records: [CSVImportRecordSnapshot]) {
         totalRecords = records.count
         firstDate = records.map(\.date).min()
         lastDate = records.map(\.date).max()
