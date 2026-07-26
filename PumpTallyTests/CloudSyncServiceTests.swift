@@ -550,4 +550,24 @@ final class CloudSyncServiceTests: XCTestCase {
         XCTAssertEqual(vehicles.count, 1)
         XCTAssertEqual(vehicles.first?.name, "Cloud Only")
     }
+
+    // MARK: - Automatic push echo suppression
+
+    func testRemoteApplySaveRemainsSuppressedAfterDebounce() {
+        XCTAssertFalse(
+            CloudSyncService.shouldScheduleAutomaticPush(
+                wasSuppressedWhenSaved: true,
+                isCurrentlySuppressed: false
+            )
+        )
+    }
+
+    func testOrdinaryLocalSaveSchedulesAutomaticPush() {
+        XCTAssertTrue(
+            CloudSyncService.shouldScheduleAutomaticPush(
+                wasSuppressedWhenSaved: false,
+                isCurrentlySuppressed: false
+            )
+        )
+    }
 }

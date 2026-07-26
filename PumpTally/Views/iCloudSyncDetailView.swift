@@ -160,8 +160,7 @@ struct iCloudSyncDetailView: View {
         cloudRecordCount = nil
         Task {
             do {
-                try await cloudSyncService.deleteAllCloudData()
-                try await cloudSyncService.uploadAllLocalData(from: modelContext)
+                try await cloudSyncService.replaceCloudDataWithLocal(from: modelContext)
                 let counts = await cloudSyncService.fetchCloudRecordCounts()
 
                 await MainActor.run {

@@ -36,9 +36,11 @@ final class CloudSyncService: ObservableObject {
     private var saveObserver: AnyCancellable?
     private var stateForwardingObserver: AnyCancellable?
     private var modelContainer: ModelContainer?
+    private let operationCoordinator = SyncOperationCoordinator()
 
-    /// Flag to prevent re-entrant push when we're applying remote changes locally
-    private var isApplyingRemoteChanges = false
+    /// Counted scope prevents one nested/overlapping operation from clearing
+    /// suppression while another remote application is still active.
+    private var remoteApplicationDepth = 0
 
     /// Suppresses automatic local-save pushes while a vetted bulk write is in progress.
     private var localPushSuspensionCount = 0
@@ -121,6 +123,17 @@ final class CloudSyncService: ObservableObject {
     /// Uses recordZoneChanges (change token based) instead of CKQuery to avoid
     /// issues with non-existent record types and non-queryable fields on first use.
     func checkCloudHasData() async throws -> Bool {
+        try await operationCoordinator.runExclusive {
+            do {
+                return try await performCheckCloudHasData()
+            } catch {
+                stateManager.syncStatus = .error(String(localized: "Sync failed"))
+                throw error
+            }
+        }
+    }
+
+    private func performCheckCloudHasData() async throws -> Bool {
         try await ensureZoneExists()
 
         // Read the complete zone instead of treating an empty first page as an
@@ -135,6 +148,17 @@ final class CloudSyncService: ObservableObject {
 
     /// Upload all local vehicles and fueling records to CloudKit
     func uploadAllLocalData(from context: ModelContext) async throws {
+        try await operationCoordinator.runExclusive {
+            do {
+                try await performUploadAllLocalData(from: context)
+            } catch {
+                stateManager.syncStatus = .error(String(localized: "Sync failed"))
+                throw error
+            }
+        }
+    }
+
+    private func performUploadAllLocalData(from context: ModelContext) async throws {
         stateManager.syncStatus = .syncing
 
         try await ensureZoneExists()
@@ -223,9 +247,20 @@ final class CloudSyncService: ObservableObject {
     /// SwiftData commits as one store transaction. If that save fails, rollback
     /// restores the context to its last successfully saved local state.
     func downloadAllCloudData(to context: ModelContext) async throws {
+        try await operationCoordinator.runExclusive {
+            do {
+                try await performDownloadAllCloudData(to: context)
+            } catch {
+                stateManager.syncStatus = .error(String(localized: "Sync failed"))
+                throw error
+            }
+        }
+    }
+
+    private func performDownloadAllCloudData(to context: ModelContext) async throws {
         stateManager.syncStatus = .syncing
-        isApplyingRemoteChanges = true
-        defer { isApplyingRemoteChanges = false }
+        remoteApplicationDepth += 1
+        defer { remoteApplicationDepth -= 1 }
 
         // Fetch cloud data before deleting local data. If iCloud fails here, the
         // local store remains untouched.
@@ -460,9 +495,20 @@ final class CloudSyncService: ObservableObject {
 
     /// Merge cloud and local data: match by UUID, keep newer for matches, insert unique from both sides
     func mergeCloudAndLocal(context: ModelContext) async throws {
+        try await operationCoordinator.runExclusive {
+            do {
+                try await performMergeCloudAndLocal(context: context)
+            } catch {
+                stateManager.syncStatus = .error(String(localized: "Sync failed"))
+                throw error
+            }
+        }
+    }
+
+    private func performMergeCloudAndLocal(context: ModelContext) async throws {
         stateManager.syncStatus = .syncing
-        isApplyingRemoteChanges = true
-        defer { isApplyingRemoteChanges = false }
+        remoteApplicationDepth += 1
+        defer { remoteApplicationDepth -= 1 }
 
         // Fetch all cloud records using change token (avoids queryable field requirements)
         let (vehicleCKRecords, fuelingCKRecords) = try await fetchAllCloudRecords()
@@ -609,6 +655,32 @@ final class CloudSyncService: ObservableObject {
 
     /// Delete the custom zone (deletes all records in it), then recreate it
     func deleteAllCloudData() async throws {
+        try await operationCoordinator.runExclusive {
+            do {
+                try await performDeleteAllCloudData(markSyncedWhenFinished: true)
+            } catch {
+                stateManager.syncStatus = .error(String(localized: "Sync failed"))
+                throw error
+            }
+        }
+    }
+
+    /// Atomically reserves the sync pipeline for the complete destructive
+    /// delete-and-upload sequence so no automatic pull or push can observe the
+    /// temporary empty cloud zone.
+    func replaceCloudDataWithLocal(from context: ModelContext) async throws {
+        try await operationCoordinator.runExclusive {
+            do {
+                try await performDeleteAllCloudData(markSyncedWhenFinished: false)
+                try await performUploadAllLocalData(from: context)
+            } catch {
+                stateManager.syncStatus = .error(String(localized: "Sync failed"))
+                throw error
+            }
+        }
+    }
+
+    private func performDeleteAllCloudData(markSyncedWhenFinished: Bool) async throws {
         stateManager.syncStatus = .syncing
 
         // Deleting the zone deletes all records in it
@@ -619,19 +691,23 @@ final class CloudSyncService: ObservableObject {
 
         // Reset the change token
         stateManager.serverChangeToken = nil
-        stateManager.syncStatus = .synced
+        if markSyncedWhenFinished {
+            stateManager.syncStatus = .synced
+        }
     }
 
     // MARK: - Cloud Record Counts
 
     /// Fetch the number of vehicles and fueling records currently in CloudKit.
     func fetchCloudRecordCounts() async -> (vehicles: Int, fuelingRecords: Int) {
-        do {
-            let (vehicles, fuelingRecords) = try await fetchAllCloudRecords()
-            return (vehicles.count, fuelingRecords.count)
-        } catch {
-            Self.logger.error("Failed to fetch cloud record counts: \(error)")
-            return (0, 0)
+        await operationCoordinator.runExclusive {
+            do {
+                let (vehicles, fuelingRecords) = try await fetchAllCloudRecords()
+                return (vehicles.count, fuelingRecords.count)
+            } catch {
+                Self.logger.error("Failed to fetch cloud record counts: \(error)")
+                return (0, 0)
+            }
         }
     }
 
@@ -695,9 +771,21 @@ final class CloudSyncService: ObservableObject {
     // MARK: - Incremental Push
 
     /// Push local changes to CloudKit
-    func pushChanges(inserted: [any PersistentModel], updated: [any PersistentModel], deleted: [PersistentIdentifier]) async {
+    func pushChanges(
+        inserted: [any PersistentModel],
+        updated: [any PersistentModel]
+    ) async {
+        await operationCoordinator.runExclusive {
+            await performPushChanges(inserted: inserted, updated: updated)
+        }
+    }
+
+    private func performPushChanges(
+        inserted: [any PersistentModel],
+        updated: [any PersistentModel]
+    ) async {
         guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
-        guard !isApplyingRemoteChanges else { return }
+        guard remoteApplicationDepth == 0 else { return }
 
         var recordsToSave: [CKRecord] = []
 
@@ -723,10 +811,16 @@ final class CloudSyncService: ObservableObject {
 
     /// Pull remote changes using server change tokens for efficient delta sync
     func pullRemoteChanges(to context: ModelContext) async {
+        await operationCoordinator.runCoalesced(key: .pull) {
+            await self.performPullRemoteChanges(to: context)
+        }
+    }
+
+    private func performPullRemoteChanges(to context: ModelContext) async {
         guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
 
-        isApplyingRemoteChanges = true
-        defer { isApplyingRemoteChanges = false }
+        remoteApplicationDepth += 1
+        defer { remoteApplicationDepth -= 1 }
 
         stateManager.syncStatus = .syncing
 
@@ -1016,18 +1110,30 @@ final class CloudSyncService: ObservableObject {
         .sink { [weak self] output in
             let (_, wasSuppressedWhenSaved) = output
             guard let self = self,
-                  !wasSuppressedWhenSaved,
-                  !self.shouldSuppressAutomaticPush else { return }
+                  Self.shouldScheduleAutomaticPush(
+                      wasSuppressedWhenSaved: wasSuppressedWhenSaved,
+                      isCurrentlySuppressed: self.shouldSuppressAutomaticPush
+                  ) else { return }
 
             Task(priority: .utility) { @MainActor [weak self] in
                 guard let self = self else { return }
-                await self.pushLocalChangesToCloud(container: container)
+                await self.requestLocalPush(container: container)
             }
         }
     }
 
     private var shouldSuppressAutomaticPush: Bool {
-        isApplyingRemoteChanges || localPushSuspensionCount > 0
+        remoteApplicationDepth > 0 || localPushSuspensionCount > 0
+    }
+
+    /// The save-time value is captured before debounce. This keeps a save made
+    /// while applying remote records suppressed even though the pull has
+    /// released its scope by the time the debounced observer runs.
+    nonisolated static func shouldScheduleAutomaticPush(
+        wasSuppressedWhenSaved: Bool,
+        isCurrentlySuppressed: Bool
+    ) -> Bool {
+        !wasSuppressedWhenSaved && !isCurrentlySuppressed
     }
 
     /// Run a local bulk write without allowing intermediate saves to auto-push.
@@ -1047,7 +1153,7 @@ final class CloudSyncService: ObservableObject {
     /// Explicitly push local changes after a bulk write has completed successfully.
     func pushPendingLocalChanges() async {
         guard let modelContainer else { return }
-        await pushLocalChangesToCloud(container: modelContainer)
+        await requestLocalPush(container: modelContainer)
     }
 
     /// Populate lastKnownLocalUUIDs from the current database so the first push
@@ -1076,7 +1182,13 @@ final class CloudSyncService: ObservableObject {
     /// Push local changes to CloudKit incrementally.
     /// Only converts and uploads records whose `modifiedAt` is newer than the
     /// last successful push. Still walks the full UUID set to detect deletions.
-    private func pushLocalChangesToCloud(container: ModelContainer) async {
+    private func requestLocalPush(container: ModelContainer) async {
+        await operationCoordinator.runCoalesced(key: .push) {
+            await self.performPushLocalChangesToCloud(container: container)
+        }
+    }
+
+    private func performPushLocalChangesToCloud(container: ModelContainer) async {
         guard stateManager.iCloudSyncEnabled && stateManager.initialSyncCompleted else { return }
         guard !shouldSuppressAutomaticPush else { return }
 
@@ -1086,6 +1198,10 @@ final class CloudSyncService: ObservableObject {
             try await ensureZoneExists()
 
             let context = container.mainContext
+            // Advance only to the time this local snapshot begins. A save that
+            // occurs while CloudKit is uploading will have a later modifiedAt
+            // and is therefore picked up by the coalesced trailing push.
+            let snapshotDate = Date()
             let vehicleDescriptor = FetchDescriptor<Vehicle>()
             let localVehicles = try context.fetch(vehicleDescriptor)
 
@@ -1128,7 +1244,7 @@ final class CloudSyncService: ObservableObject {
             }
 
             lastKnownLocalUUIDs = currentUUIDs
-            lastPushDate = Date()
+            lastPushDate = snapshotDate
             stateManager.syncStatus = .synced
         } catch {
             Self.logger.error("Failed to push local changes to cloud: \(error)")

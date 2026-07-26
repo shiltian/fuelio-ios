@@ -276,8 +276,7 @@ struct SettingsView: View {
                     try await cloudSyncService.downloadAllCloudData(to: modelContext)
 
                 case .overwriteCloud:
-                    try await cloudSyncService.deleteAllCloudData()
-                    try await cloudSyncService.uploadAllLocalData(from: modelContext)
+                    try await cloudSyncService.replaceCloudDataWithLocal(from: modelContext)
 
                 case .merge:
                     try await cloudSyncService.mergeCloudAndLocal(context: modelContext)
