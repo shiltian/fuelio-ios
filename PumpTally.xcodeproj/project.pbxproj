@@ -31,8 +31,8 @@
 		B1000005296B0001 /* FillUpTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000006296B0001 /* FillUpTypeTests.swift */; };
 		B1000007296B0001 /* CSVServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000008296B0001 /* CSVServiceTests.swift */; };
 		B1000009296B0001 /* StatisticsCacheServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000A296B0001 /* StatisticsCacheServiceTests.swift */; };
-		C1000001296B0001 /* CloudSyncServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1000002296B0001 /* CloudSyncServiceTests.swift */; };
 		B100000B296B0001 /* ExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B100000C296B0001 /* ExtensionsTests.swift */; };
+		C1000001296B0001 /* CloudSyncServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1000002296B0001 /* CloudSyncServiceTests.swift */; };
 		D1000001296D0001 /* CurrencyInputField.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1000002296D0001 /* CurrencyInputField.swift */; };
 		E1000001296E0001 /* UnitSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000002296E0001 /* UnitSystem.swift */; };
 		E1000003296E0001 /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1000004296E0001 /* CloudSyncService.swift */; };
@@ -104,8 +104,8 @@
 		B1000006296B0001 /* FillUpTypeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FillUpTypeTests.swift; sourceTree = "<group>"; };
 		B1000008296B0001 /* CSVServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVServiceTests.swift; sourceTree = "<group>"; };
 		B100000A296B0001 /* StatisticsCacheServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsCacheServiceTests.swift; sourceTree = "<group>"; };
-		C1000002296B0001 /* CloudSyncServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncServiceTests.swift; sourceTree = "<group>"; };
 		B100000C296B0001 /* ExtensionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionsTests.swift; sourceTree = "<group>"; };
+		C1000002296B0001 /* CloudSyncServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncServiceTests.swift; sourceTree = "<group>"; };
 		D1000002296D0001 /* CurrencyInputField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyInputField.swift; sourceTree = "<group>"; };
 		E1000002296E0001 /* UnitSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitSystem.swift; sourceTree = "<group>"; };
 		E1000004296E0001 /* CloudSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncService.swift; sourceTree = "<group>"; };
@@ -615,7 +615,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = PumpTally/PumpTally.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_ASSET_PATHS = "\"PumpTally/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;
@@ -632,7 +632,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = me.tianshilei.fuelio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -653,7 +653,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = PumpTally/PumpTally.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_ASSET_PATHS = "\"PumpTally/Preview Content\"";
 				DEVELOPMENT_TEAM = F9M3UZ669L;
 				ENABLE_PREVIEWS = YES;
@@ -670,7 +670,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5;
+				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = me.tianshilei.fuelio;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
